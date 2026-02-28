@@ -12,9 +12,10 @@ interface MemberListTabsProps {
   onListTabClick: () => void;
   currentUser: User;
   onSelectOwnTab: () => void;
+  isDarkMode?: boolean;
 }
 
-const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selectedMember, onSelectMember, onListTabClick, currentUser, onSelectOwnTab }) => {
+const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selectedMember, onSelectMember, onListTabClick, currentUser, onSelectOwnTab, isDarkMode = false }) => {
   const userMap = new Map(users.map(u => [u.name, u]));
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const selectedMemberTabRef = useRef<HTMLButtonElement>(null);
@@ -29,7 +30,6 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
     .sort((a, b) => {
         const dateA = a.commentUpdatedAt ? new Date(a.commentUpdatedAt) : new Date(0);
         const dateB = b.commentUpdatedAt ? new Date(b.commentUpdatedAt) : new Date(0);
-        // FIX: Changed a.getTime() to dateA.getTime() to correctly sort by comment update timestamp.
         return dateB.getTime() - dateA.getTime();
     });
 
@@ -39,8 +39,8 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
     if (targetButtonRef.current) {
         const rect = targetButtonRef.current.getBoundingClientRect();
         
-        const popupWidth = 320; // w-80
-        const popupHeight = 400; // estimated max-h-[50vh]
+        const popupWidth = 320;
+        const popupHeight = 400;
         let top = rect.bottom + 8;
         let left = rect.left;
 
@@ -74,7 +74,6 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
     }
   }, [selectedMember]);
 
-  // マウスホイールで横スクロール
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -127,10 +126,9 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
     return `${month}/${day} ${hours}:${minutes}`;
   };
 
-
   return (
     <>
-      <div className="mb-4 border-b border-slate-200/70" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(1,147,190,0.03) 100%)' }}>
+      <div className={`mb-4 border-b ${isDarkMode ? 'border-white/10' : 'border-slate-200/70'}`} style={{ background: isDarkMode ? 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(1,147,190,0.05) 100%)' : 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(1,147,190,0.03) 100%)' }}>
         <nav ref={scrollContainerRef} className="-mb-px flex space-x-1 overflow-x-auto pb-0" aria-label="Tabs">
           {members.map((member) => {
             const isListTab = member === '全体';
@@ -156,10 +154,10 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be]
                   ${
                     isSelected
-                      ? 'border-[#0193be] text-[#0193be] bg-white shadow-sm'
-                      : 'border-transparent text-[#0193be]/60 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/70'
+                      ? `border-[#0193be] text-[#0193be] ${isDarkMode ? 'bg-[#0193be]/10' : 'bg-white'} shadow-sm`
+                      : `border-transparent ${isDarkMode ? 'text-[#0193be]/50 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/5' : 'text-[#0193be]/60 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/70'}`
                   }
-                  ${isListTab ? 'sticky left-0 z-10 bg-white' : ''}
+                  ${isListTab ? `sticky left-0 z-10 ${isDarkMode ? 'bg-[#1a1f2e]' : 'bg-white'}` : ''}
                 `}
                 aria-current={isSelected ? 'page' : undefined}
               >
@@ -167,26 +165,26 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                   <div className={`
                       relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full 
                       transition-all duration-200
-                      ${isSelected ? 'ring-2 ring-[#0193be] ring-offset-1' : 'ring-1 ring-slate-300 group-hover:ring-[#0193be]/50'}
+                      ${isSelected ? 'ring-2 ring-[#0193be] ring-offset-1' : `ring-1 ${isDarkMode ? 'ring-slate-600 group-hover:ring-[#0193be]/50' : 'ring-slate-300 group-hover:ring-[#0193be]/50'}`}
                     `}>
                       {isListTab ? (
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-[#0193be]/60">
+                        <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} text-[#0193be]/60`}>
                           <ListBulletIcon className="h-7 w-7" />
                         </div>
                       ) : isPrecheckerTab ? (
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-[#0193be]/60">
+                        <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} text-[#0193be]/60`}>
                           <CircleIcon className="h-7 w-7" />
                         </div>
                       ) : user?.profilePicture ? (
                         <img src={user.profilePicture} alt={user.name} className="h-full w-full rounded-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-slate-400">
+                        <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700 text-slate-500' : 'bg-slate-200 text-slate-400'}`}>
                           <UserIcon className="h-7 w-7" />
                         </div>
                       )}
                       {!isListTab && !isPrecheckerTab && user && (
                         <span
-                          className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[user.availabilityStatus].bg}`}
+                          className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-2 ${isDarkMode ? 'ring-[#1a1f2e]' : 'ring-white'} ${AVAILABILITY_STATUS_STYLES[user.availabilityStatus].bg}`}
                           title={`稼働状況: ${user.availabilityStatus}`}
                         />
                       )}
@@ -198,7 +196,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                       {commentedUsers.length > 0 && (
                           <button
                               onClick={handleCommentIconClick}
-                              className="p-0.5 -m-0.5 rounded-full hover:bg-slate-200 transition"
+                              className={`p-0.5 -m-0.5 rounded-full ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-200'} transition`}
                               aria-label="コメント一覧を表示"
                           >
                               <SpeechBubbleIcon className="w-4 h-4 text-[#0193be]/80 group-hover:text-[#0193be]" />
@@ -239,7 +237,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                                   }
                                   setIsCommentPopupOpen(false);
                                 }}
-                                className="w-full text-left p-2 rounded-md bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0193be]"
+                                className={`w-full text-left p-2 rounded-md ${isDarkMode ? 'bg-white/10 border border-white/20 hover:bg-white/20' : 'bg-slate-100 border border-slate-200 hover:bg-slate-200'} transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0193be]`}
                               >
                                 <div className="flex items-center gap-3 mb-1.5">
                                     <div className="relative w-8 h-8 flex-shrink-0">
@@ -256,15 +254,15 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                                         />
                                     </div>
                                     <div className="flex-grow flex justify-between items-center">
-                                        <span className="font-semibold text-sm text-[#0193be]">{user.name}</span>
+                                        <span className="font-semibold text-sm text-white">{user.name}</span>
                                         {user.commentUpdatedAt && (
-                                          <span className="text-xs text-[#0193be]/80 whitespace-nowrap ml-2">
+                                          <span className="text-xs text-white/80 whitespace-nowrap ml-2">
                                             {formatRelativeTime(user.commentUpdatedAt)}
                                           </span>
                                         )}
                                     </div>
                                 </div>
-                                <p className="text-sm text-[#0193be] bg-white p-2 rounded border border-slate-200">{user.comment}</p>
+                                <p className={`text-sm ${isDarkMode ? 'text-white/90 bg-white/10 border border-white/20' : 'text-[#0193be] bg-white border border-slate-200'} p-2 rounded`}>{user.comment}</p>
                               </button>
                           </li>
                       ))}

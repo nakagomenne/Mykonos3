@@ -19,6 +19,7 @@ interface CallListItemProps {
   isPrecheckTheme?: boolean;
   currentUser: User;
   isDuplicate: boolean;
+  isDarkMode?: boolean;
 }
 
 type EditableField = 'dateTime' | 'listType' | 'notes' | 'assignee' | 'requester';
@@ -27,7 +28,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember, isHighlighted, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember, isHighlighted, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -268,7 +269,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
       ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
       : isCompleted
       ? ''  // completed style is set via liStyle (gradient)
-      : `bg-white ${mainTextClass} card-shadow-hover`,
+      : `${isDarkMode ? 'bg-[#1e2535]' : 'bg-white'} ${mainTextClass} card-shadow-hover`,
   ].filter(Boolean).join(' ');
 
   const handleEditClick = (e: React.MouseEvent, field: EditableField) => {

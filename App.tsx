@@ -131,6 +131,21 @@ const App: React.FC = () => {
   });
   const [isNotificationSettingsModalOpen, setIsNotificationSettingsModalOpen] = useState(false);
   const [duplicateCustomerIds, setDuplicateCustomerIds] = useState<Set<string>>(new Set());
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('mykonosDarkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // ダークモード: html要素への class 付与
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDarkMode) {
+      html.classList.add('dark');
+    } else {
+      html.classList.remove('dark');
+    }
+    localStorage.setItem('mykonosDarkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
 
 
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -1147,7 +1162,7 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7]">
+      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7] dark:bg-[#0f1117]">
         <div className="text-center">
           <h1 className="text-5xl font-bold font-inconsolata text-[#0193be] mb-4">Mykonos</h1>
           <div className="flex justify-center gap-2">
@@ -1163,7 +1178,7 @@ const App: React.FC = () => {
 
   if (loadError) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7]">
+      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7] dark:bg-[#0f1117]">
         <div className="text-center max-w-md px-6">
           <h1 className="text-5xl font-bold font-inconsolata text-[#0193be] mb-4">Mykonos</h1>
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -1195,38 +1210,38 @@ const App: React.FC = () => {
   const isPrecheckContext = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
   const isPrecheckTheme = viewMode === 'precheck';
 
-  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : 'bg-white/95 backdrop-blur-md border-b border-slate-200/80';
-  const headerTextClass = isDarkHeader ? 'text-white' : 'text-[#0193be]';
+  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : (isDarkMode ? 'bg-[#161b27] border-b border-white/10' : 'bg-white/95 backdrop-blur-md border-b border-slate-200/80');
+  const headerTextClass = isDarkHeader ? 'text-white' : (isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]');
   
-  const searchIconClass = isDarkHeader ? 'text-white/80 hover:text-white' : 'text-[#0193be]/60 hover:text-[#0193be]';
+  const searchIconClass = isDarkHeader ? 'text-white/80 hover:text-white' : (isDarkMode ? 'text-[#0193be]/70 hover:text-[#0193be]' : 'text-[#0193be]/60 hover:text-[#0193be]');
   
   const adminButtonClass = isDarkHeader
     ? 'text-white/80 hover:bg-white/15 hover:text-white rounded-lg'
-    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg';
+    : (isDarkMode ? 'text-slate-400 hover:bg-slate-700 hover:text-slate-200 rounded-lg' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg');
 
   const userMenuButtonClass = isDarkHeader
     ? 'text-white hover:bg-white/15 rounded-lg'
-    : 'text-[#0193be] hover:bg-slate-100 rounded-lg';
+    : (isDarkMode ? 'text-[#0193be] hover:bg-slate-700 rounded-lg' : 'text-[#0193be] hover:bg-slate-100 rounded-lg');
 
-  const userMenuAvatarBgClass = isDarkHeader ? 'bg-white/25' : 'bg-slate-100';
+  const userMenuAvatarBgClass = isDarkHeader ? 'bg-white/25' : (isDarkMode ? 'bg-slate-700' : 'bg-slate-100');
 
   const footerClasses = isPrecheckModeActive 
     ? 'header-gradient-teal text-white border-white/20' 
     : isMineModeActive 
     ? 'header-gradient-blue text-white border-white/20' 
-    : 'bg-white/95 backdrop-blur-md text-[#0193be]/80 border-slate-200';
+    : (isDarkMode ? 'bg-[#161b27] text-[#0193be]/80 border-white/10' : 'bg-white/95 backdrop-blur-md text-[#0193be]/80 border-slate-200');
   
   const contentContainerClasses = currentUser.isLinePrechecker
-    ? `bg-white/95 backdrop-blur-sm shadow-md border-x border-b border-slate-200/80 rounded-b-xl ${
+    ? `${isDarkMode ? 'bg-[#1a1f2e] border-white/8' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
         viewMode === 'mine' ? 'rounded-tr-xl' : (viewMode === 'others' ? 'rounded-tl-xl' : '')
       }`
-    : `bg-white/95 backdrop-blur-sm shadow-md border-x border-b border-slate-200/80 rounded-b-xl ${
+    : `${isDarkMode ? 'bg-[#1a1f2e]' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
         viewMode === 'mine' ? 'rounded-tr-xl' : 'rounded-tl-xl'
       }`;
 
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: 'linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%)' }}>
+    <div className="min-h-screen font-sans" style={{ background: isDarkMode ? 'linear-gradient(160deg, #0f1117 0%, #131825 50%, #111827 100%)' : 'linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%)' }}>
       <header className={`sticky top-0 z-20 transition-all duration-300 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
         style={isDarkHeader ? { boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.1)' } : undefined}
       >
@@ -1268,7 +1283,7 @@ const App: React.FC = () => {
                   }}
                   onFocus={() => setIsSearchFocused(true)}
                   placeholder="顧客ID or メンバー名で検索..."
-                  className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition text-[#0193be]"
+                  className={`w-full pl-4 pr-10 py-2 border ${isDarkMode && !isDarkHeader ? 'border-slate-600 bg-[#1e2535] text-[#0193be] placeholder-slate-500' : 'border-slate-300 text-[#0193be]'} rounded-lg shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition`}
                 />
                 <button 
                   onClick={handleSearch} 
@@ -1278,7 +1293,7 @@ const App: React.FC = () => {
                   <MagnifyingGlassIcon className="w-5 h-5" />
                 </button>
                 {isSearchFocused && searchResultsList.length > 0 && (
-                  <ul className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-200 max-h-80 overflow-auto">
+                  <ul className={`absolute z-30 mt-1 w-full ${isDarkMode ? 'bg-[#1a2035] border-slate-700' : 'bg-white border-slate-200'} rounded-xl shadow-xl border max-h-80 overflow-auto`}>
                     {searchResultsList.map((item, index) => {
                       const extItem = item as SearchResultItem & { _count?: number; _assignee?: string };
                       const isHighlighted = index === searchSuggestIndex;
@@ -1289,8 +1304,8 @@ const App: React.FC = () => {
                             onMouseEnter={() => setSearchSuggestIndex(index)}
                             onClick={() => handleSearchResultClick(item)}
                             className={`w-full text-left px-4 py-2.5 transition flex items-center gap-3 ${
-                              isHighlighted ? 'bg-[#0193be]/10' : 'hover:bg-slate-50'
-                            } ${index === 0 ? 'rounded-t-xl' : ''} ${index === searchResultsList.length - 1 ? 'rounded-b-xl' : 'border-b border-slate-100'}`}
+                              isHighlighted ? 'bg-[#0193be]/10' : (isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50')
+                            } ${index === 0 ? 'rounded-t-xl' : ''} ${index === searchResultsList.length - 1 ? 'rounded-b-xl' : `border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}`}
                           >
                             {item.type === 'customer' ? (
                               <>
@@ -1386,11 +1401,11 @@ const App: React.FC = () => {
               </button>
               {isUserMenuOpen && (
                   <div 
-                    className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-30"
+                    className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-white/10 focus:outline-none z-30"
                     role="menu" aria-orientation="vertical"
                   >
                       <div className="py-1" role="none">
-                          <div className="px-4 pt-2 pb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">稼働ステータス</div>
+                          <div className="px-4 pt-2 pb-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">稼働ステータス</div>
                           {AVAILABILITY_STATUS_OPTIONS.map(status => {
                               const statusStyles = AVAILABILITY_STATUS_STYLES[status];
                               const isCurrent = currentUserWithData?.availabilityStatus === status;
@@ -1401,7 +1416,7 @@ const App: React.FC = () => {
                                           handleUpdateUserStatus(currentUser.name, status);
                                           setIsUserMenuOpen(false);
                                       }}
-                                      className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                                      className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                                       role="menuitem"
                                   >
                                       <div className="flex items-center gap-3">
@@ -1413,17 +1428,17 @@ const App: React.FC = () => {
                               );
                           })}
                       </div>
-                      <div className="border-t border-slate-100 my-1" />
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
                           <button
                             onClick={() => {
                               setIsScheduleModalOpen(true);
                               setIsUserMenuOpen(false);
                             }}
-                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                             role="menuitem"
                           >
-                            <CalendarIcon className="w-5 h-5 text-slate-500" />
+                            <CalendarIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                             <span>スケジュール設定</span>
                           </button>
                           <button
@@ -1431,28 +1446,55 @@ const App: React.FC = () => {
                               setIsPasswordModalOpen(true);
                               setIsUserMenuOpen(false);
                             }}
-                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                             role="menuitem"
                           >
-                            <KeyIcon className="w-5 h-5 text-slate-500" />
+                            <KeyIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                             <span>パスワード設定</span>
                           </button>
                       </div>
-                      <div className="border-t border-slate-100 my-1" />
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
                         <button
                           onClick={() => {
                             setIsCommentModalOpen(true);
                             setIsUserMenuOpen(false);
                           }}
-                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                           role="menuitem"
                         >
-                          <PencilIcon className="w-5 h-5 text-slate-500" />
+                          <PencilIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                           <span>コメント設定</span>
                         </button>
                       </div>
-                      <div className="border-t border-slate-100 my-1" />
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
+                      <div className="py-1" role="none">
+                          {/* ダークモードトグル */}
+                          <button
+                              type="button"
+                              onClick={() => setIsDarkMode(prev => !prev)}
+                              className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                              role="menuitem"
+                          >
+                              <div className="flex items-center gap-3">
+                                  {isDarkMode ? (
+                                      <svg className="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                                          <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+                                      </svg>
+                                  ) : (
+                                      <svg className="w-5 h-5 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                                          <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+                                      </svg>
+                                  )}
+                                  <span>{isDarkMode ? 'ライトモード' : 'ダークモード'}</span>
+                              </div>
+                              {/* トグルスイッチ */}
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${isDarkMode ? 'bg-[#0193be]' : 'bg-slate-300'}`}>
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${isDarkMode ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                              </div>
+                          </button>
+                      </div>
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
                           <button
                               type="button"
@@ -1460,10 +1502,10 @@ const App: React.FC = () => {
                                 setIsNotificationSettingsModalOpen(true);
                                 setIsUserMenuOpen(false);
                               }}
-                              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                               role="menuitem"
                           >
-                              <BellIcon className="w-5 h-5 text-slate-500" />
+                              <BellIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                               <span>通知設定</span>
                               {/* 有効中インジケーター */}
                               {(notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify) && (
@@ -1471,17 +1513,17 @@ const App: React.FC = () => {
                               )}
                           </button>
                       </div>
-                      <div className="border-t border-slate-100 my-1" />
+                      <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
                           <button
                               onClick={() => {
                                   handleLogout();
                                   setIsUserMenuOpen(false);
                               }}
-                              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
                               role="menuitem"
                           >
-                              <ArrowRightStartOnRectangleIcon className="w-5 h-5 text-slate-500" />
+                              <ArrowRightStartOnRectangleIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                               <span>ログアウト</span>
                           </button>
                       </div>
@@ -1516,7 +1558,7 @@ const App: React.FC = () => {
           </div>
         )}
         <div>
-          <nav className="border-b-2 border-slate-200/80" style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: '12px 12px 0 0' }}>
+          <nav className={`border-b-2 ${isDarkMode ? 'border-white/10' : 'border-slate-200/80'}`} style={{ background: isDarkMode ? 'rgba(22, 27, 39, 0.95)' : 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: '12px 12px 0 0' }}>
             {currentUser.isLinePrechecker ? (
               <div className="grid grid-cols-3" role="tablist">
                   {/* 自分タブ */}
@@ -1529,7 +1571,7 @@ const App: React.FC = () => {
                     className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
                             ? 'text-[#0193be]'
-                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
@@ -1555,7 +1597,7 @@ const App: React.FC = () => {
                     className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
                         viewMode === 'precheck'
                             ? 'text-[#118f82]'
-                            : 'text-slate-400 hover:text-[#118f82] hover:bg-white/60'
+                            : `text-slate-400 hover:text-[#118f82] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
@@ -1580,7 +1622,7 @@ const App: React.FC = () => {
                     className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
                             ? 'text-[#0193be]'
-                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <UsersGroupIcon className={`h-6 w-auto transition-transform duration-200 ${viewMode === 'others' ? 'scale-110' : ''}`} />
@@ -1600,7 +1642,7 @@ const App: React.FC = () => {
                     className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
                             ? 'text-[#0193be]'
-                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
@@ -1625,7 +1667,7 @@ const App: React.FC = () => {
                     className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
                             ? 'text-[#0193be]'
-                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <UsersGroupIcon className={`h-6 w-auto transition-transform duration-200 ${viewMode === 'others' ? 'scale-110' : ''}`} />
@@ -1647,6 +1689,7 @@ const App: React.FC = () => {
                     onListTabClick={handleListTabClick}
                     currentUser={currentUser}
                     onSelectOwnTab={() => handleViewModeChange('mine')}
+                    isDarkMode={isDarkMode}
                   />
                 )}
 
@@ -1680,7 +1723,7 @@ const App: React.FC = () => {
                                       )}
                                   </button>
                                   {isStatusDropdownOpen && (
-                                      <div className="absolute top-full mt-2 left-0 w-48 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-30 animate-wipe-in-down">
+                                      <div className={`absolute top-full mt-2 left-0 w-48 origin-top-left rounded-md ${isDarkMode ? 'bg-[#1e2535] ring-white/10' : 'bg-white ring-black ring-opacity-5'} shadow-lg ring-1 focus:outline-none z-30 animate-wipe-in-down`}>
                                           <div className="py-1" role="menu" aria-orientation="vertical">
                                               {AVAILABILITY_STATUS_OPTIONS.map(status => {
                                                   const statusStyles = AVAILABILITY_STATUS_STYLES[status];
@@ -1691,7 +1734,7 @@ const App: React.FC = () => {
                                                               handleUpdateUserStatus(currentUser.name, status);
                                                               setIsStatusDropdownOpen(false);
                                                           }}
-                                                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                                                          className={`flex items-center gap-3 w-full px-4 py-2 text-sm ${isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'} transition-colors`}
                                                           role="menuitem"
                                                       >
                                                           <span className={`h-3 w-3 rounded-full ${statusStyles.bg}`}></span>
@@ -1836,7 +1879,7 @@ const App: React.FC = () => {
                 </div>
                 
                 {(viewMode !== 'others' || selectedMember !== '全体') && (
-                  <div className="mb-4 bg-white rounded-lg shadow-sm border border-slate-200">
+                  <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                     <button
                       onClick={() => {
                         setIsFormVisible(prev => {
@@ -1849,7 +1892,7 @@ const App: React.FC = () => {
                       className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-200 ${
                         isFormVisible
                           ? `${isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
-                          : `${isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg hover:bg-slate-50`
+                          : `${isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
                       }`}
                       aria-expanded={isFormVisible}
                       aria-controls="new-request-form"
@@ -1865,7 +1908,7 @@ const App: React.FC = () => {
                       className={`grid transition-all duration-500 ease-in-out ${isFormVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
                     >
                       <div className="overflow-hidden">
-                        <div className="p-4 border-t border-slate-200">
+                        <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
                           <CallRequestForm
                             onAddCall={handleAddCall}
                             defaultAssignee={defaultAssigneeForForm()}
@@ -1886,13 +1929,13 @@ const App: React.FC = () => {
                 
                 {viewMode === 'others' && selectedMember === '全体' && (
                   <>
-                    <div className="mb-4 bg-white rounded-lg shadow-sm border border-slate-200">
+                    <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                       <button
                         onClick={() => setIsShiftCalendarVisible(prev => !prev)}
                         className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-200 ${
                           isShiftCalendarVisible
                             ? `bg-[#0193be] text-white rounded-t-lg`
-                            : `text-[#0193be] rounded-lg hover:bg-slate-50`
+                            : `text-[#0193be] rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
                         }`}
                         aria-expanded={isShiftCalendarVisible}
                         aria-controls="shift-calendar-form"
@@ -1908,7 +1951,7 @@ const App: React.FC = () => {
                         className={`grid transition-all duration-500 ease-in-out ${isShiftCalendarVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
                       >
                         <div className="overflow-hidden">
-                          <div className="p-4 border-t border-slate-200">
+                          <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
                             <ShiftCalendar 
                               users={users}
                               onSelectMemberWithDate={handleSelectMemberFromCalendar}
@@ -1918,7 +1961,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="mb-4 bg-white rounded-lg shadow-sm border border-slate-200">
+                    <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                       <button
                         onClick={() => {
                           setIsFormVisible(prev => {
@@ -1931,7 +1974,7 @@ const App: React.FC = () => {
                         className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-200 ${
                           isFormVisible
                             ? `bg-[#0193be] text-white rounded-t-lg`
-                            : `text-[#0193be] rounded-lg hover:bg-slate-50`
+                            : `text-[#0193be] rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
                         }`}
                         aria-expanded={isFormVisible}
                       >
@@ -1943,7 +1986,7 @@ const App: React.FC = () => {
                       </button>
                        <div className={`grid transition-all duration-500 ease-in-out ${isFormVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                         <div className="overflow-hidden">
-                          <div className="p-4 border-t border-slate-200">
+                          <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
                              <CallRequestForm
                               onAddCall={handleAddCall}
                               currentUser={currentUser.name}
@@ -2047,13 +2090,14 @@ const App: React.FC = () => {
                               users={users}
                               currentUser={currentUser}
                               duplicateCustomerIds={duplicateCustomerIds}
+                              isDarkMode={isDarkMode}
                             />
                           </>
                         );
                       })()
                     ) : (
                       <div className="text-center py-20 px-6">
-                        <h2 className={`text-8xl font-bold font-inconsolata select-none transition-colors duration-500 ${isFormVisible || isShiftCalendarVisible ? 'text-[#0193be]' : 'text-slate-300'}`}>Mykonos</h2>
+                        <h2 className={`text-8xl font-bold font-inconsolata select-none transition-colors duration-500 ${isFormVisible || isShiftCalendarVisible ? 'text-[#0193be]' : (isDarkMode ? 'text-slate-600' : 'text-slate-300')}`}>Mykonos</h2>
                       </div>
                     )}
                   </div>
@@ -2069,6 +2113,7 @@ const App: React.FC = () => {
                     isPrecheckTheme={isPrecheckTheme}
                     currentUser={currentUser}
                     duplicateCustomerIds={duplicateCustomerIds}
+                    isDarkMode={isDarkMode}
                   />
                 )}
             </div>
