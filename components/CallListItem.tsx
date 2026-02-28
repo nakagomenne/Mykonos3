@@ -121,12 +121,12 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           }
           // Rule 3: Within one hour from now
           else if (isWithinAnHour) {
-              finalLiStyle = { backgroundColor: '#ffe7e7' };
+              finalLiStyle = { backgroundColor: '#ffc8c8' };
           }
           // Rule 4: Today's non-urgent/non-overdue calls
           else {
               finalLiStyle = { backgroundColor: '#ffffff' };
-              finalDateTimeStyle = { backgroundColor: '#ffe7e7' };
+              finalDateTimeStyle = { backgroundColor: '#ffc8c8' };
           }
       }
     }
