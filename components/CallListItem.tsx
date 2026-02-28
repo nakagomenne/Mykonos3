@@ -496,7 +496,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           <div className={`w-16 flex-shrink-0 text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
             {showAbsenceCount ? (
               <div className="flex items-center justify-center gap-0.5">
-                {/* ☎ボタン：見込→留守登録 or 留守→+1 */}
+                {/* ☎ボタン：+1 */}
                 <button
                   onClick={handleAbsenceCountIncrement}
                   disabled={isFieldDisabled}
@@ -505,8 +505,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 >
                   <PhoneMissedIcon className="w-3.5 h-3.5" />
                 </button>
-                {/* 回数カスタムドロップダウン（見込留守の場合のみ） */}
-                {isAbsenteeRank && (
+                {/* 回数カスタムドロップダウン（見込留守 or 回線前確タブ） */}
+                {(isAbsenteeRank || isPrecheckTheme) && (
                   <div className="relative">
                     <button
                       ref={absenceButtonRef}
@@ -533,7 +533,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                             key={opt.label}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (!opt.value && absenteeToMikomRanks[call.rank]) {
+                              // 見込留守の「-」のみランク戻し。回線前確は回数リセットのみ
+                              if (!opt.value && isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
                                 onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
                               } else {
                                 onUpdateCall(call.id, { absenceCount: opt.value });
