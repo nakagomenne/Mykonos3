@@ -402,7 +402,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
               {isCopied ? (
                   <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
               ) : (
-                  <button onClick={handleCopy} className="p-1 text-current/60 rounded hover:bg-slate-300/50 hover:text-current/80 transition duration-200 flex-shrink-0" title="顧客IDをコピー">
+                  <button onClick={handleCopy} className="p-1 text-current/60 rounded hover:bg-slate-300/50 hover:text-current/80 transition duration-400 flex-shrink-0" title="顧客IDをコピー">
                       <ClipboardDocumentIcon className="w-4 h-4" />
                   </button>
               )}
@@ -491,7 +491,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                             color: style.color,
                             border: style.border || '1px solid transparent',
                           }}
-                          className="w-full text-center px-2 py-1 text-xs font-bold rounded-md transition-transform duration-150 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 ring-blue-400"
+                          className="w-full text-center px-2 py-1 text-xs font-bold rounded-md transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 ring-blue-400"
                         >
                           {opt}
                         </button>
@@ -667,7 +667,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       setIsEditing((prev) => !prev);
                   }}
                   disabled={isCompleted}
-                  className="p-1.5 text-current/60 rounded-full hover:enabled:bg-slate-200/60 hover:text-current/80 transition duration-200 disabled:cursor-not-allowed"
+                  className="p-1.5 text-current/60 rounded-full hover:enabled:bg-slate-200/60 hover:text-current/80 transition duration-400 disabled:cursor-not-allowed"
                   title="この依頼を編集する"
               >
                   <PencilIcon className="w-5 h-5" />
@@ -675,7 +675,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           </div>
       </div>
 
-      <div className={`grid transition-all duration-500 ease-in-out ${isEditing ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+      <div className={`grid transition-all duration-700 ease-in-out ${isEditing ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
           <div className="overflow-hidden">
               <div className="px-4 pb-3 pt-2 border-t border-slate-300/70 bg-slate-100/50">
                   <CallEditForm 

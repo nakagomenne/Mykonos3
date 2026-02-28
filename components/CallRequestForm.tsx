@@ -376,7 +376,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                 }
 
                 const buttonClasses = [
-                    `w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 ${mainRingClass}`,
+                    `w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-400 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 ${mainRingClass}`,
                     daySpecificClasses,
                 ].filter(Boolean).join(' ');
 
@@ -535,11 +535,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
           <button 
             type="button" 
             onClick={resetForm}
-            className={`font-bold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 transition duration-300 ease-in-out ${darkClearBtn}`}
+            className={`font-bold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 transition duration-500 ease-in-out ${darkClearBtn}`}
           >
             クリア
           </button>
-          <button type="submit" className={`${mainBgClass} text-white font-bold py-2 px-6 rounded-lg ${mainHoverBgClass} focus:outline-none focus:ring-2 focus:ring-offset-2 ${mainRingClass} transition duration-300 ease-in-out`}>
+          <button type="submit" className={`${mainBgClass} text-white font-bold py-2 px-6 rounded-lg ${mainHoverBgClass} focus:outline-none focus:ring-2 focus:ring-offset-2 ${mainRingClass} transition duration-500 ease-in-out`}>
             依頼を作成
           </button>
         </div>

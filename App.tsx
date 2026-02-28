@@ -1242,7 +1242,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen font-sans" style={{ background: isDarkMode ? 'linear-gradient(160deg, #0f1117 0%, #131825 50%, #111827 100%)' : 'linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%)' }}>
-      <header className={`sticky top-0 z-20 transition-all duration-300 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
+      <header className={`sticky top-0 z-20 transition-all duration-700 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
         style={isDarkHeader ? { boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.1)' } : undefined}
       >
         {/* ヘッダー内のグロー装飾 */}
@@ -1253,8 +1253,8 @@ const App: React.FC = () => {
         )}
         <div className="relative px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
           <div className="flex-shrink-0 flex items-end gap-2">
-            <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-300 ${headerTextClass}`}>Mykonos</h1>
-            <span className={`text-xs font-inconsolata transition-colors duration-300 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
+            <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-700 ${headerTextClass}`}>Mykonos</h1>
+            <span className={`text-xs font-inconsolata transition-colors duration-700 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -1354,7 +1354,7 @@ const App: React.FC = () => {
               <div className="relative">
                 <button
                     onClick={() => setIsAdminMenuOpen(true)}
-                    className={`p-2 rounded-full transition-colors duration-200 ${adminButtonClass}`}
+                    className={`p-2 rounded-full transition-colors duration-700 ${adminButtonClass}`}
                     title={currentUser.isSuperAdmin ? 'SA用メニュー' : '管理者用メニュー'}
                 >
                     {currentUser.isSuperAdmin ? (
@@ -1373,7 +1373,7 @@ const App: React.FC = () => {
             <div className="relative" ref={userMenuRef}>
               <button 
                   onClick={() => setIsUserMenuOpen(prev => !prev)}
-                  className={`flex items-center gap-2 text-sm p-1 rounded-full transition-colors duration-300 ${userMenuButtonClass}`}
+                  className={`flex items-center gap-2 text-sm p-1 rounded-full transition-colors duration-700 ${userMenuButtonClass}`}
                   aria-expanded={isUserMenuOpen}
                   aria-haspopup="true"
               >
@@ -1489,8 +1489,8 @@ const App: React.FC = () => {
                                   <span>{isDarkMode ? 'ライトモード' : 'ダークモード'}</span>
                               </div>
                               {/* トグルスイッチ */}
-                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 ${isDarkMode ? 'bg-[#0193be]' : 'bg-slate-300'}`}>
-                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${isDarkMode ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+                              <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-700 ${isDarkMode ? 'bg-[#0193be]' : 'bg-slate-300'}`}>
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-400 ${isDarkMode ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
                               </div>
                           </button>
                       </div>
@@ -1568,14 +1568,14 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
                     onClick={() => handleViewModeChange('mine')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
                             ? 'text-[#0193be]'
                             : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
-                      <UserIcon className={`w-6 h-6 transition-transform duration-200 ${viewMode === 'mine' ? 'scale-110' : ''}`} />
+                      <UserIcon className={`w-6 h-6 transition-transform duration-400 ${viewMode === 'mine' ? 'scale-110' : ''}`} />
                       {unreadCountForMineTab > 0 && (
                         <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                           {unreadCountForMineTab}
@@ -1583,7 +1583,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     {/* アンダーバー */}
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-200 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0'}`}
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-700 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
 
@@ -1594,21 +1594,21 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'precheck'}
                     title="回線前確"
                     onClick={() => handleViewModeChange('precheck')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
                         viewMode === 'precheck'
                             ? 'text-[#118f82]'
                             : `text-slate-400 hover:text-[#118f82] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
-                      <CircleIcon className={`w-6 h-6 transition-transform duration-200 ${viewMode === 'precheck' ? 'scale-110' : ''}`} />
+                      <CircleIcon className={`w-6 h-6 transition-transform duration-400 ${viewMode === 'precheck' ? 'scale-110' : ''}`} />
                       {unreadCountForPrecheckTab > 0 && (
                         <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                           {unreadCountForPrecheckTab}
                         </span>
                       )}
                     </div>
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-200 ${viewMode === 'precheck' ? 'opacity-100' : 'opacity-0'}`}
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-700 ${viewMode === 'precheck' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #118f82, #0d7a6f)' }} />
                   </button>
 
@@ -1619,14 +1619,14 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
                     onClick={() => handleViewModeChange('others')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
                             ? 'text-[#0193be]'
                             : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
-                    <UsersGroupIcon className={`h-6 w-auto transition-transform duration-200 ${viewMode === 'others' ? 'scale-110' : ''}`} />
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-200 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0'}`}
+                    <UsersGroupIcon className={`h-6 w-auto transition-transform duration-400 ${viewMode === 'others' ? 'scale-110' : ''}`} />
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-700 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
               </div>
@@ -1639,21 +1639,21 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
                     onClick={() => handleViewModeChange('mine')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
                             ? 'text-[#0193be]'
                             : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
-                      <UserIcon className={`w-6 h-6 transition-transform duration-200 ${viewMode === 'mine' ? 'scale-110' : ''}`} />
+                      <UserIcon className={`w-6 h-6 transition-transform duration-400 ${viewMode === 'mine' ? 'scale-110' : ''}`} />
                       {unreadCountForMineTab > 0 && (
                         <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white">
                           {unreadCountForMineTab}
                         </span>
                       )}
                     </div>
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-200 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0'}`}
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-700 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
 
@@ -1664,14 +1664,14 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
                     onClick={() => handleViewModeChange('others')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
                             ? 'text-[#0193be]'
                             : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
-                    <UsersGroupIcon className={`h-6 w-auto transition-transform duration-200 ${viewMode === 'others' ? 'scale-110' : ''}`} />
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-200 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0'}`}
+                    <UsersGroupIcon className={`h-6 w-auto transition-transform duration-400 ${viewMode === 'others' ? 'scale-110' : ''}`} />
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-700 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
               </div>
@@ -1702,7 +1702,7 @@ const App: React.FC = () => {
                               <div className="relative" ref={statusDropdownRef}>
                                   <button
                                       onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className={`relative w-24 h-24 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-300 ${
+                                      className={`relative w-24 h-24 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-700 ${
                                           {
                                               '受付可': 'ring-[#0193be]',
                                               '受付不可': 'ring-yellow-500',
@@ -1825,7 +1825,7 @@ const App: React.FC = () => {
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-300 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
+                                          className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-700 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
@@ -1889,7 +1889,7 @@ const App: React.FC = () => {
                           return !prev;
                         });
                       }}
-                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-200 ${
+                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-700 ${
                         isFormVisible
                           ? `${isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
                           : `${isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
@@ -1905,7 +1905,7 @@ const App: React.FC = () => {
                     </button>
                     <div
                       id="new-request-form"
-                      className={`grid transition-all duration-500 ease-in-out ${isFormVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                      className={`grid transition-all duration-700 ease-in-out ${isFormVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
                     >
                       <div className="overflow-hidden">
                         <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
@@ -1933,7 +1933,7 @@ const App: React.FC = () => {
                     <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                       <button
                         onClick={() => setIsShiftCalendarVisible(prev => !prev)}
-                        className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-200 ${
+                        className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-700 ${
                           isShiftCalendarVisible
                             ? `bg-[#0193be] text-white rounded-t-lg`
                             : `text-[#0193be] rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
@@ -1949,7 +1949,7 @@ const App: React.FC = () => {
                       </button>
                       <div
                         id="shift-calendar-form"
-                        className={`grid transition-all duration-500 ease-in-out ${isShiftCalendarVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                        className={`grid transition-all duration-700 ease-in-out ${isShiftCalendarVisible ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
                       >
                         <div className="overflow-hidden">
                           <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
@@ -1972,7 +1972,7 @@ const App: React.FC = () => {
                             return !prev;
                           });
                         }}
-                        className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-200 ${
+                        className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 focus:ring-[#0193be] transition-colors duration-700 ${
                           isFormVisible
                             ? `bg-[#0193be] text-white rounded-t-lg`
                             : `text-[#0193be] rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
@@ -1985,7 +1985,7 @@ const App: React.FC = () => {
                         </div>
                         {isFormVisible ? <ChevronUpIcon className="w-6 h-6" /> : <ChevronDownIcon className="w-6 h-6" />}
                       </button>
-                       <div className={`grid transition-all duration-500 ease-in-out ${isFormVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                       <div className={`grid transition-all duration-700 ease-in-out ${isFormVisible ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                         <div className="overflow-hidden">
                           <div className={`p-4 border-t ${isDarkMode ? 'border-white/10' : 'border-slate-200'}`}>
                              <CallRequestForm
@@ -2034,7 +2034,7 @@ const App: React.FC = () => {
                             <div className="mb-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-4 ml-4">
-                                  <div className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-300 ${ringColorClass}`}>
+                                  <div className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-700 ${ringColorClass}`}>
                                       {selectedUserDetails.profilePicture ? (
                                         <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-full h-full rounded-full object-cover" />
                                       ) : (
@@ -2099,7 +2099,7 @@ const App: React.FC = () => {
                       })()
                     ) : (
                       <div className="text-center py-20 px-6">
-                        <h2 className={`text-8xl font-bold font-inconsolata select-none transition-colors duration-500 ${isFormVisible || isShiftCalendarVisible ? 'text-[#0193be]' : (isDarkMode ? 'text-slate-600' : 'text-slate-300')}`}>Mykonos</h2>
+                        <h2 className={`text-8xl font-bold font-inconsolata select-none transition-colors duration-700 ${isFormVisible || isShiftCalendarVisible ? 'text-[#0193be]' : (isDarkMode ? 'text-slate-600' : 'text-slate-300')}`}>Mykonos</h2>
                       </div>
                     )}
                   </div>
@@ -2123,7 +2123,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className={`px-4 sm:px-6 lg:px-8 py-3 text-center text-sm transition-colors duration-300 border-t border-b ${footerClasses}`}>
+      <footer className={`px-4 sm:px-6 lg:px-8 py-3 text-center text-sm transition-colors duration-700 border-t border-b ${footerClasses}`}>
         <p className="font-inconsolata">&copy; {new Date().getFullYear()} Mykonos. All rights reserved.</p>
       </footer>
       

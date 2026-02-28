@@ -80,7 +80,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             boxShadow: isHovered
               ? '0 12px 60px rgba(1,147,190,0.55), 0 4px 16px rgba(0,0,0,0.25), 0 0 0 1px rgba(1,170,216,0.3)'
               : '0 8px 48px rgba(1,147,190,0.22), 0 2px 10px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.5)',
-            transition: 'background 0.55s cubic-bezier(0.4,0,0.2,1), box-shadow 0.55s ease, border-color 0.55s ease',
+            transition: 'background 0.75s cubic-bezier(0.4,0,0.2,1), box-shadow 0.75s ease, border-color 0.75s ease',
           }}
         >
           {/* 内側グロー（ライト時のみ） */}
@@ -89,7 +89,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               background: isHovered
                 ? 'radial-gradient(ellipse at 50% 100%, rgba(1,47,69,0.4) 0%, transparent 60%)'
                 : 'radial-gradient(ellipse at 50% 0%, rgba(1,147,190,0.12) 0%, transparent 60%)',
-              transition: 'background 0.55s ease',
+              transition: 'background 0.75s ease',
             }}
             aria-hidden="true" />
 
@@ -101,7 +101,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               lineHeight: 1,
               color: isHovered ? '#ffffff' : '#0193be',
               textShadow: isHovered ? '0 2px 16px rgba(0,0,0,0.35)' : '0 2px 10px rgba(1,147,190,0.25)',
-              transition: 'color 0.4s ease, text-shadow 0.4s ease',
+              transition: 'color 0.6s ease, text-shadow 0.6s ease',
             }}>
             Mykonos
           </h1>
@@ -109,7 +109,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
             className="mt-1 mb-6 text-xs tracking-widest uppercase font-semibold"
             style={{
               color: isHovered ? 'rgba(255,255,255,0.65)' : 'rgba(1,147,190,0.6)',
-              transition: 'color 0.4s ease',
+              transition: 'color 0.6s ease',
             }}>
             ログインしてください
           </p>

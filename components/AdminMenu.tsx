@@ -449,7 +449,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const TabButton: React.FC<{tab: AdminTab, label: string, count?: number}> = ({ tab, label, count = 0 }) => (
         <button
             onClick={() => setActiveTab(tab)}
-            className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-t-md ${
+            className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-t-md ${
                 activeTab === tab ? 'border-[#0193be] text-[#0193be]' : 'border-transparent text-[#0193be]/80 hover:text-[#0193be] hover:border-slate-300'
             }`}
             role="tab"
@@ -470,7 +470,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     return createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-300 scale-95 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-600 scale-95 animate-fade-in-up" onClick={e => e.stopPropagation()}>
                 <input
                     type="file"
                     ref={fileInputRef}
@@ -546,7 +546,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                             return (
                                                 <li 
                                                     key={user.name} 
-                                                    className={`flex items-center justify-between p-2 rounded-md border transition-all duration-300 ${
+                                                    className={`flex items-center justify-between p-2 rounded-md border transition-all duration-600 ${
                                                         isMarkedForDeletion
                                                             ? 'bg-red-50 border-red-200 opacity-60'
                                                             : (isDraggingOver === user.name

@@ -150,7 +150,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                 className={`
                   group flex flex-col items-center justify-end gap-1.5 rounded-t-lg
                   border-b-[2.5px] px-3 pb-2 pt-1 font-medium text-sm
-                  min-w-[90px] transition-all duration-200 
+                  min-w-[90px] transition-all duration-500 
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be]
                   ${
                     isSelected
@@ -164,7 +164,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                 <div className="h-14 w-full flex flex-col justify-end items-center">
                   <div className={`
                       relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full 
-                      transition-all duration-200
+                      transition-all duration-500
                       ${isSelected ? 'ring-2 ring-[#0193be] ring-offset-1' : `ring-1 ${isDarkMode ? 'ring-slate-600 group-hover:ring-[#0193be]/50' : 'ring-slate-300 group-hover:ring-[#0193be]/50'}`}
                     `}>
                       {isListTab ? (
