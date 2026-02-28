@@ -107,6 +107,7 @@ const App: React.FC = () => {
   const [previewMember, setPreviewMember] = useState<string | null>(null);
   const [shouldAnimate, setShouldAnimate] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const [profilePopupUser, setProfilePopupUser] = useState<User | null>(null);
   const [prefilledRequestDate, setPrefilledRequestDate] = useState<string | null>(null);
   const [lastViewedTimestamps, setLastViewedTimestamps] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('mykonosLastViewedTimestamps');
@@ -1745,7 +1746,12 @@ const App: React.FC = () => {
                           return (
                               <div className="flex items-center justify-between gap-4">
                                   <div className="flex items-center gap-4 ml-4">
-                                      <div className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-300 ${ringColorClass}`}>
+                                      {/* アイコン：クリックでポップアップ拡大表示 */}
+                                      <button
+                                          onClick={() => setProfilePopupUser(selectedUserDetails)}
+                                          className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-300 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
+                                          title={`${selectedMember}さんのプロフィール画像を拡大`}
+                                      >
                                           {selectedUserDetails.profilePicture ? (
                                               <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-full h-full rounded-full object-cover" />
                                           ) : (
@@ -1753,7 +1759,7 @@ const App: React.FC = () => {
                                                   <UserIcon className={`w-16 h-16 ${statusTextColor}/80`} />
                                               </div>
                                           )}
-                                      </div>
+                                      </button>
                                       <div>
                                           {selectedUserDetails.comment && (
                                               <div className="mb-3">
@@ -2177,6 +2183,89 @@ const App: React.FC = () => {
             user={scheduleViewingUser}
             readOnly={true}
         />
+      )}
+
+      {/* プロフィール画像拡大ポップアップ */}
+      {profilePopupUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setProfilePopupUser(null)}
+        >
+          {/* オーバーレイ */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+          {/* コンテンツ */}
+          <div
+            className="relative flex flex-col items-center gap-5 animate-fade-in-up"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 閉じるボタン */}
+            <button
+              onClick={() => setProfilePopupUser(null)}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white/90 shadow-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-white transition"
+              aria-label="閉じる"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* 拡大画像 */}
+            {(() => {
+              const pu = profilePopupUser;
+              const ringHex: Record<string, string> = {
+                '受付可': '#0193be',
+                '受付不可': '#eab308',
+                '当日受付不可': '#ef4444',
+                '非稼働': '#64748b',
+              };
+              const color = ringHex[pu.availabilityStatus] ?? '#0193be';
+              return (
+                <>
+                  <div
+                    className="w-48 h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0"
+                    style={{ outline: `5px solid ${color}`, outlineOffset: '4px' }}
+                  >
+                    {pu.profilePicture ? (
+                      <img src={pu.profilePicture} alt={pu.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                        <UserIcon className="w-28 h-28 text-slate-400" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 名前 */}
+                  <p className="text-2xl font-bold text-white drop-shadow">{pu.name}</p>
+
+                  {/* コメント（設定されている場合のみ） */}
+                  {pu.comment && (
+                    <div
+                      className="relative px-5 py-3 rounded-xl shadow-lg max-w-xs text-center"
+                      style={{ backgroundColor: color }}
+                    >
+                      {/* 吹き出しの三角 */}
+                      <div
+                        className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0"
+                        style={{
+                          borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent',
+                          borderBottom: `8px solid ${color}`,
+                        }}
+                      />
+                      <p className="text-white font-semibold text-base leading-snug">{pu.comment}</p>
+                      {pu.commentUpdatedAt && (
+                        <p className="text-white/70 text-xs mt-1">{formatRelativeTime(pu.commentUpdatedAt)}</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
       )}
     </div>
   );
