@@ -60,8 +60,8 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
   return (
     <div className="bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
         {/* Header */}
-        <div className="px-4 py-2 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-            <div className="w-8 flex-shrink-0 flex justify-center">
+        <div className="px-2 py-1.5 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="w-6 flex-shrink-0 flex justify-center">
               {hasCompletedCalls && (
                   <button
                       onClick={() => setHideCompleted(prev => !prev)}
@@ -81,17 +81,17 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
                   </button>
               )}
             </div>
-            {isAllMembersView && <div className="w-28 flex-shrink-0 text-center">担当</div>}
-            <div className="w-36 flex-shrink-0 text-center">顧客ID</div>
-            <div className="w-28 flex-shrink-0 whitespace-nowrap text-center">日時</div>
-            {!isPrecheckTheme && <div className="w-16 flex-shrink-0 text-center">種別</div>}
-            <div className="w-32 flex-shrink-0 text-center">ランク</div>
-            <div className="w-20 flex-shrink-0 text-center">留守</div>
-            {isPrecheckTheme && <div className="w-20 flex-shrink-0 text-center">インポート</div>}
+            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当</div>}
+            <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
+            <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
+            {!isPrecheckTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
+            <div className="w-24 flex-shrink-0 text-center">ランク</div>
+            <div className="w-16 flex-shrink-0 text-center">留守</div>
+            {isPrecheckTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
             {!isPrecheckTheme && <div className="flex-1">備考</div>}
-            {isPrecheckTheme && <div className="w-28 flex-shrink-0 text-center">対応者</div>}
-            {showRequesterColumn && <div className="w-28 flex-shrink-0 text-center">依頼者</div>}
-            <div className="w-10 flex-shrink-0" aria-hidden="true" />
+            {isPrecheckTheme && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
+            {showRequesterColumn && <div className="w-20 flex-shrink-0 text-center">依頼者</div>}
+            <div className="w-8 flex-shrink-0" aria-hidden="true" />
         </div>
         {/* List */}
         <ul className="space-y-2 p-2 bg-slate-100">
