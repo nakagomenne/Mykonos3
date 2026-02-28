@@ -1283,7 +1283,7 @@ const App: React.FC = () => {
                   }}
                   onFocus={() => setIsSearchFocused(true)}
                   placeholder="顧客ID or メンバー名で検索..."
-                  className={`w-full pl-4 pr-10 py-2 border ${isDarkMode && !isDarkHeader ? 'border-slate-600 bg-[#1e2535] text-[#0193be] placeholder-slate-500' : 'border-slate-300 text-[#0193be]'} rounded-lg shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition`}
+                  className={`w-full pl-4 pr-10 py-2 border ${isDarkMode && !isDarkHeader ? 'border-slate-600 bg-[#0f1623] text-[#0193be] placeholder-slate-500' : 'border-slate-300 text-[#0193be]'} rounded-lg shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition`}
                 />
                 <button 
                   onClick={handleSearch} 
