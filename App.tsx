@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields } from './types';
 import CallList from './components/CallList';
@@ -14,6 +14,26 @@ import ConfirmationModal from './components/ConfirmationModal';
 import ShiftCalendar from './components/ShiftCalendar';
 import CommentModal from './components/CommentModal';
 import PasswordSettingsModal from './components/PasswordSettingsModal';
+import {
+  fetchCallRequests,
+  createCallRequest,
+  updateCallRequest as apiUpdateCallRequest,
+  deleteExpiredCompletedCalls,
+  createBulkCallRequests,
+  fetchUsers,
+  updateUser,
+  upsertUsers,
+  deleteUser as apiDeleteUser,
+  updateUserAvailabilityStatus,
+  updateUserPassword as apiUpdateUserPassword,
+  updateUserNonWorkingDays,
+  updateUserComment,
+  fetchAppSettings,
+  updateAppSetting,
+  subscribeToCallRequests,
+  subscribeToUsers,
+  subscribeToAppSettings,
+} from './services/apiService';
 
 interface SearchResultItem {
   type: 'customer' | 'user';
@@ -29,6 +49,15 @@ interface Alert {
 }
 
 const App: React.FC = () => {
+  // ──────────────────────────────────────────────────────────
+  // ローディング・エラー状態
+  // ──────────────────────────────────────────────────────────
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // ──────────────────────────────────────────────────────────
+  // ログインユーザー（セッションのみ localStorage に保存）
+  // ──────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('mykonosUser');
     try {
@@ -38,56 +67,11 @@ const App: React.FC = () => {
     }
   });
 
-  const [users, setUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('mykonosUsers');
-    try {
-        const parsedUsers = saved ? JSON.parse(saved) : DEFAULT_USERS;
-        return parsedUsers.map((user: any) => ({
-            ...user,
-            profilePicture: user.profilePicture || null,
-            createdAt: user.createdAt || new Date().toISOString(),
-            isSuperAdmin: user.isSuperAdmin ?? SUPER_ADMIN_NAMES.includes(user.name),
-            isLinePrechecker: user.isLinePrechecker ?? (user.name === ADMIN_USER_NAME),
-            availabilityStatus: user.availabilityStatus || '受付可',
-            nonWorkingDays: user.nonWorkingDays || [],
-            availableProducts: user.availableProducts || ['回線', '水'],
-            comment: user.comment || '',
-            password: user.password || (user.name === ADMIN_USER_NAME ? NAKAGOMI_INITIAL_PASSWORD : DEFAULT_INITIAL_PASSWORD),
-            commentUpdatedAt: user.commentUpdatedAt,
-        }));
-    } catch {
-        return DEFAULT_USERS;
-    }
-  });
-
-  const [calls, setCalls] = useState<CallRequest[]>(() => {
-    try {
-      const savedCalls = localStorage.getItem('callRequests');
-      const parsedCalls = savedCalls ? JSON.parse(savedCalls) : [];
-      
-      const seenIds = new Set<string>();
-
-      return parsedCalls
-        .filter((call: any) => call.status !== 'キャンセル')
-        .map((call: any) => {
-          let status = call.status;
-          if (!status || status === '依頼済み' || status === '対応中') {
-              status = '追客中';
-          }
-          
-          let id = call.id;
-          if (!id || seenIds.has(id)) {
-              id = crypto.randomUUID();
-          }
-          seenIds.add(id);
-
-          return { ...call, id: id, status, createdAt: call.createdAt || new Date().toISOString(), prechecker: call.prechecker || null, imported: call.imported ?? false, completedAt: call.completedAt };
-      });
-    } catch (error) {
-      console.error("Failed to parse calls from localStorage", error);
-      return [];
-    }
-  });
+  // ──────────────────────────────────────────────────────────
+  // ユーザー・案件・設定 → Supabase から取得
+  // ──────────────────────────────────────────────────────────
+  const [users, setUsers] = useState<User[]>([]);
+  const [calls, setCalls] = useState<CallRequest[]>([]);
   
   const [selectedMember, setSelectedMember] = useState<string>('全体');
   const [isFormVisible, setIsFormVisible] = useState(false);
@@ -100,12 +84,8 @@ const App: React.FC = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [formResetCounter, setFormResetCounter] = useState(0);
   const [viewMode, setViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
-  const [announcement, setAnnouncement] = useState<string>(() => {
-    return localStorage.getItem('mykonosAnnouncement') || '';
-  });
-  const [appVersion, setAppVersion] = useState<string>(() => {
-    return localStorage.getItem('mykonosAppVersion') || 'ver 3.0.0';
-  });
+  const [announcement, setAnnouncement] = useState<string>('');
+  const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [pendingDuplicate, setPendingDuplicate] = useState<{
@@ -166,34 +146,70 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    try {
-      localStorage.setItem('callRequests', JSON.stringify(calls));
-    } catch (error) {
-      console.error("Failed to save calls to localStorage", error);
-    }
-  }, [calls]);
-  
+    // ──────────────────────────────────────────────
+    // 初回マウント: Supabase から全データを取得
+    // ──────────────────────────────────────────────
+    let isMounted = true;
+
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+
+        // 期限切れの完了済み案件を先に削除
+        await deleteExpiredCompletedCalls();
+
+        const [fetchedUsers, fetchedCalls, settings] = await Promise.all([
+          fetchUsers(),
+          fetchCallRequests(),
+          fetchAppSettings(),
+        ]);
+
+        if (!isMounted) return;
+
+        setUsers(fetchedUsers);
+        setCalls(fetchedCalls);
+        if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
+        if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+
+      } catch (err: any) {
+        if (!isMounted) return;
+        console.error('初期データの取得に失敗しました:', err);
+        setLoadError(err?.message ?? '初期データの取得に失敗しました。');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
+
+    // ──────────────────────────────────────────────
+    // Realtime 購読
+    // ──────────────────────────────────────────────
+    const unsubCalls    = subscribeToCallRequests(setCalls);
+    const unsubUsers    = subscribeToUsers(setUsers);
+    const unsubSettings = subscribeToAppSettings(settings => {
+      if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
+      if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubCalls();
+      unsubUsers();
+      unsubSettings();
+    };
+  }, []);
+
+  // currentUser はセッション管理のため localStorage に保存
   useEffect(() => {
     if (currentUser) {
-      // Don't save session-specific state
       const { isLoggedInAsAdmin, ...userToSave } = currentUser;
       localStorage.setItem('mykonosUser', JSON.stringify(userToSave));
     } else {
       localStorage.removeItem('mykonosUser');
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    localStorage.setItem('mykonosUsers', JSON.stringify(users));
-  }, [users]);
-  
-  useEffect(() => {
-    localStorage.setItem('mykonosAnnouncement', announcement);
-  }, [announcement]);
-  
-  useEffect(() => {
-    localStorage.setItem('mykonosAppVersion', appVersion);
-  }, [appVersion]);
 
   useEffect(() => {
     localStorage.setItem('mykonosLastViewedTimestamps', JSON.stringify(lastViewedTimestamps));
@@ -226,51 +242,40 @@ const App: React.FC = () => {
     if (!container) return;
 
     if (announcement) {
-        // Use a small timeout to allow the browser to render the new content and calculate its width reliably.
-        const timer = setTimeout(() => {
-            const contentWidth = container.scrollWidth / 10;
-            
-            if (contentWidth > 0) {
-                const pixelsPerSecond = 80;
-                const duration = contentWidth / pixelsPerSecond;
-                const finalDuration = Math.max(5, duration);
+      // アニメーションを一旦リセットしてから再計算する
+      container.style.animation = 'none';
+      container.style.willChange = 'auto';
 
-                container.style.animation = `marquee ${finalDuration}s linear infinite`;
-                container.style.willChange = 'transform';
-            } else {
-                container.style.animation = 'none';
-                container.style.willChange = 'auto';
-            }
-        }, 0);
+      // requestAnimationFrame を2回ネストして、
+      // ブラウザがレイアウトを確実に完了した後に scrollWidth を取得する
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // コンテンツが10個並んでいるので、1個分の幅 = scrollWidth / 10
+          // ただし scrollWidth が 0 の場合は fallback として文字数で推定
+          const singleWidth = container.scrollWidth > 0
+            ? container.scrollWidth / 10
+            : announcement.length * 16; // 1文字 ≈ 16px で推定
 
-        return () => clearTimeout(timer);
+          if (singleWidth > 0) {
+            const pixelsPerSecond = 80;
+            const duration = Math.max(5, singleWidth / pixelsPerSecond);
+            container.style.animation = `marquee ${duration}s linear infinite`;
+            container.style.willChange = 'transform';
+          }
+        });
+      });
+
+      return () => cancelAnimationFrame(raf);
 
     } else {
-      // If announcement is empty, clear the animation.
+      // お知らせが空になったらアニメーション停止
       container.style.animation = 'none';
       container.style.willChange = 'auto';
     }
   }, [announcement]);
   
-  useEffect(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const callsToKeep = calls.filter(call => {
-        if (call.status !== '完了' || !call.completedAt) {
-            return true;
-        }
-        
-        const completedDate = new Date(call.completedAt);
-        completedDate.setHours(0, 0, 0, 0);
-
-        return completedDate.getTime() >= today.getTime();
-    });
-
-    if (callsToKeep.length < calls.length) {
-        setCalls(callsToKeep);
-    }
-  }, []); // Run only on mount
+  // 期限切れ案件の削除は初回ロード時に apiService 側で実行済み
+  // （削除後の最新データが setCalls でセットされるため、ここは不要）
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -379,6 +384,9 @@ const App: React.FC = () => {
 
     const today = new Date();
     const dayOfMonth = today.getDate();
+
+    // 削除済みでないアクティブなユーザー名のセット
+    const activeUserNames = new Set(users.map(u => u.name));
     
     // Schedule Alerts: Check for next month's schedule from the 28th of the current month.
     let scheduleAlerts: Alert[] = [];
@@ -403,6 +411,10 @@ const App: React.FC = () => {
     todayForOverdue.setHours(0, 0, 0, 0);
     const overdueCalls = calls.filter(call => {
         if (call.status === '完了') return false;
+        // 削除済みユーザーが担当の案件は除外
+        if (call.assignee.includes('(削除済み)')) return false;
+        // アクティブなユーザーが担当の案件のみ対象
+        if (!activeUserNames.has(call.assignee)) return false;
         try {
             const [datePart] = call.dateTime.split('T');
             if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return false;
@@ -482,29 +494,27 @@ const App: React.FC = () => {
     setPrefilledRequestDate(null);
   };
 
-  const _createCall = (callData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => {
-    const newCall: CallRequest = {
-      ...callData,
-      id: crypto.randomUUID(),
-      status: '追客中',
-      customerId: callData.customerId.trim(),
-      createdAt: new Date().toISOString(),
-      prechecker: null,
-      imported: false,
-    };
+  const _createCall = async (callData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => {
+    try {
+      const newCall = await createCallRequest(callData);
 
-    if (newCall.requester === newCall.assignee) {
-      setLastViewedTimestamps(prev => ({
-        ...prev,
-        [newCall.assignee]: newCall.createdAt,
-      }));
+      if (newCall.requester === newCall.assignee) {
+        setLastViewedTimestamps(prev => ({
+          ...prev,
+          [newCall.assignee]: newCall.createdAt,
+        }));
+      }
+
+      // Realtime で自動更新されるが、即時性のためにローカルにも反映
+      setCalls(prevCalls => [...prevCalls, newCall]);
+      setIsFormVisible(false);
+    } catch (err: any) {
+      console.error('案件の作成に失敗しました:', err);
+      alert(`案件の作成に失敗しました: ${err?.message ?? err}`);
     }
-
-    setCalls(prevCalls => [...prevCalls, newCall]);
-    setIsFormVisible(false);
   };
 
-  const handleAddCall = (newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>): boolean => {
+  const handleAddCall = async (newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>): Promise<boolean> => {
     const trimmedCustomerId = newCallData.customerId.trim();
     if (!trimmedCustomerId) {
         alert('顧客IDを入力してください。');
@@ -579,9 +589,9 @@ const App: React.FC = () => {
     return true;
   };
   
-  const handleConfirmDuplicateCreation = () => {
+  const handleConfirmDuplicateCreation = async () => {
     if (!pendingDuplicate) return;
-    _createCall(pendingDuplicate.newCallData);
+    await _createCall(pendingDuplicate.newCallData);
     setPendingDuplicate(null);
     setFormResetCounter(c => c + 1);
   };
@@ -590,73 +600,41 @@ const App: React.FC = () => {
     setPendingDuplicate(null);
   };
 
-  const handleConfirmNonWorkingDayCreation = () => {
+  const handleConfirmNonWorkingDayCreation = async () => {
     if (!pendingNonWorkingDayConfirmation) return;
-    _createCall(pendingNonWorkingDayConfirmation);
+    await _createCall(pendingNonWorkingDayConfirmation);
     setPendingNonWorkingDayConfirmation(null);
     setFormResetCounter(c => c + 1);
   };
 
-  const handleConfirmUnavailableTodayCreation = () => {
+  const handleConfirmUnavailableTodayCreation = async () => {
     if (!pendingUnavailableTodayConfirmation) return;
-    _createCall(pendingUnavailableTodayConfirmation);
+    await _createCall(pendingUnavailableTodayConfirmation);
     setPendingUnavailableTodayConfirmation(null);
     setFormResetCounter(c => c + 1);
   };
 
-  const handleConfirmUnavailableCreation = () => {
+  const handleConfirmUnavailableCreation = async () => {
     if (!pendingUnavailableConfirmation) return;
-    _createCall(pendingUnavailableConfirmation);
+    await _createCall(pendingUnavailableConfirmation);
     setPendingUnavailableConfirmation(null);
     setFormResetCounter(c => c + 1);
   };
 
-  const handleUpdateCall = (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
-    const originalCall = calls.find(call => call.id === id);
-    if (!originalCall || !currentUser) return;
+  const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
+    if (!currentUser) return;
 
-    const changes: EditChange[] = [];
+    try {
+      const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name);
 
-    // Compare and find changes
-    (Object.keys(updatedData) as Array<CallRequestUpdatableFields>).forEach(key => {
-        if (key in originalCall && originalCall[key] !== updatedData[key]) {
-            changes.push({
-                field: key,
-                oldValue: originalCall[key],
-                newValue: updatedData[key],
-            });
-        }
-    });
-
-    let newHistory: EditHistory[] | undefined = undefined;
-    if (changes.length > 0) {
-        const newHistoryEntry: EditHistory = {
-            editor: currentUser.name,
-            timestamp: new Date().toISOString(),
-            changes: changes,
-        };
-        newHistory = [newHistoryEntry, ...(originalCall.history || [])];
+      // ローカル状態を即時更新（Realtime の前に反映）
+      setCalls(prevCalls =>
+        prevCalls.map(call => (call.id === id ? updated : call))
+      );
+    } catch (err: any) {
+      console.error('案件の更新に失敗しました:', err);
+      alert(`案件の更新に失敗しました: ${err?.message ?? err}`);
     }
-    
-    setCalls(prevCalls =>
-      prevCalls.map(call => {
-        if (call.id === id) {
-            const updatedCall = { ...call, ...updatedData };
-            
-            if (updatedData.status === '完了' && !call.completedAt) {
-                updatedCall.completedAt = new Date().toISOString();
-            } else if (updatedData.status === '追客中' && call.completedAt) {
-                delete updatedCall.completedAt;
-            }
-
-            if (newHistory) {
-                updatedCall.history = newHistory;
-            }
-            return updatedCall;
-        }
-        return call;
-      })
-    );
   };
   
   const handleSelectCall = (call: CallRequest) => {
@@ -736,73 +714,115 @@ const App: React.FC = () => {
     setIsAdminMenuOpen(false);
   };
 
-  const handleAdminSave = (updatedUsers: User[], deletedUserNames: string[]) => {
-    setUsers(updatedUsers);
+  const handleAdminSave = async (updatedUsers: User[], deletedUserNames: string[]) => {
+    try {
+      // 削除処理
+      for (const name of deletedUserNames) {
+        await apiDeleteUser(name);
+      }
 
-    if (deletedUserNames.length > 0) {
-      setCalls(prevCalls => {
-        return prevCalls.map(call => {
-            if (deletedUserNames.includes(call.requester)) {
-              return { ...call, requester: `${call.requester} (削除済み)` };
-            }
-            return call;
-          });
-      });
+      // upsert (追加・更新)
+      const savedUsers = await upsertUsers(updatedUsers);
+      setUsers(savedUsers);
 
-      if (deletedUserNames.includes(selectedMember)) {
+      if (deletedUserNames.length > 0) {
+        // 削除されたユーザーが担当の案件を「(削除済み)」に
+        const updatePromises = calls
+          .filter(call => deletedUserNames.includes(call.requester))
+          .map(call =>
+            apiUpdateCallRequest(call.id, { requester: `${call.requester} (削除済み)` }, currentUser?.name ?? 'system')
+          );
+        await Promise.all(updatePromises);
+
+        setCalls(prevCalls =>
+          prevCalls.map(call =>
+            deletedUserNames.includes(call.requester)
+              ? { ...call, requester: `${call.requester} (削除済み)` }
+              : call
+          )
+        );
+
+        if (deletedUserNames.includes(selectedMember)) {
           setSelectedMember('全体');
-      }
-      
-      if (currentUser && deletedUserNames.includes(currentUser.name)) {
-        handleLogout();
-        return; 
-      }
-    }
-    
-    const updatedSelf = updatedUsers.find(u => u.name === currentUser?.name);
-    if (updatedSelf && currentUser) {
-      const { isLoggedInAsAdmin } = currentUser;
-      const permissionsChanged = updatedSelf.isAdmin !== currentUser.isAdmin || updatedSelf.isSuperAdmin !== currentUser.isSuperAdmin;
-      if (permissionsChanged) {
-        setCurrentUser({ ...updatedSelf, isLoggedInAsAdmin });
-      }
-    }
-  };
-
-  const handleUpdatePassword = (newPassword: string) => {
-    if (!currentUser) return;
-    setUsers(prevUsers =>
-      prevUsers.map(u => (u.name === currentUser.name ? { ...u, password: newPassword } : u))
-    );
-    setIsPasswordModalOpen(false);
-    alert('パスワードが更新されました。');
-  };
-
-  const handleResetUserPassword = (userName: string) => {
-    setUsers(prevUsers =>
-      prevUsers.map(u => {
-        if (u.name === userName) {
-          const resetPassword = u.name === ADMIN_USER_NAME ? NAKAGOMI_INITIAL_PASSWORD : DEFAULT_INITIAL_PASSWORD;
-          return { ...u, password: resetPassword };
         }
-        return u;
-      })
-    );
-    alert(`${userName}さんのパスワードが初期化されました。`);
+
+        if (currentUser && deletedUserNames.includes(currentUser.name)) {
+          handleLogout();
+          return;
+        }
+      }
+
+      const updatedSelf = savedUsers.find(u => u.name === currentUser?.name);
+      if (updatedSelf && currentUser) {
+        const { isLoggedInAsAdmin } = currentUser;
+        const permissionsChanged =
+          updatedSelf.isAdmin !== currentUser.isAdmin ||
+          updatedSelf.isSuperAdmin !== currentUser.isSuperAdmin;
+        if (permissionsChanged) {
+          setCurrentUser({ ...updatedSelf, isLoggedInAsAdmin });
+        }
+      }
+    } catch (err: any) {
+      console.error('管理者保存に失敗しました:', err);
+      alert(`保存に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
+  const handleUpdatePassword = async (newPassword: string) => {
+    if (!currentUser) return;
+    try {
+      await apiUpdateUserPassword(currentUser.name, newPassword);
+      setUsers(prevUsers =>
+        prevUsers.map(u => (u.name === currentUser.name ? { ...u, password: newPassword } : u))
+      );
+      setIsPasswordModalOpen(false);
+      alert('パスワードが更新されました。');
+    } catch (err: any) {
+      alert(`パスワードの更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
+  const handleResetUserPassword = async (userName: string) => {
+    const resetPassword = userName === ADMIN_USER_NAME ? NAKAGOMI_INITIAL_PASSWORD : DEFAULT_INITIAL_PASSWORD;
+    try {
+      await apiUpdateUserPassword(userName, resetPassword);
+      setUsers(prevUsers =>
+        prevUsers.map(u => (u.name === userName ? { ...u, password: resetPassword } : u))
+      );
+      alert(`${userName}さんのパスワードが初期化されました。`);
+    } catch (err: any) {
+      alert(`パスワードの初期化に失敗しました: ${err?.message ?? err}`);
+    }
   };
   
-  const handleSetAnnouncement = (text: string) => {
-    setAnnouncement(text.trim());
+  const handleSetAnnouncement = async (text: string) => {
+    const trimmed = text.trim();
+    try {
+      await updateAppSetting('announcement', trimmed);
+      setAnnouncement(trimmed);
+    } catch (err: any) {
+      alert(`お知らせの更新に失敗しました: ${err?.message ?? err}`);
+    }
   };
 
-  const handleSetAppVersion = (version: string) => {
-    setAppVersion(version);
+  const handleSetAppVersion = async (version: string) => {
+    try {
+      await updateAppSetting('app_version', version);
+      setAppVersion(version);
+    } catch (err: any) {
+      alert(`バージョンの更新に失敗しました: ${err?.message ?? err}`);
+    }
   };
 
-  const handleUpdateUserStatus = (name: string, status: AvailabilityStatus) => {
-    setUsers(prevUsers =>
-      prevUsers.map(u => (u.name === name ? { ...u, availabilityStatus: status } : u))
-    );
+  const handleUpdateUserStatus = async (name: string, status: AvailabilityStatus) => {
+    try {
+      await updateUserAvailabilityStatus(name, status);
+      setUsers(prevUsers =>
+        prevUsers.map(u => (u.name === name ? { ...u, availabilityStatus: status } : u))
+      );
+    } catch (err: any) {
+      alert(`ステータスの更新に失敗しました: ${err?.message ?? err}`);
+    }
   };
   
   const handleShowUserSchedule = (userName: string) => {
@@ -812,58 +832,83 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateNonWorkingDays = (userName: string, dates: string[]) => {
-    setUsers(prevUsers => {
+  const handleUpdateNonWorkingDays = async (userName: string, dates: string[]) => {
+    try {
       const today = new Date();
       const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
       const todayStr = localDate.toISOString().split('T')[0];
-      const sortedDates = dates.sort();
+      const sortedDates = [...dates].sort();
 
-      return prevUsers.map(user => {
-        if (user.name === userName) {
-          const updatedUser = { ...user, nonWorkingDays: sortedDates };
-          
-          if (userName === currentUser?.name) {
-            const isTodayNonWorking = sortedDates.includes(todayStr);
-            const wasTodayNonWorking = (user.nonWorkingDays || []).includes(todayStr);
+      // 今日が非稼働日かどうかで availability_status も更新
+      const targetUser = users.find(u => u.name === userName);
+      let newStatus: AvailabilityStatus | undefined;
 
-            if (isTodayNonWorking && user.availabilityStatus !== '非稼働') {
-              updatedUser.availabilityStatus = '非稼働';
-            } else if (!isTodayNonWorking && wasTodayNonWorking && user.availabilityStatus === '非稼働') {
-              updatedUser.availabilityStatus = '受付可';
-            }
-          }
-          return updatedUser;
+      if (userName === currentUser?.name && targetUser) {
+        const isTodayNonWorking = sortedDates.includes(todayStr);
+        const wasTodayNonWorking = (targetUser.nonWorkingDays || []).includes(todayStr);
+
+        if (isTodayNonWorking && targetUser.availabilityStatus !== '非稼働') {
+          newStatus = '非稼働';
+        } else if (!isTodayNonWorking && wasTodayNonWorking && targetUser.availabilityStatus === '非稼働') {
+          newStatus = '受付可';
         }
-        return user;
-      });
-    });
+      }
+
+      await updateUserNonWorkingDays(userName, sortedDates);
+      if (newStatus) await updateUserAvailabilityStatus(userName, newStatus);
+
+      setUsers(prevUsers =>
+        prevUsers.map(user => {
+          if (user.name === userName) {
+            const updatedUser = { ...user, nonWorkingDays: sortedDates };
+            if (newStatus) updatedUser.availabilityStatus = newStatus;
+            return updatedUser;
+          }
+          return user;
+        })
+      );
+    } catch (err: any) {
+      alert(`スケジュールの更新に失敗しました: ${err?.message ?? err}`);
+    }
   };
 
-  const handleSaveComment = (comment: string) => {
+  const handleSaveComment = async (comment: string) => {
     if (!currentUser) return;
-    setUsers(prevUsers =>
-      prevUsers.map(u => (u.name === currentUser.name ? { ...u, comment: comment.trim(), commentUpdatedAt: new Date().toISOString() } : u))
-    );
+    try {
+      const trimmed = comment.trim();
+      await updateUserComment(currentUser.name, trimmed);
+      setUsers(prevUsers =>
+        prevUsers.map(u =>
+          u.name === currentUser.name
+            ? { ...u, comment: trimmed, commentUpdatedAt: new Date().toISOString() }
+            : u
+        )
+      );
+    } catch (err: any) {
+      alert(`コメントの保存に失敗しました: ${err?.message ?? err}`);
+    }
   };
 
-  const handleCreateBulkTasks = (
+  const handleCreateBulkTasks = async (
     taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId'>,
     assignees: string[]
   ) => {
     if (!currentUser) return;
-    const newTasks: CallRequest[] = assignees.map(assignee => ({
-      ...taskData,
-      id: crypto.randomUUID(),
-      status: '追客中',
-      createdAt: new Date().toISOString(),
-      customerId: '',
-      assignee: assignee,
-      prechecker: null,
-      imported: false,
-    }));
-    setCalls(prevCalls => [...prevCalls, ...newTasks]);
-    alert(`${assignees.length}件の全体タスクを作成しました。`);
+    try {
+      const callsData = assignees.map(assignee => ({
+        ...taskData,
+        customerId: '',
+        assignee,
+        prechecker: null,
+        imported: false,
+      }));
+
+      const newTasks = await createBulkCallRequests(callsData);
+      setCalls(prevCalls => [...prevCalls, ...newTasks]);
+      alert(`${assignees.length}件の全体タスクを作成しました。`);
+    } catch (err: any) {
+      alert(`一括タスク作成に失敗しました: ${err?.message ?? err}`);
+    }
   };
 
   const handleToggleNotifications = async () => {
@@ -1010,6 +1055,42 @@ const App: React.FC = () => {
   }, [calls, currentUser, lastViewedTimestamps]);
 
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7]">
+        <div className="text-center">
+          <h1 className="text-5xl font-bold font-inconsolata text-[#0193be] mb-4">Mykonos</h1>
+          <div className="flex justify-center gap-2">
+            <div className="w-3 h-3 bg-[#0193be] rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+            <div className="w-3 h-3 bg-[#0193be] rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+            <div className="w-3 h-3 bg-[#0193be] rounded-full animate-bounce"></div>
+          </div>
+          <p className="mt-4 text-slate-500 text-sm">データを読み込んでいます...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f2f4f7]">
+        <div className="text-center max-w-md px-6">
+          <h1 className="text-5xl font-bold font-inconsolata text-[#0193be] mb-4">Mykonos</h1>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700 font-semibold mb-2">接続エラー</p>
+            <p className="text-red-600 text-sm">{loadError}</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-[#0193be] text-white rounded-lg hover:bg-[#017a9a] transition-colors"
+          >
+            再読み込み
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentUser) {
     return <Login onLogin={handleLogin} users={users} />;
   }
@@ -1058,8 +1139,9 @@ const App: React.FC = () => {
     <div className="bg-[#f2f4f7] min-h-screen font-sans">
       <header className={`shadow-sm sticky top-0 z-20 transition-colors duration-300 ${headerBgClass}`}>
         <div className="px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center gap-2">
             <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-300 ${headerTextClass}`}>Mykonos</h1>
+            <span className={`text-xs font-inconsolata transition-colors duration-300 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
           </div>
 
           <div className="flex items-center gap-4">
