@@ -520,9 +520,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                     className={`text-center rounded px-0.5 py-0.5 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer text-xs font-bold w-auto ${absenceCounterClass}`}
                     title="留守回数（-で見込ランクに戻す）"
                   >
-                    <option value="">-</option>
+                    <option value="" className="text-slate-500">-</option>
                     {Array.from({ length: 9 }, (_, i) => i + 1).map(num => (
-                      <option key={num} value={num}>{num}</option>
+                      <option key={num} value={num} className="text-slate-500">{num}</option>
                     ))}
                   </select>
                 )}
