@@ -490,9 +490,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                   onClick={handleAbsenceCountIncrement}
                   disabled={isFieldDisabled}
                   className={`flex items-center justify-center rounded p-0.5 transition
-                    ${isAbsenteeRank
-                      ? 'text-orange-500 hover:enabled:bg-orange-100'
-                      : 'text-slate-400 hover:enabled:bg-slate-200/60'}
+                    ${absenceCounterClass}
+                    hover:enabled:bg-slate-200/60
                     disabled:opacity-40 disabled:cursor-not-allowed`}
                   title={!isFieldDisabled
                     ? isMikomRank
@@ -518,7 +517,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                     }}
                     onClick={(e) => e.stopPropagation()}
                     disabled={isFieldDisabled}
-                    className={`text-center rounded px-0.5 py-0.5 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer text-xs font-bold text-orange-500 w-auto`}
+                    className={`text-center rounded px-0.5 py-0.5 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer text-xs font-bold w-auto ${absenceCounterClass}`}
                     title="留守回数（-で見込ランクに戻す）"
                   >
                     <option value="">-</option>
