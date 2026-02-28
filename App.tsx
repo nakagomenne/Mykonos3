@@ -378,6 +378,9 @@ const App: React.FC = () => {
 
     const today = new Date();
     const dayOfMonth = today.getDate();
+
+    // 削除済みでないアクティブなユーザー名のセット
+    const activeUserNames = new Set(users.map(u => u.name));
     
     // Schedule Alerts: Check for next month's schedule from the 28th of the current month.
     let scheduleAlerts: Alert[] = [];
@@ -402,6 +405,10 @@ const App: React.FC = () => {
     todayForOverdue.setHours(0, 0, 0, 0);
     const overdueCalls = calls.filter(call => {
         if (call.status === '完了') return false;
+        // 削除済みユーザーが担当の案件は除外
+        if (call.assignee.includes('(削除済み)')) return false;
+        // アクティブなユーザーが担当の案件のみ対象
+        if (!activeUserNames.has(call.assignee)) return false;
         try {
             const [datePart] = call.dateTime.split('T');
             if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return false;
