@@ -73,6 +73,21 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
       });
     }
   }, [selectedMember]);
+
+  // マウスホイールで横スクロール
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      container.scrollBy({ left: e.deltaY * 2, behavior: 'smooth' });
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
