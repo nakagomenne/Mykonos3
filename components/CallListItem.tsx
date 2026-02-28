@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, Rank, User } from '../types';
-import { CheckIcon, ClipboardDocumentIcon, PencilIcon } from './icons';
+import { CheckIcon, ClipboardDocumentIcon, PencilIcon, PhoneMissedIcon } from './icons';
 import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
@@ -484,43 +484,52 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           
           <div className={`w-16 flex-shrink-0 text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
             {showAbsenceCount ? (
-              <div className="flex items-center justify-center gap-1 text-sm">
-                <span
-                  className={`text-xs ${absenceCounterClass} ${!isFieldDisabled ? 'cursor-pointer hover:underline' : 'cursor-not-allowed opacity-75'}`}
+              <div className="flex items-center justify-center gap-0.5">
+                {/* ☎ボタン：見込→留守登録 or 留守→+1 */}
+                <button
                   onClick={handleAbsenceCountIncrement}
-                  title={!isFieldDisabled ? (isMikomRank ? `クリックで留守1・${mikomRanks[call.rank]}に変更` : "留守回数を+1") : ""}
-                >
-                  留守
-                </span>
-                <select
-                  value={call.absenceCount || ''}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    const value = e.target.value ? Number(e.target.value) : undefined;
-                    // 見込留守で「-」を選んだら対応する見込ランクに戻す
-                    if (!value && isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
-                      onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
-                    } else {
-                      onUpdateCall(call.id, { absenceCount: value });
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
                   disabled={isFieldDisabled}
-                  className={`text-center rounded p-1 -m-1 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer w-auto ${absenceCounterClass}`}
-                  title="留守回数"
+                  className={`flex items-center justify-center rounded p-0.5 transition
+                    ${isAbsenteeRank
+                      ? 'text-orange-500 hover:enabled:bg-orange-100'
+                      : 'text-slate-400 hover:enabled:bg-slate-200/60'}
+                    disabled:opacity-40 disabled:cursor-not-allowed`}
+                  title={!isFieldDisabled
+                    ? isMikomRank
+                      ? `クリックで留守1・${mikomRanks[call.rank]}に変更`
+                      : '留守回数を+1'
+                    : ''}
                 >
-                  <option value="">-</option>
-                  {Array.from({ length: 9 }, (_, i) => i + 1).map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
+                  <PhoneMissedIcon className="w-3.5 h-3.5" />
+                </button>
+                {/* 回数セレクト（見込留守の場合のみ表示） */}
+                {isAbsenteeRank && (
+                  <select
+                    value={call.absenceCount || ''}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      const value = e.target.value ? Number(e.target.value) : undefined;
+                      // 「-」を選んだら対応する見込ランクに戻す
+                      if (!value && absenteeToMikomRanks[call.rank]) {
+                        onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
+                      } else {
+                        onUpdateCall(call.id, { absenceCount: value });
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={isFieldDisabled}
+                    className={`text-center rounded px-0.5 py-0.5 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer text-xs font-bold text-orange-500 w-auto`}
+                    title="留守回数（-で見込ランクに戻す）"
+                  >
+                    <option value="">-</option>
+                    {Array.from({ length: 9 }, (_, i) => i + 1).map(num => (
+                      <option key={num} value={num}>{num}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             ) : (
-              <span
-                className={isMikomRank && !isFieldDisabled ? `text-slate-400 cursor-pointer hover:text-[#0193be] hover:underline` : 'text-slate-400'}
-                onClick={isMikomRank && !isFieldDisabled ? handleAbsenceCountIncrement : undefined}
-                title={isMikomRank && !isFieldDisabled ? `クリックで留守1・${mikomRanks[call.rank]}に変更` : ''}
-              >-</span>
+              <span className="text-slate-300">-</span>
             )}
           </div>
 
