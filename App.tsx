@@ -1651,7 +1651,25 @@ const App: React.FC = () => {
                               '受付不可': 'ring-yellow-500',
                               '当日受付不可': 'ring-red-500',
                               '非稼働': 'ring-slate-500',
-                          }[status];
+                          }[status] ?? 'ring-[#0193be]';
+                          const statusTextColor = {
+                              '受付可': 'text-[#0193be]',
+                              '受付不可': 'text-yellow-500',
+                              '当日受付不可': 'text-red-500',
+                              '非稼働': 'text-slate-500',
+                          }[status] ?? 'text-[#0193be]';
+                          const statusBgColor = {
+                              '受付可': 'bg-[#0193be]',
+                              '受付不可': 'bg-yellow-500',
+                              '当日受付不可': 'bg-red-500',
+                              '非稼働': 'bg-slate-500',
+                          }[status] ?? 'bg-[#0193be]';
+                          const statusBgHex = {
+                              '受付可': '#0193be',
+                              '受付不可': '#eab308',
+                              '当日受付不可': '#ef4444',
+                              '非稼働': '#64748b',
+                          }[status] ?? '#0193be';
 
                           return (
                               <div className="flex items-center justify-between gap-4">
@@ -1661,14 +1679,14 @@ const App: React.FC = () => {
                                               <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-full h-full rounded-full object-cover" />
                                           ) : (
                                               <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                                  <UserIcon className="w-16 h-16 text-[#0193be]/80" />
+                                                  <UserIcon className={`w-16 h-16 ${statusTextColor}/80`} />
                                               </div>
                                           )}
                                       </div>
                                       <div>
                                           {selectedUserDetails.comment && (
                                               <div className="mb-3">
-                                                  <div className="relative inline-block bg-[#0193be] px-4 py-2 rounded-lg shadow-sm">
+                                                  <div className={`relative inline-block ${statusBgColor} px-4 py-2 rounded-lg shadow-sm`}>
                                                       <div className="flex items-baseline gap-3">
                                                           <p className="text-base font-bold text-white">
                                                               {selectedUserDetails.comment}
@@ -1679,24 +1697,24 @@ const App: React.FC = () => {
                                                               </span>
                                                           )}
                                                       </div>
-                                                      <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent border-t-[8px] border-t-[#0193be]"></div>
+                                                      <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent" style={{ borderTopWidth: '8px', borderTopColor: statusBgHex }}></div>
                                                   </div>
                                               </div>
                                           )}
                                           <div className="flex items-baseline gap-2">
-                                            <h2 className="text-4xl font-bold text-[#0193be]">
+                                            <h2 className={`text-4xl font-bold ${statusTextColor}`}>
                                                 {selectedMember}
                                             </h2>
                                             <button
                                                 onClick={() => handleShowUserSchedule(selectedMember)}
-                                                className="text-[#0193be]/60 hover:text-[#0193be] p-1 rounded-full hover:bg-slate-200/60 transition"
+                                                className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full hover:bg-slate-200/60 transition`}
                                                 title={`${selectedMember}さんのスケジュールを表示`}
                                             >
                                                 <CalendarIcon className="w-6 h-6" />
                                             </button>
                                           </div>
                                           {(selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) && (
-                                            <p className="mt-2 text-lg font-bold text-[#0193be]/80">
+                                            <p className={`mt-2 text-lg font-bold ${statusTextColor} opacity-80`}>
                                               対応可能商材：{selectedUserDetails.availableProducts.join('・')}
                                             </p>
                                           )}
