@@ -58,9 +58,13 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
   const allCallsHidden = hideCompleted && displayedCalls.length === 0 && calls.length > 0;
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
+    <div className="rounded-xl overflow-hidden" style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
-        <div className="px-2 py-1.5 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+        <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+          isPrecheckTheme
+            ? 'bg-gradient-to-r from-[#0d7a6f]/10 to-[#118f82]/5 border-[#118f82]/20 text-[#118f82]/70'
+            : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20 text-[#0193be]/70'
+        }`}>
             <div className="w-6 flex-shrink-0 flex justify-center">
               {hasCompletedCalls && (
                   <button
@@ -94,7 +98,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
             <div className="w-8 flex-shrink-0" aria-hidden="true" />
         </div>
         {/* List */}
-        <ul className="space-y-2 p-2 bg-slate-100">
+        <ul className="space-y-1.5 p-2" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}>
             {displayedCalls.map(call => (
                 <CallListItem
                     key={call.id}
@@ -113,8 +117,8 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
             ))}
         </ul>
         {allCallsHidden && (
-            <div className="text-center py-8 px-6 bg-slate-100">
-                <p className="text-sm text-slate-500">完了した依頼はすべて非表示になっています。</p>
+            <div className="text-center py-8 px-6" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+                <p className="text-sm text-slate-400">完了した依頼はすべて非表示になっています。</p>
             </div>
         )}
     </div>

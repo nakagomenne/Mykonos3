@@ -130,8 +130,8 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
 
   return (
     <>
-      <div className="mb-4 border-b border-slate-200">
-        <nav ref={scrollContainerRef} className="-mb-px flex space-x-2 overflow-x-auto" aria-label="Tabs">
+      <div className="mb-4 border-b border-slate-200/70" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(1,147,190,0.03) 100%)' }}>
+        <nav ref={scrollContainerRef} className="-mb-px flex space-x-1 overflow-x-auto pb-0" aria-label="Tabs">
           {members.map((member) => {
             const isListTab = member === '全体';
             const isPrecheckerTab = member === PRECHECKER_ASSIGNEE_NAME;
@@ -150,14 +150,14 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                 key={member}
                 onClick={isListTab ? onListTabClick : () => onSelectMember(member)}
                 className={`
-                  group flex flex-col items-center justify-end gap-1.5 rounded-t-md
-                  border-b-2 px-3 pb-2 pt-1 font-medium text-sm
-                  min-w-[90px] transition-colors duration-200 
+                  group flex flex-col items-center justify-end gap-1.5 rounded-t-lg
+                  border-b-[2.5px] px-3 pb-2 pt-1 font-medium text-sm
+                  min-w-[90px] transition-all duration-200 
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be]
                   ${
                     isSelected
-                      ? 'border-[#0193be] text-[#0193be]'
-                      : 'border-transparent text-[#0193be]/80 hover:text-[#0193be] hover:border-slate-300'
+                      ? 'border-[#0193be] text-[#0193be] bg-white shadow-sm'
+                      : 'border-transparent text-[#0193be]/60 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/70'
                   }
                   ${isListTab ? 'sticky left-0 z-10 bg-white' : ''}
                 `}

@@ -75,7 +75,15 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const { liStyle, dateTimeStyle, absenceCounterClass } = useMemo((): { liStyle: React.CSSProperties; dateTimeStyle: React.CSSProperties; absenceCounterClass: string; } => {
     const defaultMainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
     if (call.status === '完了') {
-      return { liStyle: {}, dateTimeStyle: {}, absenceCounterClass: defaultMainTextClass };
+      return {
+        liStyle: {
+          background: 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
+          color: 'white',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+        },
+        dateTimeStyle: { color: 'rgba(255,255,255,0.75)' },
+        absenceCounterClass: 'text-white/70'
+      };
     }
 
     const now = new Date();
@@ -254,11 +262,13 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const focusRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
 
   const liClasses = [
-    'transition-all', 'duration-300', 'rounded-lg',
-    isEditing ? `ring-2 ring-offset-1 ${mainRingClass}` : 'shadow-sm',
-    isHighlighted ? 'bg-yellow-200 shadow-lg scale-[1.02]' :
-    isCompleted ? 'bg-[#666666] text-white' :
-    `bg-white ${mainTextClass}`,
+    'transition-all', 'duration-200', 'rounded-lg',
+    isEditing ? `ring-2 ring-offset-1 ${mainRingClass}` : '',
+    isHighlighted
+      ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
+      : isCompleted
+      ? ''  // completed style is set via liStyle (gradient)
+      : `bg-white ${mainTextClass} card-shadow-hover`,
   ].filter(Boolean).join(' ');
 
   const handleEditClick = (e: React.MouseEvent, field: EditableField) => {

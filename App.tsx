@@ -1195,40 +1195,48 @@ const App: React.FC = () => {
   const isPrecheckContext = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
   const isPrecheckTheme = viewMode === 'precheck';
 
-  const headerBgClass = isPrecheckModeActive ? 'bg-[#118f82]' : isMineModeActive ? 'bg-[#0193be]' : 'bg-white';
+  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : 'bg-white/95 backdrop-blur-md border-b border-slate-200/80';
   const headerTextClass = isDarkHeader ? 'text-white' : 'text-[#0193be]';
   
   const searchIconClass = isDarkHeader ? 'text-white/80 hover:text-white' : 'text-[#0193be]/60 hover:text-[#0193be]';
   
   const adminButtonClass = isDarkHeader
-    ? 'text-white/80 hover:bg-white/10 hover:text-white'
-    : 'text-slate-500 hover:bg-slate-200 hover:text-slate-800';
+    ? 'text-white/80 hover:bg-white/15 hover:text-white rounded-lg'
+    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg';
 
   const userMenuButtonClass = isDarkHeader
-    ? 'text-white hover:bg-white/10'
-    : 'text-[#0193be] hover:bg-slate-200/60';
+    ? 'text-white hover:bg-white/15 rounded-lg'
+    : 'text-[#0193be] hover:bg-slate-100 rounded-lg';
 
-  const userMenuAvatarBgClass = isDarkHeader ? 'bg-white/20' : 'bg-slate-200';
+  const userMenuAvatarBgClass = isDarkHeader ? 'bg-white/25' : 'bg-slate-100';
 
   const footerClasses = isPrecheckModeActive 
-    ? 'bg-[#118f82] text-white border-white/20' 
+    ? 'header-gradient-teal text-white border-white/20' 
     : isMineModeActive 
-    ? 'bg-[#0193be] text-white border-white/20' 
-    : 'bg-white text-[#0193be]/80 border-slate-200';
+    ? 'header-gradient-blue text-white border-white/20' 
+    : 'bg-white/95 backdrop-blur-md text-[#0193be]/80 border-slate-200';
   
   const contentContainerClasses = currentUser.isLinePrechecker
-    ? `bg-white shadow-md border-x border-b border-slate-200 rounded-b-lg ${
-        viewMode === 'mine' ? 'rounded-tr-lg' : (viewMode === 'others' ? 'rounded-tl-lg' : '')
+    ? `bg-white/95 backdrop-blur-sm shadow-md border-x border-b border-slate-200/80 rounded-b-xl ${
+        viewMode === 'mine' ? 'rounded-tr-xl' : (viewMode === 'others' ? 'rounded-tl-xl' : '')
       }`
-    : `bg-white shadow-md border-x border-b border-slate-200 rounded-b-lg ${
-        viewMode === 'mine' ? 'rounded-tr-lg' : 'rounded-tl-lg'
+    : `bg-white/95 backdrop-blur-sm shadow-md border-x border-b border-slate-200/80 rounded-b-xl ${
+        viewMode === 'mine' ? 'rounded-tr-xl' : 'rounded-tl-xl'
       }`;
 
 
   return (
-    <div className="bg-[#f2f4f7] min-h-screen font-sans">
-      <header className={`shadow-sm sticky top-0 z-20 transition-colors duration-300 ${headerBgClass}`}>
-        <div className="px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
+    <div className="min-h-screen font-sans" style={{ background: 'linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%)' }}>
+      <header className={`sticky top-0 z-20 transition-all duration-300 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
+        style={isDarkHeader ? { boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.1)' } : undefined}
+      >
+        {/* ヘッダー内のグロー装飾 */}
+        {isDarkHeader && (
+          <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+            <div className="absolute inset-0 opacity-15" style={{ background: 'radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.5) 0%, transparent 60%)' }} />
+          </div>
+        )}
+        <div className="relative px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
           <div className="flex-shrink-0 flex items-end gap-2">
             <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-300 ${headerTextClass}`}>Mykonos</h1>
             <span className={`text-xs font-inconsolata transition-colors duration-300 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
@@ -1486,14 +1494,20 @@ const App: React.FC = () => {
       
       <main className="px-4 sm:px-6 lg:px-8 py-4">
         {announcement && (
-          <div className="mb-4 bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm rounded-lg shadow-md overflow-hidden">
+          <div className="mb-4 overflow-hidden rounded-xl shadow-sm"
+            style={{
+              background: 'linear-gradient(135deg, #fef9c3 0%, #fef3c7 50%, #fde68a 100%)',
+              border: '1px solid rgba(251,191,36,0.4)',
+              boxShadow: '0 2px 8px rgba(251,191,36,0.15)',
+            }}
+          >
             <div className="p-2 flex whitespace-nowrap">
               <div 
                 ref={announcementMarqueeRef}
                 className="flex flex-shrink-0"
               >
                 {Array.from({ length: 10 }).map((_, i) => (
-                  <span key={i} className="font-semibold px-4 tracking-wider" aria-hidden={i > 0}>
+                  <span key={i} className="font-semibold px-4 tracking-wider text-amber-800" aria-hidden={i > 0}>
                     {announcement}
                   </span>
                 ))}
@@ -1502,7 +1516,7 @@ const App: React.FC = () => {
           </div>
         )}
         <div>
-          <nav className="border-b border-slate-200">
+          <nav className="border-b border-slate-200/80" style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: '12px 12px 0 0' }}>
             {currentUser.isLinePrechecker ? (
               <div className="grid grid-cols-3" role="tablist">
                   <button
@@ -1510,17 +1524,17 @@ const App: React.FC = () => {
                     role="tab"
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
-                    className={`flex justify-center items-center py-4 font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] ${
+                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
-                            ? 'border-slate-200 border-x border-t rounded-t-lg bg-white text-[#0193be] -mb-[1px]'
-                            : 'border-transparent text-slate-500 hover:text-[#0193be]'
+                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
+                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
                     }`}
                     onClick={() => handleViewModeChange('mine')}
                   >
                     <div className="relative">
                       <UserIcon className="w-6 h-6" />
                       {unreadCountForMineTab > 0 && (
-                        <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white">
+                        <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                           {unreadCountForMineTab}
                         </span>
                       )}
@@ -1531,17 +1545,17 @@ const App: React.FC = () => {
                     role="tab"
                     aria-selected={viewMode === 'precheck'}
                     title="回線前確"
-                    className={`flex justify-center items-center py-4 font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
+                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
                         viewMode === 'precheck'
-                            ? 'border-slate-200 border-x border-t rounded-t-lg bg-white text-[#118f82] -mb-[1px]'
-                            : 'border-transparent text-slate-500 hover:text-[#118f82]'
+                            ? 'border-b-[2.5px] border-[#118f82] bg-white text-[#118f82] shadow-sm'
+                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#118f82] hover:bg-white/60'
                     }`}
                     onClick={() => handleViewModeChange('precheck')}
                   >
                     <div className="relative">
                         <CircleIcon className="w-6 h-6" />
                         {unreadCountForPrecheckTab > 0 && (
-                            <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white">
+                            <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                                 {unreadCountForPrecheckTab}
                             </span>
                         )}
@@ -1552,10 +1566,10 @@ const App: React.FC = () => {
                     role="tab"
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
-                    className={`flex justify-center items-center py-4 font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] ${
+                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
-                            ? 'border-slate-200 border-x border-t rounded-t-lg bg-white text-[#0193be] -mb-[1px]'
-                            : 'border-transparent text-slate-500 hover:text-[#0193be]'
+                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
+                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
                     }`}
                     onClick={() => handleViewModeChange('others')}
                   >
@@ -1569,10 +1583,10 @@ const App: React.FC = () => {
                     role="tab"
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
-                    className={`flex justify-center items-center py-4 font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] ${
+                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
                         viewMode === 'mine'
-                            ? 'border-slate-200 border-x border-t rounded-t-lg bg-white text-[#0193be] -mb-[1px]'
-                            : 'border-transparent text-slate-500 hover:text-[#0193be]'
+                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
+                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
                     }`}
                     onClick={() => handleViewModeChange('mine')}
                   >
@@ -1590,10 +1604,10 @@ const App: React.FC = () => {
                     role="tab"
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
-                    className={`flex justify-center items-center py-4 font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] ${
+                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
                         viewMode === 'others'
-                            ? 'border-slate-200 border-x border-t rounded-t-lg bg-white text-[#0193be] -mb-[1px]'
-                            : 'border-transparent text-slate-500 hover:text-[#0193be]'
+                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
+                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
                     }`}
                     onClick={() => handleViewModeChange('others')}
                   >
