@@ -322,8 +322,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
   return (
     <li ref={liRef} className={liClasses} style={liStyle}>
-      <div className="px-4 py-2 flex items-center gap-2 text-sm">
-          <div className="w-8 flex-shrink-0 flex justify-center items-center">
+      <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
+          <div className="w-6 flex-shrink-0 flex justify-center items-center">
             <div className="relative h-5 w-5">
               <input
                   type="checkbox"
@@ -341,14 +341,14 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           </div>
 
           {isAllMembersView && (
-            <div className={`w-28 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
+            <div className={`w-20 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
                 <button onClick={(e) => handleEditClick(e, 'assignee')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="担当者を編集">
                   {call.assignee}
                 </button>
             </div>
           )}
 
-          <div className="w-36 flex-shrink-0 flex items-center gap-1.5 group">
+          <div className="w-28 flex-shrink-0 flex items-center gap-1 group">
               <button 
                   onClick={(e) => { 
                       e.stopPropagation();
@@ -369,21 +369,21 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
               )}
           </div>
 
-          <div className={`w-28 flex-shrink-0 whitespace-nowrap ${isCompleted ? 'line-through' : ''}`}>
+          <div className={`w-24 flex-shrink-0 whitespace-nowrap ${isCompleted ? 'line-through' : ''}`}>
              <button onClick={(e) => handleEditClick(e, 'dateTime')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="日時を編集" style={dateTimeStyle}>
                {formatDateTimeDisplay()}
              </button>
           </div>
 
           {!isPrecheckTheme && (
-            <div className={`w-16 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
+            <div className={`w-12 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
               <button onClick={(e) => handleEditClick(e, 'listType')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="種別を編集">
                 {call.listType}
               </button>
             </div>
           )}
 
-          <div className="w-32 flex-shrink-0">
+          <div className="w-24 flex-shrink-0">
             <button
               ref={rankButtonRef}
               type="button"
@@ -456,7 +456,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             )}
           </div>
           
-          <div className={`w-20 flex-shrink-0 text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
+          <div className={`w-16 flex-shrink-0 text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
             {showAbsenceCount ? (
               <div className="flex items-center justify-center gap-1 text-sm">
                 <span
@@ -490,7 +490,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           </div>
 
           {isPrecheckTheme && (
-            <div className="w-20 flex-shrink-0 flex items-center justify-center">
+            <div className="w-14 flex-shrink-0 flex items-center justify-center">
               {call.imported ? (
                 <button
                   onClick={handleImportClick}
@@ -537,7 +537,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           )}
 
           {isPrecheckTheme && (
-            <div className="w-28 flex-shrink-0 flex items-center justify-center">
+            <div className="w-20 flex-shrink-0 flex items-center justify-center">
               {call.prechecker ? (
                 <button
                   onClick={handlePrecheckerClick}
@@ -565,14 +565,14 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           )}
 
           {showRequesterColumn && (
-            <div className={`w-28 flex-shrink-0 truncate text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
+            <div className={`w-20 flex-shrink-0 truncate text-center ${isCompleted ? 'line-through' : 'text-current/80'}`}>
                 <button onClick={(e) => handleEditClick(e, 'requester')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="依頼者を編集">
                   {call.requester === call.assignee ? '' : call.requester}
                 </button>
             </div>
           )}
           
-          <div className="w-10 flex-shrink-0 flex items-center justify-center">
+          <div className="w-8 flex-shrink-0 flex items-center justify-center">
               <button
                   onClick={(e) => {
                       e.stopPropagation();
