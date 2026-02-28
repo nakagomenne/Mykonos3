@@ -163,30 +163,30 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                 `}
                 aria-current={isSelected ? 'page' : undefined}
               >
-                <div className="h-9 w-full flex flex-col justify-end items-center">
+                <div className="h-14 w-full flex flex-col justify-end items-center">
                   <div className={`
-                      relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full 
+                      relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full 
                       transition-all duration-200
                       ${isSelected ? 'ring-2 ring-[#0193be] ring-offset-1' : 'ring-1 ring-slate-300 group-hover:ring-[#0193be]/50'}
                     `}>
                       {isListTab ? (
                         <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-[#0193be]/60">
-                          <ListBulletIcon className="h-5 w-5" />
+                          <ListBulletIcon className="h-7 w-7" />
                         </div>
                       ) : isPrecheckerTab ? (
                         <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-[#0193be]/60">
-                          <CircleIcon className="h-5 w-5" />
+                          <CircleIcon className="h-7 w-7" />
                         </div>
                       ) : user?.profilePicture ? (
                         <img src={user.profilePicture} alt={user.name} className="h-full w-full rounded-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-200 text-slate-400">
-                          <UserIcon className="h-5 w-5" />
+                          <UserIcon className="h-7 w-7" />
                         </div>
                       )}
                       {!isListTab && !isPrecheckerTab && user && (
                         <span
-                          className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[user.availabilityStatus].bg}`}
+                          className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[user.availabilityStatus].bg}`}
                           title={`稼働状況: ${user.availabilityStatus}`}
                         />
                       )}
