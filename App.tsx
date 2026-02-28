@@ -1650,7 +1650,7 @@ const App: React.FC = () => {
                   />
                 )}
 
-                <div className="mb-6">
+                <div className="my-4 py-2">
                   {viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME) ? (
                       null
                   ) : viewMode === 'mine' ? (
