@@ -1139,7 +1139,8 @@ const App: React.FC = () => {
     <div className="bg-[#f2f4f7] min-h-screen font-sans">
       <header className={`shadow-sm sticky top-0 z-20 transition-colors duration-300 ${headerBgClass}`}>
         <div className="px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <span className={`text-xs font-inconsolata transition-colors duration-300 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
             <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-300 ${headerTextClass}`}>Mykonos</h1>
           </div>
 
