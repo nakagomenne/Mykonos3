@@ -1920,6 +1920,7 @@ const App: React.FC = () => {
                             isPrecheckTheme={isPrecheckTheme}
                             prefilledDate={prefilledRequestDate}
                             onPrefillConsumed={handlePrefillConsumed}
+                            isDarkMode={isDarkMode}
                           />
                         </div>
                       </div>
@@ -2002,6 +2003,7 @@ const App: React.FC = () => {
                               isPrecheckTheme={isPrecheckTheme}
                               prefilledDate={prefilledRequestDate}
                               onPrefillConsumed={handlePrefillConsumed}
+                              isDarkMode={isDarkMode}
                             />
                           </div>
                         </div>

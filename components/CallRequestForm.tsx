@@ -18,6 +18,7 @@ interface CallRequestFormProps {
   isPrecheckTheme?: boolean;
   prefilledDate?: string | null;
   onPrefillConsumed?: () => void;
+  isDarkMode?: boolean;
 }
 
 const getInitialDateTime = () => {
@@ -64,7 +65,7 @@ const getListTypeForAssignee = (
 };
 
 
-const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {} }) => {
+const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
   const [customerId, setCustomerId] = useState('');
   const [assignee, setAssignee] = useState(defaultAssignee || '');
   const [listType, setListType] = useState<ListType | ''>(isPrecheckMode ? '回線' : '');
@@ -312,27 +313,40 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const mainBorderClass = isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
   const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
   const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+
+  // ダークモード用フィールドスタイル
+  const darkFieldBg    = isDarkMode ? 'bg-[#0f1623]' : 'bg-white';
+  const darkFieldBorder = isDarkMode ? 'border-slate-600' : 'border-slate-300';
+  const darkFieldText  = isDarkMode ? mainColorClass : mainColorClass;
+  const darkFieldDisabled = isDarkMode
+    ? 'disabled:bg-[#0a0e16] disabled:text-slate-500 disabled:cursor-not-allowed'
+    : 'disabled:bg-slate-100 disabled:cursor-not-allowed';
+  const darkDropdownBg = isDarkMode ? 'bg-[#0f1623] border-slate-600' : 'bg-white border-slate-200';
+  const darkDropdownHover = isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100';
+  const darkClearBtn   = isDarkMode
+    ? 'bg-[#0f1623] text-slate-300 border border-slate-600 hover:bg-slate-700'
+    : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50';
   
   const CalendarPopup = (
     <div
       ref={calendarRef}
-      className="fixed z-20 bg-white rounded-lg shadow-xl border border-slate-200 p-3 w-72"
+      className={`fixed z-20 rounded-lg shadow-xl border p-3 w-72 ${isDarkMode ? 'bg-[#0f1623] border-slate-600' : 'bg-white border-slate-200'}`}
       style={calendarPosition ? { top: `${calendarPosition.top}px`, left: `${calendarPosition.left}px` } : {}}
     >
         <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="p-1 rounded-full hover:bg-slate-100 transition">
-                <ChevronLeftIcon className="w-5 h-5 text-slate-600" />
+            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+                <ChevronLeftIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
             </button>
-            <div className="font-semibold text-slate-700">
+            <div className={`font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
                 {calendarDisplayDate.getFullYear()}年 {calendarDisplayDate.getMonth() + 1}月
             </div>
-            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="p-1 rounded-full hover:bg-slate-100 transition">
-                <ChevronRightIcon className="w-5 h-5 text-slate-600" />
+            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+                <ChevronRightIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
             </button>
         </div>
         <div className="grid grid-cols-7 gap-1 text-center text-xs">
             {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                <div key={day} className="font-medium text-slate-500 py-1">{day}</div>
+                <div key={day} className={`font-medium py-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{day}</div>
             ))}
             {calendarGrid.flat().map((dayDate, index) => {
                 if (!dayDate) return <div key={`empty-${index}`} />;
@@ -351,10 +365,10 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                 const isPast = dayDateObj < localToday;
                 const isDisabled = isNonWorking || isPast;
 
-                let daySpecificClasses = 'text-slate-700 hover:bg-sky-100';
+                let daySpecificClasses = isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-sky-100';
 
                 if (isDisabled) {
-                    daySpecificClasses = 'bg-slate-200 text-slate-400 cursor-not-allowed';
+                    daySpecificClasses = isDarkMode ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-200 text-slate-400 cursor-not-allowed';
                 } else if (isSelected) {
                     daySpecificClasses = `${mainBgClass} text-white font-bold ${mainHoverBgClass}`;
                 } else if (isTodayDate) {
@@ -392,7 +406,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="md:col-span-2">
           <label htmlFor="customerId" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>顧客ID <span className="text-red-500">*</span></label>
-          <input type="text" id="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`} autoComplete="off"/>
+          <input type="text" id="customerId" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${mainColorClass} ${darkFieldBg}`} autoComplete="off"/>
         </div>
         {showAssigneeField && (
           <div className="md:col-span-2 relative" ref={assigneeDropdownRef}>
@@ -402,7 +416,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               type="button"
               id="assignee-button"
               onClick={() => !isAssigneeDisabled && setIsAssigneeDropdownOpen(prev => !prev)}
-              className={`w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass} disabled:bg-slate-100 disabled:cursor-not-allowed flex justify-between items-center text-left`}
+              className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass} ${darkFieldDisabled} flex justify-between items-center text-left`}
               disabled={isAssigneeDisabled}
               aria-haspopup="listbox"
               aria-expanded={isAssigneeDropdownOpen}
@@ -411,7 +425,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform ${isAssigneeDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
             {isAssigneeDropdownOpen && (
-                <div className="absolute z-10 mt-1 w-full bg-white rounded-md shadow-lg border border-slate-200 max-h-60 overflow-auto">
+                <div className={`absolute z-10 mt-1 w-full rounded-md shadow-lg border max-h-60 overflow-auto ${darkDropdownBg}`}>
                     <ul role="listbox" aria-labelledby="assignee-button">
                         {filteredUsers.map(user => {
                             const status = user.availabilityStatus;
@@ -423,7 +437,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                                         setAssignee(user.name);
                                         setIsAssigneeDropdownOpen(false);
                                     }}
-                                    className={`px-3 py-2 hover:bg-slate-100 cursor-pointer flex items-center gap-2 ${mainColorClass}`}
+                                    className={`px-3 py-2 ${darkDropdownHover} cursor-pointer flex items-center gap-2 ${mainColorClass}`}
                                     role="option"
                                     aria-selected={assignee === user.name}
                                 >
@@ -448,7 +462,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
             onChange={(e) => setListType(e.target.value as ListType)} 
             required 
             disabled={isPrecheckMode}
-            className={`w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass} disabled:bg-slate-100 disabled:cursor-not-allowed`}
+            className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass} ${darkFieldDisabled}`}
           >
             <option value="" disabled>--</option>
             {filteredListTypeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -456,14 +470,14 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         </div>
         <div>
             <label htmlFor="rank" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>ランク <span className="text-red-500">*</span></label>
-            <select id="rank" value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass}`}>
+            <select id="rank" value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}>
                 <option value="" disabled>--</option>
                 {rankOptionsToDisplay.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
         </div>
         <div className="md:col-span-2">
           <label htmlFor="date" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>予定日時 <span className="text-red-500">*</span></label>
-          <div className={`flex items-center border border-slate-300 rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
+          <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
               <div ref={dateInputRef} className="relative w-1/2">
                   <button 
                       type="button"
@@ -495,7 +509,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                               setIsCalendarOpen(true);
                           }
                       }}
-                      className={`w-full text-left px-3 py-2 border-0 rounded-l-md focus:ring-0 ${mainColorClass} disabled:bg-slate-100 disabled:cursor-not-allowed`}
+                      className={`w-full text-left px-3 py-2 border-0 rounded-l-md focus:ring-0 ${mainColorClass} ${isDarkMode ? 'disabled:bg-[#0a0e16] disabled:text-slate-500' : 'disabled:bg-slate-100'} disabled:cursor-not-allowed`}
                   >
                       {date}
                   </button>
@@ -506,7 +520,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               value={time} 
               onChange={(e) => setTime(e.target.value)} 
               required 
-              className={`w-1/2 px-3 py-2 border-0 border-l border-slate-300 rounded-r-md focus:ring-0 bg-white ${mainColorClass}`}
+              className={`w-1/2 px-3 py-2 border-0 border-l ${darkFieldBorder} rounded-r-md focus:ring-0 ${darkFieldBg} ${mainColorClass}`}
             >
               <option value="" disabled>--</option>
               {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
@@ -515,13 +529,13 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         </div>
         <div className="md:col-span-2">
           <label htmlFor="notes" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>備考</label>
-          <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={`w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition`}></textarea>
+          <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}></textarea>
         </div>
         <div className="md:col-span-2 flex justify-end gap-3">
           <button 
             type="button" 
             onClick={resetForm}
-            className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-6 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 transition duration-300 ease-in-out"
+            className={`font-bold py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-400 transition duration-300 ease-in-out ${darkClearBtn}`}
           >
             クリア
           </button>
