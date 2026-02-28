@@ -362,22 +362,29 @@ const App: React.FC = () => {
     };
   }, [notificationsEnabled, calls, currentUser]);
 
+  const [searchSuggestIndex, setSearchSuggestIndex] = useState(-1);
+
   useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
+    setSearchSuggestIndex(-1);
+    if (searchQuery.trim().length >= 1) {
       const trimmedQuery = searchQuery.trim().toLowerCase();
       
       const matchedCalls = calls.filter(call => call.customerId.toLowerCase().includes(trimmedQuery));
       const uniqueCustomerIds = [...new Set<string>(matchedCalls.map(call => call.customerId))];
       const customerResults: SearchResultItem[] = uniqueCustomerIds.map(customerId => {
-        const call = matchedCalls.find(c => c.customerId === customerId)!;
-        return { type: 'customer', value: customerId, call };
+        const relatedCalls = matchedCalls.filter(c => c.customerId === customerId);
+        const call = relatedCalls[0];
+        return { type: 'customer', value: customerId, call, _count: relatedCalls.length, _assignee: call?.assignee } as SearchResultItem & { _count: number; _assignee: string };
       });
 
       const userResults: SearchResultItem[] = users
         .filter(user => user.name.toLowerCase().includes(trimmedQuery))
-        .map(user => ({ type: 'user', value: user.name, user }));
+        .map(user => {
+          const userCallCount = calls.filter(c => c.assignee === user.name && c.status === '追客中').length;
+          return { type: 'user', value: user.name, user, _count: userCallCount } as SearchResultItem & { _count: number };
+        });
 
-      setSearchResultsList([...customerResults, ...userResults].slice(0, 10));
+      setSearchResultsList([...customerResults, ...userResults].slice(0, 12));
     } else {
       setSearchResultsList([]);
     }
@@ -1154,7 +1161,24 @@ const App: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      if (searchSuggestIndex >= 0 && searchResultsList[searchSuggestIndex]) {
+                        handleSearchResultClick(searchResultsList[searchSuggestIndex]);
+                      } else {
+                        handleSearch();
+                      }
+                    } else if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSearchSuggestIndex(prev => Math.min(prev + 1, searchResultsList.length - 1));
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSearchSuggestIndex(prev => Math.max(prev - 1, -1));
+                    } else if (e.key === 'Escape') {
+                      setIsSearchFocused(false);
+                      setSearchSuggestIndex(-1);
+                    }
+                  }}
                   onFocus={() => setIsSearchFocused(true)}
                   placeholder="顧客ID or メンバー名で検索..."
                   className="w-full pl-4 pr-10 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition text-[#0193be]"
@@ -1167,18 +1191,59 @@ const App: React.FC = () => {
                   <MagnifyingGlassIcon className="w-5 h-5" />
                 </button>
                 {isSearchFocused && searchResultsList.length > 0 && (
-                  <ul className="absolute z-30 mt-1 w-full bg-white rounded-md shadow-lg border border-slate-200 max-h-80 overflow-auto">
-                    {searchResultsList.map((item, index) => (
-                      <li key={`${item.type}-${item.value}-${index}`}>
-                        <button
-                          onClick={() => handleSearchResultClick(item)}
-                          className="w-full text-left px-4 py-2 hover:bg-slate-100 transition flex items-center gap-3"
-                        >
-                          {item.type === 'customer' ? <MagnifyingGlassIcon className="w-4 h-4 text-slate-400" /> : <UserIcon className="w-4 h-4 text-slate-400" />}
-                          <span className="text-[#0193be]">{item.value}</span>
-                        </button>
-                      </li>
-                    ))}
+                  <ul className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-xl border border-slate-200 max-h-80 overflow-auto">
+                    {searchResultsList.map((item, index) => {
+                      const extItem = item as SearchResultItem & { _count?: number; _assignee?: string };
+                      const isHighlighted = index === searchSuggestIndex;
+                      const userData = item.type === 'user' ? (item as any).user as User : null;
+                      return (
+                        <li key={`${item.type}-${item.value}-${index}`}>
+                          <button
+                            onMouseEnter={() => setSearchSuggestIndex(index)}
+                            onClick={() => handleSearchResultClick(item)}
+                            className={`w-full text-left px-4 py-2.5 transition flex items-center gap-3 ${
+                              isHighlighted ? 'bg-[#0193be]/10' : 'hover:bg-slate-50'
+                            } ${index === 0 ? 'rounded-t-xl' : ''} ${index === searchResultsList.length - 1 ? 'rounded-b-xl' : 'border-b border-slate-100'}`}
+                          >
+                            {item.type === 'customer' ? (
+                              <>
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                                  <MagnifyingGlassIcon className="w-4 h-4 text-[#0193be]" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-[#0193be] truncate">{item.value}</div>
+                                  <div className="text-xs text-slate-400">
+                                    {extItem._assignee && <span>担当: {extItem._assignee}</span>}
+                                    {extItem._count !== undefined && <span className="ml-2">{extItem._count}件</span>}
+                                  </div>
+                                </div>
+                                <span className="flex-shrink-0 text-xs bg-blue-50 text-[#0193be] px-2 py-0.5 rounded-full">顧客ID</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ring-2 ring-slate-200">
+                                  {userData?.profilePicture ? (
+                                    <img src={userData.profilePicture} alt={item.value} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                                      <UserIcon className="w-4 h-4 text-slate-400" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-[#0193be] truncate">{item.value}</div>
+                                  <div className="text-xs text-slate-400">
+                                    {userData && <span>{userData.availabilityStatus}</span>}
+                                    {extItem._count !== undefined && <span className="ml-2">追客中 {extItem._count}件</span>}
+                                  </div>
+                                </div>
+                                <span className="flex-shrink-0 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">メンバー</span>
+                              </>
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
             </div>
