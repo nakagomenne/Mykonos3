@@ -261,7 +261,7 @@ const App: React.FC = () => {
             : announcement.length * 16; // 1文字 ≈ 16px で推定
 
           if (singleWidth > 0) {
-            const pixelsPerSecond = 20;
+            const pixelsPerSecond = 10;
             const duration = Math.max(5, singleWidth / pixelsPerSecond);
             container.style.animation = `marquee ${duration}s linear infinite`;
             container.style.willChange = 'transform';
