@@ -156,8 +156,12 @@ const App: React.FC = () => {
         setIsLoading(true);
         setLoadError(null);
 
-        // 期限切れの完了済み案件を先に削除
-        await deleteExpiredCompletedCalls();
+        // 期限切れの完了済み案件を先に削除（失敗してもアプリ起動は継続）
+        try {
+          await deleteExpiredCompletedCalls();
+        } catch (cleanupErr) {
+          console.warn('期限切れ案件の削除をスキップしました:', cleanupErr);
+        }
 
         const [fetchedUsers, fetchedCalls, settings] = await Promise.all([
           fetchUsers(),
