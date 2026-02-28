@@ -227,8 +227,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     '見込B': '見込B留守',
     '見込C': '見込C留守',
   };
+  // 見込留守→見込の逆引きマップ
+  const absenteeToMikomRanks: Record<string, Rank> = {
+    '見込S留守': '見込S',
+    '見込A留守': '見込A',
+    '見込B留守': '見込B',
+    '見込C留守': '見込C',
+  };
   const isMikomRank = Object.keys(mikomRanks).includes(call.rank);
-  const showAbsenceCount = isPrecheckTheme || absenteeRanks.includes(call.rank) || isMikomRank;
+  const isAbsenteeRank = absenteeRanks.includes(call.rank);
+  const showAbsenceCount = isPrecheckTheme || isAbsenteeRank || isMikomRank;
 
   const mainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
   const mainRingClass = isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
@@ -444,7 +452,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            onUpdateCall(call.id, { rank: opt });
+                            // 見込留守→見込 に変更する場合は留守回数をリセット
+                            const updateData: Partial<Omit<CallRequest, 'id'>> = { rank: opt };
+                            if (absenteeRanks.includes(call.rank) && Object.values(mikomRanks).includes(opt as Rank) === false && Object.keys(mikomRanks).includes(opt)) {
+                              updateData.absenceCount = 0;
+                            }
+                            // 見込留守 → 見込SABC への変更時も留守回数リセット
+                            if (isAbsenteeRank && Object.keys(mikomRanks).includes(opt)) {
+                              updateData.absenceCount = 0;
+                            }
+                            onUpdateCall(call.id, updateData);
                             setIsRankDropdownOpen(false);
                           }}
                           style={{
@@ -480,7 +497,12 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                   onChange={(e) => {
                     e.stopPropagation();
                     const value = e.target.value ? Number(e.target.value) : undefined;
-                    onUpdateCall(call.id, { absenceCount: value });
+                    // 見込留守で「-」を選んだら対応する見込ランクに戻す
+                    if (!value && isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
+                      onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
+                    } else {
+                      onUpdateCall(call.id, { absenceCount: value });
+                    }
                   }}
                   onClick={(e) => e.stopPropagation()}
                   disabled={isFieldDisabled}
