@@ -365,13 +365,24 @@ export async function updateAppSetting(key: string, value: string): Promise<void
 // ────────────────────────────────────────────────────────────
 
 /** call_requests テーブルの変更をリアルタイムで購読する */
-export function subscribeToCallRequests(callback: (calls: CallRequest[]) => void) {
+export function subscribeToCallRequests(
+  callback: (calls: CallRequest[]) => void,
+  onInsert?: (newCall: CallRequest) => void
+) {
   const channel = supabase
     .channel('call_requests_changes')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'call_requests' },
-      async () => {
+      async (payload: any) => {
+        // INSERT イベントのとき、挿入された行を onInsert に渡す
+        if (payload.eventType === 'INSERT' && onInsert && payload.new) {
+          try {
+            onInsert(rowToCallRequest(payload.new));
+          } catch (e) {
+            console.error('INSERT コールバック中にエラー:', e);
+          }
+        }
         // 変更があったら全件取り直し
         try {
           const calls = await fetchCallRequests();

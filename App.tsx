@@ -14,6 +14,11 @@ import ConfirmationModal from './components/ConfirmationModal';
 import ShiftCalendar from './components/ShiftCalendar';
 import CommentModal from './components/CommentModal';
 import PasswordSettingsModal from './components/PasswordSettingsModal';
+import NotificationSettingsModal, {
+  NotificationSettings,
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotifyTiming,
+} from './components/NotificationSettingsModal';
 import {
   fetchCallRequests,
   createCallRequest,
@@ -115,6 +120,15 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('mykonosNotificationsEnabled');
     return saved ? JSON.parse(saved) : false;
   });
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
+    const saved = localStorage.getItem('mykonosNotificationSettings');
+    try {
+      return saved ? { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(saved) } : DEFAULT_NOTIFICATION_SETTINGS;
+    } catch {
+      return DEFAULT_NOTIFICATION_SETTINGS;
+    }
+  });
+  const [isNotificationSettingsModalOpen, setIsNotificationSettingsModalOpen] = useState(false);
   const [duplicateCustomerIds, setDuplicateCustomerIds] = useState<Set<string>>(new Set());
 
 
@@ -122,6 +136,11 @@ const App: React.FC = () => {
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const announcementMarqueeRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  // Realtime コールバック内で最新のstateを参照するためのref
+  const notificationSettingsRef = useRef<NotificationSettings>(notificationSettings);
+  const currentUserRef = useRef<User | null>(currentUser);
+  useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   const formatRelativeTime = (isoString?: string): string => {
     if (!isoString) return '';
@@ -190,7 +209,26 @@ const App: React.FC = () => {
     // ──────────────────────────────────────────────
     // Realtime 購読
     // ──────────────────────────────────────────────
-    const unsubCalls    = subscribeToCallRequests(setCalls);
+    const unsubCalls = subscribeToCallRequests(
+      setCalls,
+      // 回線前確案件がINSERTされたとき即時通知
+      (newCall) => {
+        // refから最新のstateを参照する
+        const settings = notificationSettingsRef.current;
+        const user = currentUserRef.current;
+        if (
+          !settings.precheckInstantNotify ||
+          !user?.isLinePrechecker ||
+          Notification.permission !== 'granted'
+        ) return;
+        if (newCall.assignee !== PRECHECKER_ASSIGNEE_NAME) return;
+        new Notification('🔔 回線前確 新規案件', {
+          body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+          tag: `precheck_insert_${newCall.id}`,
+          icon: '/vite.svg',
+        });
+      }
+    );
     const unsubUsers    = subscribeToUsers(setUsers);
     const unsubSettings = subscribeToAppSettings(settings => {
       if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
@@ -222,6 +260,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('mykonosNotificationsEnabled', JSON.stringify(notificationsEnabled));
   }, [notificationsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('mykonosNotificationSettings', JSON.stringify(notificationSettings));
+    // callNotifyEnabled / precheckInstantNotify のいずれかが ON なら notificationsEnabled も ON に同期
+    const anyEnabled = notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify;
+    if (anyEnabled && !notificationsEnabled) setNotificationsEnabled(true);
+    if (!anyEnabled && notificationsEnabled) setNotificationsEnabled(false);
+  }, [notificationSettings]);
 
   useEffect(() => {
     const customerIdCounts = new Map<string, number>();
@@ -316,51 +362,81 @@ const App: React.FC = () => {
     }
   }, [currentUser, users]);
 
+  // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
-    if (!notificationsEnabled || !currentUser || Notification.permission !== 'granted') {
-        return;
+    if (!notificationSettings.callNotifyEnabled || !currentUser || Notification.permission !== 'granted') {
+      return;
     }
 
-    const checkCalls = () => {
-        const now = new Date();
-        const myCalls = calls.filter(call => call.assignee === currentUser.name && call.status === '追客中');
-
-        myCalls.forEach(call => {
-            try {
-                const [datePart, timePart] = call.dateTime.split('T');
-                if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち'].includes(timePart)) {
-                    return;
-                }
-                
-                const callDateTime = new Date(call.dateTime);
-                const timeDifference = now.getTime() - callDateTime.getTime();
-
-                // Notify if it's within 30 seconds of the scheduled time (from 0s up to 30s past due)
-                if (timeDifference >= 0 && timeDifference < 30000) {
-                    const notifiedInSession = sessionStorage.getItem(`notified_${call.id}`);
-                    if (!notifiedInSession) {
-                        new Notification('架電時間のお知らせ', {
-                            body: `顧客ID: ${call.customerId}\n予定時間: ${timePart}`,
-                            tag: call.id,
-                            icon: '/vite.svg',
-                        });
-                        sessionStorage.setItem(`notified_${call.id}`, 'true');
-                    }
-                }
-
-            } catch (e) {
-                // Ignore invalid dates or other errors
-            }
-        });
+    /** タイミング設定を「何秒前」に変換 */
+    const timingToSeconds = (t: NotifyTiming): number => {
+      switch (t) {
+        case 'exact': return 0;
+        case '5min':  return 5 * 60;
+        case '10min': return 10 * 60;
+        case '15min': return 15 * 60;
+        case '30min': return 30 * 60;
+      }
     };
-    
+
+    const timingToLabel = (t: NotifyTiming): string => {
+      switch (t) {
+        case 'exact': return 'ちょうど';
+        case '5min':  return '5分前';
+        case '10min': return '10分前';
+        case '15min': return '15分前';
+        case '30min': return '30分前';
+      }
+    };
+
+    const checkCalls = () => {
+      const now = new Date();
+      const myCalls = calls.filter(
+        call => call.assignee === currentUser.name && call.status === '追客中'
+      );
+
+      myCalls.forEach(call => {
+        try {
+          const [, timePart] = call.dateTime.split('T');
+          if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+            return;
+          }
+
+          const callDateTime = new Date(call.dateTime);
+
+          notificationSettings.callNotifyTimings.forEach(timing => {
+            const offsetSec = timingToSeconds(timing);
+            // 通知すべき時刻 = 架電時刻 - offset秒
+            const notifyAt = callDateTime.getTime() - offsetSec * 1000;
+            const diff = now.getTime() - notifyAt; // 正なら通知時刻を過ぎた
+
+            // 通知ウィンドウ: 0〜30秒以内
+            if (diff >= 0 && diff < 30000) {
+              const sessionKey = `notified_${call.id}_${timing}`;
+              if (!sessionStorage.getItem(sessionKey)) {
+                const label = timingToLabel(timing);
+                new Notification('架電時間のお知らせ', {
+                  body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                  tag: `${call.id}_${timing}`,
+                  icon: '/vite.svg',
+                });
+                sessionStorage.setItem(sessionKey, 'true');
+              }
+            }
+          });
+        } catch {
+          // invalid date などを無視
+        }
+      });
+    };
+
     checkCalls();
-    const intervalId = setInterval(checkCalls, 30000); // Check every 30 seconds
+    const intervalId = setInterval(checkCalls, 15000); // 15秒ごとにチェック
 
     return () => {
-        clearInterval(intervalId);
+      clearInterval(intervalId);
     };
-  }, [notificationsEnabled, calls, currentUser]);
+  }, [notificationSettings, calls, currentUser]);
 
   const [searchSuggestIndex, setSearchSuggestIndex] = useState(-1);
 
@@ -922,26 +998,28 @@ const App: React.FC = () => {
     }
   };
 
-  const handleToggleNotifications = async () => {
-    if (!notificationsEnabled) { // Toggling ON
-        if (!('Notification' in window)) {
-            alert('このブラウザはデスクトップ通知をサポートしていません。');
-            return;
-        }
-        if (Notification.permission === 'granted') {
-            setNotificationsEnabled(true);
-        } else if (Notification.permission !== 'denied') {
-            const permission = await Notification.requestPermission();
-            if (permission === 'granted') {
-                setNotificationsEnabled(true);
-                new Notification("Mykonos", { body: "通知が有効になりました。" });
-            }
-        } else {
-             alert('通知がブロックされています。ブラウザの設定を変更してください。');
-        }
-    } else { // Toggling OFF
-        setNotificationsEnabled(false);
+  /** ブラウザ通知権限をリクエストする（モーダルから呼ばれる） */
+  const handleRequestNotificationPermission = async (): Promise<boolean> => {
+    if (!('Notification' in window)) {
+      alert('このブラウザはデスクトップ通知をサポートしていません。');
+      return false;
     }
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') {
+      alert('通知がブロックされています。ブラウザの設定から通知を許可してください。');
+      return false;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      new Notification('Mykonos', { body: '通知が有効になりました。' });
+      return true;
+    }
+    return false;
+  };
+
+  /** 通知設定が変わったとき呼ばれる */
+  const handleNotificationSettingsChange = (next: NotificationSettings) => {
+    setNotificationSettings(next);
   };
 
   const memberNames = users.map(u => u.name);
@@ -1367,29 +1445,22 @@ const App: React.FC = () => {
                       </div>
                       <div className="border-t border-slate-100 my-1" />
                       <div className="py-1" role="none">
-                          <div className="flex items-center justify-between w-full px-4 py-2 text-sm text-slate-700">
-                              <label htmlFor="notification-toggle" className="flex items-center gap-3 cursor-pointer">
-                                  <BellIcon className="w-5 h-5 text-slate-500" />
-                                  <span>通知</span>
-                              </label>
-                              <button
-                                  type="button"
-                                  id="notification-toggle"
-                                  onClick={handleToggleNotifications}
-                                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-2 ${
-                                      notificationsEnabled ? 'bg-[#0193be]' : 'bg-slate-200'
-                                  }`}
-                                  role="switch"
-                                  aria-checked={notificationsEnabled}
-                              >
-                                  <span
-                                      aria-hidden="true"
-                                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                          notificationsEnabled ? 'translate-x-5' : 'translate-x-0'
-                                      }`}
-                                  />
-                              </button>
-                          </div>
+                          <button
+                              type="button"
+                              onClick={() => {
+                                setIsNotificationSettingsModalOpen(true);
+                                setIsUserMenuOpen(false);
+                              }}
+                              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                              role="menuitem"
+                          >
+                              <BellIcon className="w-5 h-5 text-slate-500" />
+                              <span>通知設定</span>
+                              {/* 有効中インジケーター */}
+                              {(notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify) && (
+                                <span className="ml-auto w-2 h-2 rounded-full bg-[#0193be] flex-shrink-0" />
+                              )}
+                          </button>
                       </div>
                       <div className="border-t border-slate-100 my-1" />
                       <div className="py-1" role="none">
@@ -2083,6 +2154,21 @@ const App: React.FC = () => {
           initialComment={currentUserWithData.comment || ''}
         />
       )}
+
+      {/* 通知設定モーダル */}
+      <NotificationSettingsModal
+        isOpen={isNotificationSettingsModalOpen}
+        onClose={() => setIsNotificationSettingsModalOpen(false)}
+        settings={notificationSettings}
+        onChange={handleNotificationSettingsChange}
+        isLinePrechecker={!!currentUser?.isLinePrechecker}
+        onRequestPermission={handleRequestNotificationPermission}
+        notificationPermission={
+          !('Notification' in window)
+            ? 'unsupported'
+            : Notification.permission
+        }
+      />
       
       {scheduleViewingUser && (
         <ScheduleModal
