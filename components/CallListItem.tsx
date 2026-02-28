@@ -37,6 +37,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const rankButtonRef = useRef<HTMLButtonElement>(null);
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{top: number; left: number; width: number} | null>(null);
+  const [isAbsenceDropdownOpen, setIsAbsenceDropdownOpen] = useState(false);
+  const absenceButtonRef = useRef<HTMLButtonElement>(null);
+  const absenceDropdownRef = useRef<HTMLDivElement>(null);
+  const [absenceDropdownPosition, setAbsenceDropdownPosition] = useState<{top: number; left: number} | null>(null);
 
 
   useEffect(() => {
@@ -54,12 +58,19 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
       ) {
         setIsRankDropdownOpen(false);
       }
+      if (
+        isAbsenceDropdownOpen &&
+        absenceDropdownRef.current && !absenceDropdownRef.current.contains(event.target as Node) &&
+        absenceButtonRef.current && !absenceButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsAbsenceDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isRankDropdownOpen]);
+  }, [isRankDropdownOpen, isAbsenceDropdownOpen]);
 
   const { liStyle, dateTimeStyle, absenceCounterClass } = useMemo((): { liStyle: React.CSSProperties; dateTimeStyle: React.CSSProperties; absenceCounterClass: string; } => {
     const defaultMainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
@@ -489,42 +500,57 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 <button
                   onClick={handleAbsenceCountIncrement}
                   disabled={isFieldDisabled}
-                  className={`flex items-center justify-center rounded p-0.5 transition
-                    ${absenceCounterClass}
-                    hover:enabled:bg-slate-200/60
-                    disabled:opacity-40 disabled:cursor-not-allowed`}
-                  title={!isFieldDisabled
-                    ? isMikomRank
-                      ? `クリックで留守1・${mikomRanks[call.rank]}に変更`
-                      : '留守回数を+1'
-                    : ''}
+                  className={`flex items-center justify-center rounded p-0.5 transition ${absenceCounterClass} hover:enabled:bg-slate-200/60 disabled:opacity-40 disabled:cursor-not-allowed`}
+                  title={!isFieldDisabled ? (isMikomRank ? `クリックで留守1・${mikomRanks[call.rank]}に変更` : '留守回数を+1') : ''}
                 >
                   <PhoneMissedIcon className="w-3.5 h-3.5" />
                 </button>
-                {/* 回数セレクト（見込留守の場合のみ表示） */}
+                {/* 回数カスタムドロップダウン（見込留守の場合のみ） */}
                 {isAbsenteeRank && (
-                  <select
-                    value={call.absenceCount || ''}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      const value = e.target.value ? Number(e.target.value) : undefined;
-                      // 「-」を選んだら対応する見込ランクに戻す
-                      if (!value && absenteeToMikomRanks[call.rank]) {
-                        onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
-                      } else {
-                        onUpdateCall(call.id, { absenceCount: value });
-                      }
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    disabled={isFieldDisabled}
-                    className={`text-center rounded px-0.5 py-0.5 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition bg-transparent border-none focus:ring-0 enabled:cursor-pointer text-xs font-bold w-auto ${absenceCounterClass}`}
-                    title="留守回数（-で見込ランクに戻す）"
-                  >
-                    <option value="" className="text-slate-500">-</option>
-                    {Array.from({ length: 9 }, (_, i) => i + 1).map(num => (
-                      <option key={num} value={num} className="text-slate-500">{num}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      ref={absenceButtonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isFieldDisabled) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setAbsenceDropdownPosition({ top: rect.bottom + 4, left: rect.left });
+                        setIsAbsenceDropdownOpen(prev => !prev);
+                      }}
+                      disabled={isFieldDisabled}
+                      className={`text-xs font-bold px-1 py-0.5 rounded transition hover:enabled:bg-slate-200/60 disabled:cursor-not-allowed ${absenceCounterClass}`}
+                    >
+                      {call.absenceCount || '-'}
+                    </button>
+                    {isAbsenceDropdownOpen && absenceDropdownPosition && createPortal(
+                      <div
+                        ref={absenceDropdownRef}
+                        className="fixed z-50 bg-white rounded-md shadow-lg border border-slate-200 overflow-hidden"
+                        style={{ top: absenceDropdownPosition.top, left: absenceDropdownPosition.left, minWidth: '2.5rem' }}
+                      >
+                        {[{ label: '-', value: undefined }, ...Array.from({ length: 9 }, (_, i) => ({ label: String(i + 1), value: i + 1 }))].map(opt => (
+                          <button
+                            key={opt.label}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!opt.value && absenteeToMikomRanks[call.rank]) {
+                                onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
+                              } else {
+                                onUpdateCall(call.id, { absenceCount: opt.value });
+                              }
+                              setIsAbsenceDropdownOpen(false);
+                            }}
+                            className={`w-full text-center px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition ${
+                              (call.absenceCount || undefined) === opt.value ? 'bg-slate-100' : ''
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>,
+                      document.body
+                    )}
+                  </div>
                 )}
               </div>
             ) : (
