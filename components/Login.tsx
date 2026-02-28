@@ -12,6 +12,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,27 +66,51 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         {/* 円形カード本体 */}
         <div
           className="relative flex flex-col items-center justify-center rounded-full"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           style={{
             width: 400,
             height: 400,
-            background: 'rgba(255,255,255,0.72)',
+            background: isHovered
+              ? 'linear-gradient(150deg, #012f45 0%, #014f6e 35%, #0193be 70%, #01aad8 100%)'
+              : 'rgba(255,255,255,0.72)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.55)',
-            boxShadow: '0 8px 48px rgba(1,147,190,0.22), 0 2px 10px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.5)',
+            border: isHovered ? '1px solid rgba(1,170,216,0.5)' : '1px solid rgba(255,255,255,0.55)',
+            boxShadow: isHovered
+              ? '0 12px 60px rgba(1,147,190,0.55), 0 4px 16px rgba(0,0,0,0.25), 0 0 0 1px rgba(1,170,216,0.3)'
+              : '0 8px 48px rgba(1,147,190,0.22), 0 2px 10px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.5)',
+            transition: 'background 0.55s cubic-bezier(0.4,0,0.2,1), box-shadow 0.55s ease, border-color 0.55s ease',
           }}
         >
-          {/* 内側グロー */}
+          {/* 内側グロー（ライト時のみ） */}
           <div className="absolute inset-0 rounded-full pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(1,147,190,0.12) 0%, transparent 60%)' }}
+            style={{
+              background: isHovered
+                ? 'radial-gradient(ellipse at 50% 100%, rgba(1,47,69,0.4) 0%, transparent 60%)'
+                : 'radial-gradient(ellipse at 50% 0%, rgba(1,147,190,0.12) 0%, transparent 60%)',
+              transition: 'background 0.55s ease',
+            }}
             aria-hidden="true" />
 
           {/* タイトル */}
-          <h1 className="font-inconsolata font-bold text-[#0193be] tracking-tight select-none"
-            style={{ fontSize: 44, lineHeight: 1, textShadow: '0 2px 10px rgba(1,147,190,0.25)' }}>
+          <h1
+            className="font-inconsolata font-bold tracking-tight select-none"
+            style={{
+              fontSize: 44,
+              lineHeight: 1,
+              color: isHovered ? '#ffffff' : '#0193be',
+              textShadow: isHovered ? '0 2px 16px rgba(0,0,0,0.35)' : '0 2px 10px rgba(1,147,190,0.25)',
+              transition: 'color 0.4s ease, text-shadow 0.4s ease',
+            }}>
             Mykonos
           </h1>
-          <p className="mt-1 mb-6 text-xs text-[#0193be]/60 tracking-widest uppercase font-semibold">
+          <p
+            className="mt-1 mb-6 text-xs tracking-widest uppercase font-semibold"
+            style={{
+              color: isHovered ? 'rgba(255,255,255,0.65)' : 'rgba(1,147,190,0.6)',
+              transition: 'color 0.4s ease',
+            }}>
             ログインしてください
           </p>
 
@@ -99,7 +124,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               onChange={(e) => { setUsername(e.target.value); setError(''); }}
               required
               placeholder="メンバー名"
-              className="w-full bg-white/80 border border-[#0193be]/25 rounded-full px-5 py-2.5 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0193be]/40 focus:border-[#0193be]/50 transition-all duration-200 text-sm font-medium text-center shadow-sm"
+              className="w-full rounded-full px-5 py-2.5 text-sm font-medium text-center shadow-sm focus:outline-none focus:ring-2 transition-all duration-300"
+              style={{
+                background: isHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.80)',
+                border: isHovered ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(1,147,190,0.25)',
+                color: isHovered ? '#ffffff' : '#334155',
+              }}
               autoComplete="username"
             />
 
@@ -111,14 +141,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               onChange={(e) => { setPassword(e.target.value); setError(''); }}
               required
               placeholder="パスワード"
-              className="w-full bg-white/80 border border-[#0193be]/25 rounded-full px-5 py-2.5 text-slate-700 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0193be]/40 focus:border-[#0193be]/50 transition-all duration-200 text-sm font-medium text-center shadow-sm"
+              className="w-full rounded-full px-5 py-2.5 text-sm font-medium text-center shadow-sm focus:outline-none focus:ring-2 transition-all duration-300"
+              style={{
+                background: isHovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.80)',
+                border: isHovered ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(1,147,190,0.25)',
+                color: isHovered ? '#ffffff' : '#334155',
+              }}
               autoComplete="current-password"
             />
 
             {/* エラー */}
             <div className="h-4 w-full text-center">
               {error && (
-                <p className="text-xs text-red-500 animate-float-up font-medium">{error}</p>
+                <p
+                  className="text-xs animate-float-up font-medium"
+                  style={{ color: isHovered ? '#fca5a5' : '#ef4444' }}
+                >{error}</p>
               )}
             </div>
 
