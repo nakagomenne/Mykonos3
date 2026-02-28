@@ -242,27 +242,33 @@ const App: React.FC = () => {
     if (!container) return;
 
     if (announcement) {
-        // Use a small timeout to allow the browser to render the new content and calculate its width reliably.
-        const timer = setTimeout(() => {
-            const contentWidth = container.scrollWidth / 10;
-            
-            if (contentWidth > 0) {
-                const pixelsPerSecond = 80;
-                const duration = contentWidth / pixelsPerSecond;
-                const finalDuration = Math.max(5, duration);
+      // アニメーションを一旦リセットしてから再計算する
+      container.style.animation = 'none';
+      container.style.willChange = 'auto';
 
-                container.style.animation = `marquee ${finalDuration}s linear infinite`;
-                container.style.willChange = 'transform';
-            } else {
-                container.style.animation = 'none';
-                container.style.willChange = 'auto';
-            }
-        }, 0);
+      // requestAnimationFrame を2回ネストして、
+      // ブラウザがレイアウトを確実に完了した後に scrollWidth を取得する
+      const raf = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // コンテンツが10個並んでいるので、1個分の幅 = scrollWidth / 10
+          // ただし scrollWidth が 0 の場合は fallback として文字数で推定
+          const singleWidth = container.scrollWidth > 0
+            ? container.scrollWidth / 10
+            : announcement.length * 16; // 1文字 ≈ 16px で推定
 
-        return () => clearTimeout(timer);
+          if (singleWidth > 0) {
+            const pixelsPerSecond = 80;
+            const duration = Math.max(5, singleWidth / pixelsPerSecond);
+            container.style.animation = `marquee ${duration}s linear infinite`;
+            container.style.willChange = 'transform';
+          }
+        });
+      });
+
+      return () => cancelAnimationFrame(raf);
 
     } else {
-      // If announcement is empty, clear the animation.
+      // お知らせが空になったらアニメーション停止
       container.style.animation = 'none';
       container.style.willChange = 'auto';
     }
