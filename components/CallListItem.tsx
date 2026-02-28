@@ -520,7 +520,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       disabled={isFieldDisabled}
                       className={`text-xs font-bold px-1 py-0.5 rounded transition hover:enabled:bg-slate-200/60 disabled:cursor-not-allowed ${absenceCounterClass}`}
                     >
-                      {call.absenceCount || '-'}
+                      {(call.absenceCount && call.absenceCount > 0) ? call.absenceCount : '-'}
                     </button>
                     {isAbsenceDropdownOpen && absenceDropdownPosition && createPortal(
                       <div
@@ -528,21 +528,27 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                         className="fixed z-50 bg-white rounded-md shadow-lg border border-slate-200 overflow-hidden"
                         style={{ top: absenceDropdownPosition.top, left: absenceDropdownPosition.left, width: '2rem' }}
                       >
-                        {[{ label: '-', value: undefined }, ...Array.from({ length: 9 }, (_, i) => ({ label: String(i + 1), value: i + 1 }))].map(opt => (
+                        {[{ label: '-', value: null }, ...Array.from({ length: 9 }, (_, i) => ({ label: String(i + 1), value: i + 1 }))].map(opt => (
                           <button
                             key={opt.label}
                             onClick={(e) => {
                               e.stopPropagation();
-                              // 見込留守の「-」のみランク戻し。回線前確は回数リセットのみ
-                              if (!opt.value && isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
-                                onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
+                              if (opt.value === null) {
+                                // 「-」選択：見込留守はランク戻し、回線前確は回数リセットのみ
+                                if (isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
+                                  onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
+                                } else {
+                                  onUpdateCall(call.id, { absenceCount: 0 });
+                                }
                               } else {
                                 onUpdateCall(call.id, { absenceCount: opt.value });
                               }
                               setIsAbsenceDropdownOpen(false);
                             }}
                             className={`w-full text-center px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 transition ${
-                              (call.absenceCount || undefined) === opt.value ? 'bg-slate-100' : ''
+                              opt.value === null
+                                ? (!call.absenceCount ? 'bg-slate-100' : '')
+                                : (call.absenceCount === opt.value ? 'bg-slate-100' : '')
                             }`}
                           >
                             {opt.label}
