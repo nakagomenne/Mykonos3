@@ -1519,17 +1519,22 @@ const App: React.FC = () => {
           <nav className="border-b border-slate-200/80" style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: '12px 12px 0 0' }}>
             {currentUser.isLinePrechecker ? (
               <div className="grid grid-cols-3" role="tablist">
+                  {/* 自分タブ */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
-                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
-                        viewMode === 'mine'
-                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
-                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
-                    }`}
                     onClick={() => handleViewModeChange('mine')}
+                    className={`relative flex flex-col justify-center items-center gap-1 py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl overflow-hidden ${
+                        viewMode === 'mine'
+                            ? 'text-white shadow-md'
+                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                    }`}
+                    style={viewMode === 'mine' ? {
+                      background: 'linear-gradient(135deg, #0193be 0%, #0277a8 100%)',
+                      boxShadow: '0 4px 14px rgba(1,147,190,0.35)',
+                    } : {}}
                   >
                     <div className="relative">
                       <UserIcon className="w-6 h-6" />
@@ -1539,56 +1544,79 @@ const App: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    <span className={`text-xs font-semibold tracking-wide transition-all duration-200 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>自分</span>
+                    {viewMode !== 'mine' && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-[2.5px] bg-[#0193be] rounded-full transition-all duration-200 group-hover:w-8" />
+                    )}
                   </button>
+
+                  {/* 回線前確タブ */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={viewMode === 'precheck'}
                     title="回線前確"
-                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] ${
-                        viewMode === 'precheck'
-                            ? 'border-b-[2.5px] border-[#118f82] bg-white text-[#118f82] shadow-sm'
-                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#118f82] hover:bg-white/60'
-                    }`}
                     onClick={() => handleViewModeChange('precheck')}
+                    className={`relative flex flex-col justify-center items-center gap-1 py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#118f82] overflow-hidden ${
+                        viewMode === 'precheck'
+                            ? 'text-white shadow-md'
+                            : 'text-slate-400 hover:text-[#118f82] hover:bg-white/60'
+                    }`}
+                    style={viewMode === 'precheck' ? {
+                      background: 'linear-gradient(135deg, #118f82 0%, #0d7a6f 100%)',
+                      boxShadow: '0 4px 14px rgba(17,143,130,0.35)',
+                    } : {}}
                   >
                     <div className="relative">
-                        <CircleIcon className="w-6 h-6" />
-                        {unreadCountForPrecheckTab > 0 && (
-                            <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
-                                {unreadCountForPrecheckTab}
-                            </span>
-                        )}
+                      <CircleIcon className="w-6 h-6" />
+                      {unreadCountForPrecheckTab > 0 && (
+                        <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
+                          {unreadCountForPrecheckTab}
+                        </span>
+                      )}
                     </div>
+                    <span className={`text-xs font-semibold tracking-wide transition-all duration-200 ${viewMode === 'precheck' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>前確</span>
                   </button>
+
+                  {/* 自分以外タブ */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
-                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
-                        viewMode === 'others'
-                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
-                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
-                    }`}
                     onClick={() => handleViewModeChange('others')}
+                    className={`relative flex flex-col justify-center items-center gap-1 py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl overflow-hidden ${
+                        viewMode === 'others'
+                            ? 'text-white shadow-md'
+                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                    }`}
+                    style={viewMode === 'others' ? {
+                      background: 'linear-gradient(135deg, #0193be 0%, #0277a8 100%)',
+                      boxShadow: '0 4px 14px rgba(1,147,190,0.35)',
+                    } : {}}
                   >
                     <UsersGroupIcon className="h-6 w-auto" />
+                    <span className={`text-xs font-semibold tracking-wide transition-all duration-200 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>メンバー</span>
                   </button>
               </div>
             ) : (
               <div className="grid grid-cols-2" role="tablist">
+                  {/* 自分タブ */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={viewMode === 'mine'}
                     title="自身の案件一覧"
-                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
-                        viewMode === 'mine'
-                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
-                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
-                    }`}
                     onClick={() => handleViewModeChange('mine')}
+                    className={`relative flex flex-col justify-center items-center gap-1 py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl overflow-hidden ${
+                        viewMode === 'mine'
+                            ? 'text-white shadow-md'
+                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                    }`}
+                    style={viewMode === 'mine' ? {
+                      background: 'linear-gradient(135deg, #0193be 0%, #0277a8 100%)',
+                      boxShadow: '0 4px 14px rgba(1,147,190,0.35)',
+                    } : {}}
                   >
                     <div className="relative">
                       <UserIcon className="w-6 h-6" />
@@ -1598,20 +1626,28 @@ const App: React.FC = () => {
                         </span>
                       )}
                     </div>
+                    <span className={`text-xs font-semibold tracking-wide transition-all duration-200 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>自分</span>
                   </button>
+
+                  {/* 自分以外タブ */}
                   <button
                     type="button"
                     role="tab"
                     aria-selected={viewMode === 'others'}
                     title="自分以外の案件一覧"
-                    className={`flex justify-center items-center py-3.5 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
-                        viewMode === 'others'
-                            ? 'border-b-[2.5px] border-[#0193be] bg-white text-[#0193be] shadow-sm'
-                            : 'border-b-2 border-transparent text-slate-400 hover:text-[#0193be] hover:bg-white/60'
-                    }`}
                     onClick={() => handleViewModeChange('others')}
+                    className={`relative flex flex-col justify-center items-center gap-1 py-3 font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl overflow-hidden ${
+                        viewMode === 'others'
+                            ? 'text-white shadow-md'
+                            : 'text-slate-400 hover:text-[#0193be] hover:bg-white/60'
+                    }`}
+                    style={viewMode === 'others' ? {
+                      background: 'linear-gradient(135deg, #0193be 0%, #0277a8 100%)',
+                      boxShadow: '0 4px 14px rgba(1,147,190,0.35)',
+                    } : {}}
                   >
                     <UsersGroupIcon className="h-6 w-auto" />
+                    <span className={`text-xs font-semibold tracking-wide transition-all duration-200 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>メンバー</span>
                   </button>
               </div>
             )}
