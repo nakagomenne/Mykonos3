@@ -526,7 +526,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       <div
                         ref={absenceDropdownRef}
                         className="fixed z-50 bg-white rounded-md shadow-lg border border-slate-200 overflow-hidden"
-                        style={{ top: absenceDropdownPosition.top, left: absenceDropdownPosition.left, minWidth: '2.5rem' }}
+                        style={{ top: absenceDropdownPosition.top, left: absenceDropdownPosition.left, width: '2rem' }}
                       >
                         {[{ label: '-', value: undefined }, ...Array.from({ length: 9 }, (_, i) => ({ label: String(i + 1), value: i + 1 }))].map(opt => (
                           <button
