@@ -221,7 +221,14 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const isAllMembersView = selectedMember === '全体';
   
   const absenteeRanks: Rank[] = ['見込C留守', '見込B留守', '見込A留守', '見込S留守'];
-  const showAbsenceCount = isPrecheckTheme || absenteeRanks.includes(call.rank);
+  const mikomRanks: Record<string, Rank> = {
+    '見込S': '見込S留守',
+    '見込A': '見込A留守',
+    '見込B': '見込B留守',
+    '見込C': '見込C留守',
+  };
+  const isMikomRank = Object.keys(mikomRanks).includes(call.rank);
+  const showAbsenceCount = isPrecheckTheme || absenteeRanks.includes(call.rank) || isMikomRank;
 
   const mainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
   const mainRingClass = isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
@@ -267,7 +274,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
     const currentCount = call.absenceCount || 0;
     const newCount = Math.min(currentCount + 1, 9);
-    onUpdateCall(call.id, { absenceCount: newCount });
+    // 見込SABCの場合は対応する留守ランクに自動変更
+    const newRank = isMikomRank ? mikomRanks[call.rank] : call.rank;
+    onUpdateCall(call.id, { absenceCount: newCount, rank: newRank });
   };
   
   const rankOptionsForDisplay = useMemo(() => {
@@ -462,7 +471,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 <span
                   className={`text-xs ${absenceCounterClass} ${!isFieldDisabled ? 'cursor-pointer hover:underline' : 'cursor-not-allowed opacity-75'}`}
                   onClick={handleAbsenceCountIncrement}
-                  title={!isFieldDisabled ? "留守回数を+1" : ""}
+                  title={!isFieldDisabled ? (isMikomRank ? `クリックで留守1・${mikomRanks[call.rank]}に変更` : "留守回数を+1") : ""}
                 >
                   留守
                 </span>
@@ -485,7 +494,11 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 </select>
               </div>
             ) : (
-              <span className="text-slate-400">-</span>
+              <span
+                className={isMikomRank && !isFieldDisabled ? `text-slate-400 cursor-pointer hover:text-[#0193be] hover:underline` : 'text-slate-400'}
+                onClick={isMikomRank && !isFieldDisabled ? handleAbsenceCountIncrement : undefined}
+                title={isMikomRank && !isFieldDisabled ? `クリックで留守1・${mikomRanks[call.rank]}に変更` : ''}
+              >-</span>
             )}
           </div>
 
