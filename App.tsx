@@ -89,6 +89,8 @@ const App: React.FC = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [formResetCounter, setFormResetCounter] = useState(0);
   const [viewMode, setViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
+  const [displayViewMode, setDisplayViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [announcement, setAnnouncement] = useState<string>('');
   const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
@@ -548,6 +550,8 @@ const App: React.FC = () => {
   };
   
   const handleViewModeChange = (newMode: 'mine' | 'others' | 'precheck', memberToSelect?: string) => {
+    if (newMode === viewMode) return;
+
     if (newMode === 'mine' && currentUser) {
       setLastViewedTimestamps(prev => ({
         ...prev,
@@ -568,8 +572,14 @@ const App: React.FC = () => {
     
     setIsFormVisible(false);
     setFormResetCounter(c => c + 1);
-  
-    setViewMode(newMode);
+
+    // フェードアウト → モード切替 → フェードイン
+    setIsTabTransitioning(true);
+    setTimeout(() => {
+      setViewMode(newMode);
+      setDisplayViewMode(newMode);
+      setIsTabTransitioning(false);
+    }, 320);
   };
 
   const handleSelectMember = (member: string) => {
@@ -1679,8 +1689,13 @@ const App: React.FC = () => {
           </nav>
           
           <div className={contentContainerClasses}>
+            {/* タブ切り替え時フェードトランジション */}
+            <div
+              className="transition-opacity duration-300 ease-in-out"
+              style={{ opacity: isTabTransitioning ? 0 : 1 }}
+            >
             <div className="p-4">
-                {viewMode === 'others' && (
+                {displayViewMode === 'others' && (
                   <MemberListTabs
                     members={otherMembers}
                     users={users}
@@ -1694,9 +1709,9 @@ const App: React.FC = () => {
                 )}
 
                 <div className="my-4 py-2">
-                  {viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME) ? (
+                  {displayViewMode === 'precheck' || (displayViewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME) ? (
                       null
-                  ) : viewMode === 'mine' ? (
+                  ) : displayViewMode === 'mine' ? (
                       <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-4 ml-4">
                               <div className="relative" ref={statusDropdownRef}>
@@ -1789,7 +1804,7 @@ const App: React.FC = () => {
                               </div>
                           </div>
                       </div>
-                  ) : viewMode === 'others' && selectedMember !== '全体' && (() => {
+                  ) : displayViewMode === 'others' && selectedMember !== '全体' && (() => {
                           const selectedUserDetails = users.find(u => u.name === selectedMember);
                           if (!selectedUserDetails) return null;
                           
@@ -1928,7 +1943,7 @@ const App: React.FC = () => {
                   </div>
                 )}
                 
-                {viewMode === 'others' && selectedMember === '全体' && (
+                {displayViewMode === 'others' && selectedMember === '全体' && (
                   <>
                     <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                       <button
@@ -2013,7 +2028,7 @@ const App: React.FC = () => {
                 )}
 
 
-                {viewMode === 'others' && selectedMember === '全体' ? (
+                {displayViewMode === 'others' && selectedMember === '全体' ? (
                   <div
                     key={previewMember || 'placeholder'}
                     className={shouldAnimate ? 'animate-wipe-in-down' : ''}
@@ -2106,7 +2121,7 @@ const App: React.FC = () => {
                 ) : (
                   <CallList 
                     calls={filteredCalls}
-                    selectedMember={viewMode === 'mine' ? currentUser.name : (viewMode === 'precheck' ? PRECHECKER_ASSIGNEE_NAME : selectedMember)}
+                    selectedMember={displayViewMode === 'mine' ? currentUser.name : (displayViewMode === 'precheck' ? PRECHECKER_ASSIGNEE_NAME : selectedMember)}
                     onUpdateCall={handleUpdateCall}
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}
@@ -2119,6 +2134,7 @@ const App: React.FC = () => {
                   />
                 )}
             </div>
+            </div>{/* /フェードトランジションラッパー */}
           </div>
         </div>
       </main>
