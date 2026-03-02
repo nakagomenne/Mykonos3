@@ -152,12 +152,62 @@
 
   /* ────────────────────────────────────────────
      ヘッダーグラデーション
+     グラデーション間はdirect transitionが不可なため
+     ::before 疑似要素 + opacity で滑らかに切り替える
   ──────────────────────────────────────────── */
+  .header-gradient-blue,
+  .header-gradient-teal {
+    position: relative;
+    overflow: hidden;
+  }
+  /* ベース（blue）を常に後ろ側に描画 */
   .header-gradient-blue {
     background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
   }
-  .header-gradient-teal {
+  /* teal グラデーションは ::before で重ね、opacity で切り替え */
+  .header-gradient-blue::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background: linear-gradient(135deg, #118f82 0%, #0d7a6f 60%, #0a6560 100%);
+    opacity: 0;
+    transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .header-gradient-teal {
+    background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
+  }
+  .header-gradient-teal::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #118f82 0%, #0d7a6f 60%, #0a6560 100%);
+    opacity: 1;
+    transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 0;
+  }
+  /* ヘッダーコンテンツを ::before より前面に */
+  .header-gradient-blue > *,
+  .header-gradient-teal > * {
+    position: relative;
+    z-index: 1;
+  }
+  /* white/95 ← → gradient 切り替えもフェードで */
+  .header-white-fade {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background 0.85s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .header-dark-fade {
+    background: rgba(22,27,39,0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background 0.85s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.85s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /* ────────────────────────────────────────────
@@ -248,6 +298,36 @@
   ──────────────────────────────────────────── */
   .tab-underline-blue  { border-bottom: 2.5px solid #0193be; }
   .tab-underline-teal  { border-bottom: 2.5px solid #118f82; }
+
+  /* ────────────────────────────────────────────
+     ページ背景グラデーション（ライト / ダーク）の
+     スムーズな切り替え用クラス
+  ──────────────────────────────────────────── */
+  .page-bg {
+    transition: background 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .page-bg-light {
+    background: linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%);
+  }
+  .page-bg-dark {
+    background: linear-gradient(160deg, #0f1117 0%, #131825 50%, #111827 100%);
+  }
+
+  /* ────────────────────────────────────────────
+     タブナビゲーション背景（ライト / ダーク）
+  ──────────────────────────────────────────── */
+  .tab-nav {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 12px 12px 0 0;
+    transition: background 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .tab-nav-light {
+    background: rgba(255, 255, 255, 0.7);
+  }
+  .tab-nav-dark {
+    background: rgba(22, 27, 39, 0.95);
+  }
 
   /* ────────────────────────────────────────────
      フォームフィールドグロー

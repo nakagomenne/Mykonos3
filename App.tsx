@@ -1210,7 +1210,7 @@ const App: React.FC = () => {
   const isPrecheckContext = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
   const isPrecheckTheme = viewMode === 'precheck';
 
-  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : (isDarkMode ? 'bg-[#161b27] border-b border-white/10' : 'bg-white/95 backdrop-blur-md border-b border-slate-200/80');
+  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : (isDarkMode ? 'header-dark-fade border-b border-white/10' : 'header-white-fade border-b border-slate-200/80');
   const headerTextClass = isDarkHeader ? 'text-white' : (isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]');
   
   const searchIconClass = isDarkHeader ? 'text-white/80 hover:text-white' : (isDarkMode ? 'text-[#0193be]/70 hover:text-[#0193be]' : 'text-[#0193be]/60 hover:text-[#0193be]');
@@ -1229,19 +1229,19 @@ const App: React.FC = () => {
     ? 'header-gradient-teal text-white border-white/20' 
     : isMineModeActive 
     ? 'header-gradient-blue text-white border-white/20' 
-    : (isDarkMode ? 'bg-[#161b27] text-[#0193be]/80 border-white/10' : 'bg-white/95 backdrop-blur-md text-[#0193be]/80 border-slate-200');
+    : (isDarkMode ? 'header-dark-fade text-[#0193be]/80 border-white/10' : 'header-white-fade text-[#0193be]/80 border-slate-200');
   
   const contentContainerClasses = currentUser.isLinePrechecker
-    ? `${isDarkMode ? 'bg-[#1a1f2e] border-white/8' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
+    ? `transition-colors duration-700 ${isDarkMode ? 'bg-[#1a1f2e] border-white/8' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
         viewMode === 'mine' ? 'rounded-tr-xl' : (viewMode === 'others' ? 'rounded-tl-xl' : '')
       }`
-    : `${isDarkMode ? 'bg-[#1a1f2e]' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
+    : `transition-colors duration-700 ${isDarkMode ? 'bg-[#1a1f2e]' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
         viewMode === 'mine' ? 'rounded-tr-xl' : 'rounded-tl-xl'
       }`;
 
 
   return (
-    <div className="min-h-screen font-sans" style={{ background: isDarkMode ? 'linear-gradient(160deg, #0f1117 0%, #131825 50%, #111827 100%)' : 'linear-gradient(160deg, #eef3f7 0%, #e4eff5 50%, #ddeaf2 100%)' }}>
+    <div className={`min-h-screen font-sans page-bg ${isDarkMode ? 'page-bg-dark' : 'page-bg-light'}`}>
       <header className={`sticky top-0 z-20 transition-all duration-700 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
         style={isDarkHeader ? { boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.1)' } : undefined}
       >
@@ -1558,7 +1558,7 @@ const App: React.FC = () => {
           </div>
         )}
         <div>
-          <nav className={`border-b-2 ${isDarkMode ? 'border-white/10' : 'border-slate-200/80'}`} style={{ background: isDarkMode ? 'rgba(22, 27, 39, 0.95)' : 'rgba(255,255,255,0.7)', backdropFilter: 'blur(12px)', borderRadius: '12px 12px 0 0' }}>
+          <nav className={`border-b-2 tab-nav ${isDarkMode ? 'border-white/10 tab-nav-dark' : 'border-slate-200/80 tab-nav-light'}`}>
             {currentUser.isLinePrechecker ? (
               <div className="grid grid-cols-3" role="tablist">
                   {/* 自分タブ */}
