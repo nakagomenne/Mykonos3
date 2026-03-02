@@ -1212,9 +1212,10 @@ const App: React.FC = () => {
   
   const currentUserWithData = users.find(u => u.name === currentUser.name);
 
-  // Define theme colors based on viewMode
-  const isPrecheckModeActive = viewMode === 'precheck';
-  const isMineModeActive = viewMode === 'mine';
+  // ヘッダー・フッターのテーマは displayViewMode ベース
+  // （コンテンツのフェードと同期させるため）
+  const isPrecheckModeActive = displayViewMode === 'precheck';
+  const isMineModeActive = displayViewMode === 'mine';
   const isDarkHeader = isPrecheckModeActive || isMineModeActive;
 
   const isPrecheckContext = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
@@ -1252,15 +1253,22 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen font-sans page-bg ${isDarkMode ? 'page-bg-dark' : 'page-bg-light'}`}>
-      <header className={`sticky top-0 z-20 transition-all duration-700 ${headerBgClass} ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
+      <header className={`sticky top-0 z-20 relative overflow-visible ${isDarkHeader ? 'shadow-lg' : 'shadow-sm'}`}
         style={isDarkHeader ? { boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 1px 4px rgba(0,0,0,0.1)' } : undefined}
       >
-        {/* ヘッダー内のグロー装飾 */}
-        {isDarkHeader && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-            <div className="absolute inset-0 opacity-15" style={{ background: 'radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.5) 0%, transparent 60%)' }} />
-          </div>
-        )}
+        {/* ── ヘッダー背景レイヤー（opacity で切り替え） ── */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+          {/* white（others） */}
+          <div className="absolute inset-0 header-white-fade transition-opacity duration-700" style={{ opacity: displayViewMode === 'others' && !isDarkMode ? 1 : 0 }} />
+          {/* dark（others・ダークモード） */}
+          <div className="absolute inset-0 header-dark-fade transition-opacity duration-700" style={{ opacity: displayViewMode === 'others' && isDarkMode ? 1 : 0 }} />
+          {/* blue（mine） */}
+          <div className="absolute inset-0 header-gradient-blue transition-opacity duration-700" style={{ opacity: displayViewMode === 'mine' ? 1 : 0 }} />
+          {/* teal（precheck） */}
+          <div className="absolute inset-0 header-gradient-teal transition-opacity duration-700" style={{ opacity: displayViewMode === 'precheck' ? 1 : 0 }} />
+          {/* グロー装飾（dark header 時） */}
+          <div className="absolute inset-0 transition-opacity duration-700" style={{ opacity: isDarkHeader ? 0.15 : 0, background: 'radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.5) 0%, transparent 60%)' }} />
+        </div>
         <div className="relative px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
           <div className="flex-shrink-0 flex items-end gap-2">
             <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-700 ${headerTextClass}`}>Mykonos</h1>
@@ -2139,8 +2147,15 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className={`px-4 sm:px-6 lg:px-8 py-3 text-center text-sm transition-colors duration-700 border-t border-b ${footerClasses}`}>
-        <p className="font-inconsolata">&copy; {new Date().getFullYear()} Mykonos. All rights reserved.</p>
+      <footer className={`relative px-4 sm:px-6 lg:px-8 py-3 text-center text-sm border-t border-b overflow-hidden ${isDarkHeader ? 'text-white border-white/20' : (isDarkMode ? 'text-[#0193be]/80 border-white/10' : 'text-[#0193be]/80 border-slate-200')}`}>
+        {/* フッター背景レイヤー */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 header-white-fade transition-opacity duration-700" style={{ opacity: displayViewMode === 'others' && !isDarkMode ? 1 : 0 }} />
+          <div className="absolute inset-0 header-dark-fade transition-opacity duration-700" style={{ opacity: displayViewMode === 'others' && isDarkMode ? 1 : 0 }} />
+          <div className="absolute inset-0 header-gradient-blue transition-opacity duration-700" style={{ opacity: displayViewMode === 'mine' ? 1 : 0 }} />
+          <div className="absolute inset-0 header-gradient-teal transition-opacity duration-700" style={{ opacity: displayViewMode === 'precheck' ? 1 : 0 }} />
+        </div>
+        <p className="relative font-inconsolata">&copy; {new Date().getFullYear()} Mykonos. All rights reserved.</p>
       </footer>
       
       <CallDetailModal 
