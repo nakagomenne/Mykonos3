@@ -376,7 +376,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                 }
 
                 const buttonClasses = [
-                    `w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-400 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 ${mainRingClass}`,
+                    `w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-300 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 ${mainRingClass}`,
                     daySpecificClasses,
                 ].filter(Boolean).join(' ');
 
