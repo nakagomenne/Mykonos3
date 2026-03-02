@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -95,6 +95,9 @@ const App: React.FC = () => {
   const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
+  const commentButtonRef = useRef<HTMLButtonElement>(null);
+  const commentPopupRef = useRef<HTMLDivElement>(null);
   const [pendingDuplicate, setPendingDuplicate] = useState<{
     existingCalls: CallRequest[];
     newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>;
@@ -356,6 +359,12 @@ const App: React.FC = () => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchFocused(false);
       }
+      if (
+        commentPopupRef.current && !commentPopupRef.current.contains(event.target as Node) &&
+        commentButtonRef.current && !commentButtonRef.current.contains(event.target as Node)
+      ) {
+        setIsCommentPopupOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -566,7 +575,7 @@ const App: React.FC = () => {
   
     if (newMode === 'others') {
       setPreviewMember(null);
-      setSelectedMember(memberToSelect || '全体');
+      setSelectedMember(memberToSelect || '新規依頼');
       setShouldAnimate(false);
     }
     
@@ -590,7 +599,7 @@ const App: React.FC = () => {
   };
   
   const handleListTabClick = () => {
-      setSelectedMember('全体');
+      setSelectedMember('新規依頼');
       setPreviewMember(null);
   };
 
@@ -856,7 +865,7 @@ const App: React.FC = () => {
         );
 
         if (deletedUserNames.includes(selectedMember)) {
-          setSelectedMember('全体');
+          setSelectedMember('新規依頼');
         }
 
         if (currentUser && deletedUserNames.includes(currentUser.name)) {
@@ -1103,13 +1112,20 @@ const App: React.FC = () => {
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
         return call.assignee === PRECHECKER_ASSIGNEE_NAME;
       }
-      return selectedMember === '全体' ? false : call.assignee === selectedMember;
+      // 「全体」: 回線前確以外の全員（自分除く）
+      if (selectedMember === '全体') {
+        return call.assignee !== PRECHECKER_ASSIGNEE_NAME && call.assignee !== currentUser?.name;
+      }
+      // 「新規依頼」: previewMember プレビュー用（案件は非表示）
+      if (selectedMember === '新規依頼') return false;
+      return call.assignee === selectedMember;
     }
   });
   
   const otherMemberNames = memberNames.filter(m => m !== currentUser?.name);
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
-  const otherMembers = ['全体'];
+  // タブ順: 新規依頼 → 全体 → 回線前確 → 各メンバー
+  const otherMembers = ['新規依頼', '全体'];
   if (hasPrecheckers) {
     otherMembers.push(PRECHECKER_ASSIGNEE_NAME);
   }
@@ -1127,7 +1143,7 @@ const App: React.FC = () => {
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
           return PRECHECKER_ASSIGNEE_NAME;
       }
-      return selectedMember === '全体' ? undefined : selectedMember;
+      return selectedMember === '新規依頼' || selectedMember === '全体' ? undefined : selectedMember;
     }
     return undefined;
   };
@@ -1367,6 +1383,98 @@ const App: React.FC = () => {
                   </ul>
                 )}
             </div>
+
+            {/* メンバーコメントボタン */}
+            {(() => {
+              const commentedUsers = users
+                .filter(u => u.comment && u.comment.trim() !== '')
+                .sort((a, b) => {
+                  const dateA = a.commentUpdatedAt ? new Date(a.commentUpdatedAt) : new Date(0);
+                  const dateB = b.commentUpdatedAt ? new Date(b.commentUpdatedAt) : new Date(0);
+                  return dateB.getTime() - dateA.getTime();
+                });
+              return (
+                <div className="relative">
+                  <button
+                    ref={commentButtonRef}
+                    onClick={() => setIsCommentPopupOpen(prev => !prev)}
+                    className={`relative p-2 rounded-full transition-colors duration-500 ${adminButtonClass}`}
+                    title="メンバーコメント一覧"
+                    aria-expanded={isCommentPopupOpen}
+                  >
+                    <SpeechBubbleIcon className="w-6 h-6" />
+                    {commentedUsers.length > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white">
+                        {commentedUsers.length}
+                      </span>
+                    )}
+                  </button>
+                  {isCommentPopupOpen && (() => {
+                    const rect = commentButtonRef.current?.getBoundingClientRect();
+                    const top = rect ? rect.bottom + 8 : 60;
+                    const right = rect ? window.innerWidth - rect.right : 16;
+                    return createPortal(
+                      <div
+                        ref={commentPopupRef}
+                        className="fixed z-[200] bg-white dark:bg-[#1e2535] rounded-xl shadow-xl w-80 max-h-[60vh] flex flex-col animate-fade-in-up border border-slate-200 dark:border-white/10"
+                        style={{ top, right }}
+                      >
+                        <div className="p-3 border-b border-slate-200 dark:border-white/10 flex justify-between items-center flex-shrink-0">
+                          <h3 className="text-base font-bold text-[#0193be]">メンバーコメント</h3>
+                          <button onClick={() => setIsCommentPopupOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-full transition-colors">
+                            <XMarkIcon className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <div className="overflow-y-auto p-2">
+                          {commentedUsers.length > 0 ? (
+                            <ul className="space-y-1">
+                              {commentedUsers.map(u => (
+                                <li key={u.name}>
+                                  <button
+                                    onClick={() => {
+                                      if (u.name === currentUser.name) {
+                                        handleViewModeChange('mine');
+                                      } else {
+                                        handleViewModeChange('others', u.name);
+                                      }
+                                      setIsCommentPopupOpen(false);
+                                    }}
+                                    className={`w-full text-left p-2 rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'} transition-colors`}
+                                  >
+                                    <div className="flex items-center gap-3 mb-1">
+                                      <div className="relative w-8 h-8 flex-shrink-0">
+                                        {u.profilePicture ? (
+                                          <img src={u.profilePicture} alt={u.name} className="w-8 h-8 rounded-full object-cover"/>
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                                            <UserIcon className="w-5 h-5 text-slate-400"/>
+                                          </div>
+                                        )}
+                                        <span className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
+                                      </div>
+                                      <div className="flex-1 flex justify-between items-center">
+                                        <span className="font-semibold text-sm text-[#0193be]">{u.name}</span>
+                                        {u.commentUpdatedAt && (
+                                          <span className="text-xs text-slate-400 whitespace-nowrap ml-2">{formatRelativeTime(u.commentUpdatedAt)}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <p className={`text-sm px-2 py-1.5 rounded ${isDarkMode ? 'bg-white/5 text-white/80' : 'bg-slate-100 text-slate-700'}`}>{u.comment}</p>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="p-4 text-sm text-slate-400 text-center">コメントを設定しているメンバーはいません。</p>
+                          )}
+                        </div>
+                      </div>,
+                      document.body
+                    );
+                  })()}
+                </div>
+              );
+            })()}
 
             {currentUser.isLoggedInAsAdmin && (
               <div className="relative">
@@ -1812,7 +1920,7 @@ const App: React.FC = () => {
                               </div>
                           </div>
                       </div>
-                  ) : displayViewMode === 'others' && selectedMember !== '全体' && (() => {
+                  ) : displayViewMode === 'others' && selectedMember !== '新規依頼' && selectedMember !== '全体' && (() => {
                           const selectedUserDetails = users.find(u => u.name === selectedMember);
                           if (!selectedUserDetails) return null;
                           
@@ -1901,7 +2009,7 @@ const App: React.FC = () => {
                       })()}
                 </div>
                 
-                {(viewMode !== 'others' || selectedMember !== '全体') && (
+                {(viewMode !== 'others' || (selectedMember !== '新規依頼' && selectedMember !== '全体')) && (
                   <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                     <button
                       onClick={() => {
@@ -1951,7 +2059,7 @@ const App: React.FC = () => {
                   </div>
                 )}
                 
-                {displayViewMode === 'others' && selectedMember === '全体' && (
+                {displayViewMode === 'others' && selectedMember === '新規依頼' && (
                   <>
                     <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                       <button
@@ -2036,7 +2144,7 @@ const App: React.FC = () => {
                 )}
 
 
-                {displayViewMode === 'others' && selectedMember === '全体' ? (
+                {displayViewMode === 'others' && selectedMember === '新規依頼' ? (
                   <div
                     key={previewMember || 'placeholder'}
                     className={shouldAnimate ? 'animate-wipe-in-down' : ''}
@@ -2126,6 +2234,20 @@ const App: React.FC = () => {
                       </div>
                     )}
                   </div>
+                ) : displayViewMode === 'others' && selectedMember === '全体' ? (
+                  // 「全体」タブ：回線前確以外の全員案件を時系列で一覧表示
+                  <CallList 
+                    calls={filteredCalls}
+                    selectedMember={undefined}
+                    onUpdateCall={handleUpdateCall}
+                    onSelectCall={handleSelectCall}
+                    highlightedCallId={highlightedCallId}
+                    members={assigneesForEditing}
+                    users={users}
+                    currentUser={currentUser}
+                    duplicateCustomerIds={duplicateCustomerIds}
+                    isDarkMode={isDarkMode}
+                  />
                 ) : (
                   <CallList 
                     calls={filteredCalls}
