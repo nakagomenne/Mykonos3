@@ -151,46 +151,29 @@
   }
 
   /* ────────────────────────────────────────────
-     ヘッダーグラデーション
-     グラデーション間はdirect transitionが不可なため
-     ::before 疑似要素 + opacity で滑らかに切り替える
+     ヘッダー／フッター グラデーション
+     @property でカラーストップをアニメーション可能にする
   ──────────────────────────────────────────── */
+  @property --grad-c1 { syntax: '<color>'; inherits: false; initial-value: #0193be; }
+  @property --grad-c2 { syntax: '<color>'; inherits: false; initial-value: #0277a8; }
+  @property --grad-c3 { syntax: '<color>'; inherits: false; initial-value: #015f88; }
+
   .header-gradient-blue,
   .header-gradient-teal {
-    /* ::before の absolute 配置の基準にするため position: relative が必要 */
-    position: relative;
-  }
-  /* ベース（blue）を常に後ろ側に描画 */
-  .header-gradient-blue {
-    background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
-  }
-  /* teal グラデーションは ::before で重ね、opacity で切り替え */
-  /* ::before に z-index: -1 を使うことでコンテンツの z-index を変更せずに済む */
-  .header-gradient-blue::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #118f82 0%, #0d7a6f 60%, #0a6560 100%);
-    opacity: 0;
-    transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    z-index: -1;
+    --grad-c1: #0193be;
+    --grad-c2: #0277a8;
+    --grad-c3: #015f88;
+    background: linear-gradient(135deg, var(--grad-c1) 0%, var(--grad-c2) 60%, var(--grad-c3) 100%);
+    transition: --grad-c1 0.85s cubic-bezier(0.4,0,0.2,1),
+                --grad-c2 0.85s cubic-bezier(0.4,0,0.2,1),
+                --grad-c3 0.85s cubic-bezier(0.4,0,0.2,1);
   }
   .header-gradient-teal {
-    background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
+    --grad-c1: #118f82;
+    --grad-c2: #0d7a6f;
+    --grad-c3: #0a6560;
   }
-  .header-gradient-teal::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, #118f82 0%, #0d7a6f 60%, #0a6560 100%);
-    opacity: 1;
-    transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    z-index: -1;
-  }
-  /* ヘッダーの直下コンテンツは position: relative + z-index は付けない
-     → ドロップダウン (z-30 等) が stacking context に閉じ込められないよう */
+
   /* white/95 ← → gradient 切り替えもフェードで */
   .header-white-fade {
     background: rgba(255,255,255,0.95);
