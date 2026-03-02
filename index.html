@@ -157,14 +157,14 @@
   ──────────────────────────────────────────── */
   .header-gradient-blue,
   .header-gradient-teal {
-    position: relative;
-    overflow: hidden;
+    /* position は sticky（Tailwind）が付くため追記不要 */
   }
   /* ベース（blue）を常に後ろ側に描画 */
   .header-gradient-blue {
     background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
   }
   /* teal グラデーションは ::before で重ね、opacity で切り替え */
+  /* ::before に z-index: -1 を使うことでコンテンツの z-index を変更せずに済む */
   .header-gradient-blue::before {
     content: '';
     position: absolute;
@@ -173,7 +173,7 @@
     opacity: 0;
     transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    z-index: 0;
+    z-index: -1;
   }
   .header-gradient-teal {
     background: linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%);
@@ -186,14 +186,10 @@
     opacity: 1;
     transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    z-index: 0;
+    z-index: -1;
   }
-  /* ヘッダーコンテンツを ::before より前面に */
-  .header-gradient-blue > *,
-  .header-gradient-teal > * {
-    position: relative;
-    z-index: 1;
-  }
+  /* ヘッダーの直下コンテンツは position: relative + z-index は付けない
+     → ドロップダウン (z-30 等) が stacking context に閉じ込められないよう */
   /* white/95 ← → gradient 切り替えもフェードで */
   .header-white-fade {
     background: rgba(255,255,255,0.95);
