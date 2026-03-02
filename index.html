@@ -157,7 +157,8 @@
   ──────────────────────────────────────────── */
   .header-gradient-blue,
   .header-gradient-teal {
-    /* position は sticky（Tailwind）が付くため追記不要 */
+    /* ::before の absolute 配置の基準にするため position: relative が必要 */
+    position: relative;
   }
   /* ベース（blue）を常に後ろ側に描画 */
   .header-gradient-blue {

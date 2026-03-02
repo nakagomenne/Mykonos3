@@ -1293,7 +1293,7 @@ const App: React.FC = () => {
                   <MagnifyingGlassIcon className="w-5 h-5" />
                 </button>
                 {isSearchFocused && searchResultsList.length > 0 && (
-                  <ul className={`absolute z-30 mt-1 w-full ${isDarkMode ? 'bg-[#1a2035] border-slate-700' : 'bg-white border-slate-200'} rounded-xl shadow-xl border max-h-80 overflow-auto`}>
+                  <ul className={`absolute z-[200] mt-1 w-full ${isDarkMode ? 'bg-[#1a2035] border-slate-700' : 'bg-white border-slate-200'} rounded-xl shadow-xl border max-h-80 overflow-auto`}>
                     {searchResultsList.map((item, index) => {
                       const extItem = item as SearchResultItem & { _count?: number; _assignee?: string };
                       const isHighlighted = index === searchSuggestIndex;
@@ -1401,7 +1401,7 @@ const App: React.FC = () => {
               </button>
               {isUserMenuOpen && (
                   <div 
-                    className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-white/10 focus:outline-none z-30"
+                    className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-slate-800 shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-white/10 focus:outline-none z-[200]"
                     role="menu" aria-orientation="vertical"
                   >
                       <div className="py-1" role="none">
@@ -1723,7 +1723,7 @@ const App: React.FC = () => {
                                       )}
                                   </button>
                                   {isStatusDropdownOpen && (
-                                      <div className={`absolute top-full mt-2 left-0 w-48 origin-top-left rounded-md ${isDarkMode ? 'bg-[#1e2535] ring-white/10' : 'bg-white ring-black ring-opacity-5'} shadow-lg ring-1 focus:outline-none z-30 animate-wipe-in-down`}>
+                                      <div className={`absolute top-full mt-2 left-0 w-48 origin-top-left rounded-md ${isDarkMode ? 'bg-[#1e2535] ring-white/10' : 'bg-white ring-black ring-opacity-5'} shadow-lg ring-1 focus:outline-none z-[200] animate-wipe-in-down`}>
                                           <div className="py-1" role="menu" aria-orientation="vertical">
                                               {AVAILABILITY_STATUS_OPTIONS.map(status => {
                                                   const statusStyles = AVAILABILITY_STATUS_STYLES[status];
