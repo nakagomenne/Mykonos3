@@ -56,6 +56,7 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
 function rowToUser(row: any): User {
   return {
     name:               row.name,
+    furigana:           row.furigana ?? undefined,
     isAdmin:            row.is_admin,
     isLinePrechecker:   row.is_line_prechecker,
     isSuperAdmin:       row.is_super_admin,
@@ -75,6 +76,7 @@ function rowToUser(row: any): User {
 function userToRow(data: Partial<User>): Record<string, any> {
   const row: Record<string, any> = {};
   if (data.name               !== undefined) row.name                = data.name;
+  if (data.furigana           !== undefined) row.furigana            = data.furigana || null;
   if (data.isAdmin            !== undefined) row.is_admin            = data.isAdmin;
   if (data.isLinePrechecker   !== undefined) row.is_line_prechecker  = data.isLinePrechecker;
   if (data.isSuperAdmin       !== undefined) row.is_super_admin      = data.isSuperAdmin;
