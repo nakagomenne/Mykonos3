@@ -213,7 +213,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, appVersion = 'ver 3.0.0' 
             <p
               className="login-subtitle mt-1 mb-6 text-xs tracking-widest font-semibold font-inconsolata"
             >
-              CRM Platform
+              {appVersion}
             </p>
 
             {/* フォーム */}
@@ -276,7 +276,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, appVersion = 'ver 3.0.0' 
         </div>
 
         {/* バージョン */}
-        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos — {appVersion}</p>
+        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos — CRM Platform</p>
       </div>
     </div>
   );
