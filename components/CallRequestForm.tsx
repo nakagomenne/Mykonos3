@@ -66,6 +66,11 @@ const getListTypeForAssignee = (
 
 
 const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
+  // users を ref でも保持することで resetForm の useCallback 依存から外し、
+  // Realtime更新による users 参照変化がフォームリセットを引き起こさないようにする
+  const usersRef = useRef(users);
+  useEffect(() => { usersRef.current = users; }, [users]);
+
   const [customerId, setCustomerId] = useState('');
   const [assignee, setAssignee] = useState(defaultAssignee || '');
   const [listType, setListType] = useState<ListType | ''>(isPrecheckMode ? '回線' : '');
@@ -249,13 +254,16 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         return;
     }
 
-    setListType(getListTypeForAssignee(newAssignee, users));
+    // usersRef.current を使うことで users が依存配列に不要になり、
+    // Realtime による users 更新でこの関数が再生成されなくなる
+    const latestUsers = usersRef.current;
+    setListType(getListTypeForAssignee(newAssignee, latestUsers));
 
     const isMineView = defaultAssignee === currentUser;
     const isOthersViewContext = !isMineView;
 
     if (isOthersViewContext && newAssignee) {
-        const assigneeUser = users.find(u => u.name === newAssignee);
+        const assigneeUser = latestUsers.find(u => u.name === newAssignee);
         if (assigneeUser && assigneeUser.availabilityStatus === '受付可') {
             setDate(new Date().toISOString().split('T')[0]);
             setTime('このあとOK');
@@ -266,12 +274,13 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     const newDefaultDateTime = getInitialDateTime();
     setDate(newDefaultDateTime.date);
     setTime(newDefaultDateTime.time);
-  }, [defaultAssignee, isPrecheckMode, users, currentUser]);
-  
-  useEffect(() => {
-    resetForm();
-  }, [resetForm]);
+  // users を依存配列から除去済み（usersRef経由で最新値を参照）
+  }, [defaultAssignee, isPrecheckMode, currentUser]);
 
+  // ※ useEffect(() => { resetForm(); }, [resetForm]) は削除
+  // 　 理由: resetForm が依存する props が変わるたびにフォームがリセットされ、
+  // 　       他ユーザーのRealtime更新が入力中のフォームを消す原因になっていた。
+  // 　       初期値は useState の初期値で設定済みのため、このuseEffectは不要。
 
   useEffect(() => {
     if (formResetCounter > 0) {
