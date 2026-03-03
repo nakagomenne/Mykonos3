@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CallRequest, Rank } from '../types';
-import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowRightIcon } from './icons';
+import { CallRequest, Rank, User } from '../types';
+import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowRightIcon, PencilIcon } from './icons';
 import StatusBadge from './StatusBadge';
 
 interface CallDetailModalProps {
@@ -8,10 +8,12 @@ interface CallDetailModalProps {
   duplicateCalls?: CallRequest[];
   onClose: () => void;
   onJump?: (call: CallRequest) => void;
+  onReactivate?: (call: CallRequest, newAssignee?: string) => void;
   isConfirmingDuplicate?: boolean;
   onConfirmDuplicate?: () => void;
   isPrecheckTheme?: boolean;
   showJumpButton?: boolean;
+  users?: User[];
 }
 
 const fieldLabels: Record<string, string> = {
@@ -46,9 +48,17 @@ const formatHistoryValue = (field: string, value: any) => {
 };
 
 
-const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls, onClose, onJump, isConfirmingDuplicate, onConfirmDuplicate, isPrecheckTheme = false, showJumpButton = false }) => {
+const CallDetailModal: React.FC<CallDetailModalProps> = ({
+  calls, duplicateCalls, onClose, onJump, onReactivate,
+  isConfirmingDuplicate, onConfirmDuplicate,
+  isPrecheckTheme = false, showJumpButton = false, users = []
+}) => {
   const [isCopied, setIsCopied] = useState(false);
   const [detailedCall, setDetailedCall] = useState<CallRequest | null>(null);
+
+  // 完了案件編集用のstate
+  const [isEditing, setIsEditing] = useState(false);
+  const [editAssignee, setEditAssignee] = useState('');
 
   useEffect(() => {
     if (calls && calls.length === 1) {
@@ -56,8 +66,15 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
     } else {
         setDetailedCall(null);
     }
+    setIsEditing(false);
   }, [calls]);
 
+  useEffect(() => {
+    if (detailedCall) {
+      setEditAssignee(detailedCall.assignee);
+      setIsEditing(false);
+    }
+  }, [detailedCall]);
 
   const handleCopy = async (customerId: string) => {
     try {
@@ -89,9 +106,10 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
   const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
   const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
 
-
   if (!calls && !isConfirmingDuplicate) return null;
-  
+
+  const isCompletedCall = detailedCall?.status === '完了';
+
   const renderSingleCallDetails = (callToRender: CallRequest) => {
       const absenteeRanks: Rank[] = ['見込C留守', '見込B留守', '見込A留守', '見込S留守'];
       const showAbsenceCount = absenteeRanks.includes(callToRender.rank);
@@ -120,7 +138,23 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                 )}
               </>
             )}
-            <div><strong className={`${mainColorClassLight} block`}>担当者:</strong> <span className={mainColorClass}>{callToRender.assignee}</span></div>
+            {/* 担当者：編集モードでは選択肢を表示 */}
+            <div>
+              <strong className={`${mainColorClassLight} block`}>担当者:</strong>
+              {isEditing && callToRender.status === '完了' ? (
+                <select
+                  value={editAssignee}
+                  onChange={e => setEditAssignee(e.target.value)}
+                  className={`mt-1 w-full border border-slate-300 rounded px-2 py-1 text-sm ${mainColorClass} focus:outline-none focus:ring-2 focus:ring-[#0193be]/30`}
+                >
+                  {users.filter(u => !u.isLinePrechecker).map(u => (
+                    <option key={u.name} value={u.name}>{u.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className={mainColorClass}>{callToRender.assignee}</span>
+              )}
+            </div>
             <div><strong className={`${mainColorClassLight} block`}>架電予定日時:</strong> <span className={mainColorClass}>{formatDetailDateTime(callToRender.dateTime)}</span></div>
             <div><strong className={`${mainColorClassLight} block`}>リスト種別:</strong> <span className={mainColorClass}>{callToRender.listType}</span></div>
             <div><strong className={`${mainColorClassLight} block`}>ランク:</strong> <span className={mainColorClass}>{callToRender.rank}</span></div>
@@ -196,10 +230,8 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                                 <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                                     <strong className={`text-right ${mainColorClassLight}`}>顧客ID:</strong>
                                     <span className={`${mainColorClass} font-semibold`}>{dupCall.customerId}</span>
-
                                     <strong className={`text-right ${mainColorClassLight}`}>担当者:</strong>
                                     <span className={mainColorClass}>{dupCall.assignee}</span>
-                                    
                                     {dupCall.notes && (
                                         <>
                                             <strong className={`text-right ${mainColorClassLight} self-start pt-1`}>備考:</strong>
@@ -228,15 +260,23 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                                 onClick={() => setDetailedCall(callItem)}
                                 className="w-full text-left p-3 bg-slate-50 rounded-md text-sm border border-slate-200 hover:bg-slate-100 hover:border-slate-300 transition focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#0193be]"
                             >
-                                <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
-                                    <strong className={`text-right ${mainColorClassLight}`}>顧客ID:</strong>
-                                    <span className={`${mainColorClass} font-semibold`}>{callItem.customerId}</span>
-
-                                    <strong className={`text-right ${mainColorClassLight}`}>担当者:</strong>
-                                    <span className={mainColorClass}>{callItem.assignee}</span>
-
-                                    <strong className={`text-right ${mainColorClassLight}`}>ランク:</strong>
-                                    <span className={mainColorClass}>{callItem.rank}</span>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 flex-1">
+                                      <strong className={`text-right ${mainColorClassLight}`}>顧客ID:</strong>
+                                      <span className={`${mainColorClass} font-semibold`}>{callItem.customerId}</span>
+                                      <strong className={`text-right ${mainColorClassLight}`}>担当者:</strong>
+                                      <span className={mainColorClass}>{callItem.assignee}</span>
+                                      <strong className={`text-right ${mainColorClassLight}`}>ランク:</strong>
+                                      <span className={mainColorClass}>{callItem.rank}</span>
+                                  </div>
+                                  {/* ステータスバッジ */}
+                                  <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${
+                                    callItem.status === '完了'
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-blue-100 text-[#0193be]'
+                                  }`}>
+                                    {callItem.status}
+                                  </span>
                                 </div>
                             </button>
                         </li>
@@ -254,16 +294,10 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                         <p className="mt-1">重複して新しい依頼を作成しますか？</p>
                     </div>
                     <div className="flex justify-end gap-3">
-                        <button
-                            onClick={onClose}
-                            className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition"
-                        >
+                        <button onClick={onClose} className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition">
                             キャンセル
                         </button>
-                        <button
-                            onClick={onConfirmDuplicate}
-                            className="bg-red-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-red-700 transition"
-                        >
+                        <button onClick={onConfirmDuplicate} className="bg-red-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-red-700 transition">
                             作成する
                         </button>
                     </div>
@@ -273,7 +307,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                     <div>
                         {calls && calls.length > 1 && detailedCall && (
                             <button
-                                onClick={() => setDetailedCall(null)}
+                                onClick={() => { setDetailedCall(null); setIsEditing(false); }}
                                 className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition"
                             >
                                 戻る
@@ -281,7 +315,41 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({ calls, duplicateCalls
                         )}
                     </div>
                     <div className="flex items-center gap-3">
-                        {onJump && detailedCall && showJumpButton && (
+                        {/* 完了案件：編集ボタン or 追客中に戻すボタン */}
+                        {showJumpButton && detailedCall && isCompletedCall && onReactivate && (
+                          <>
+                            {isEditing ? (
+                              <>
+                                <button
+                                  onClick={() => setIsEditing(false)}
+                                  className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition text-sm"
+                                >
+                                  キャンセル
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    onReactivate(detailedCall, editAssignee !== detailedCall.assignee ? editAssignee : undefined);
+                                    onClose();
+                                  }}
+                                  className="flex items-center gap-2 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition text-sm"
+                                >
+                                  <CheckIcon className="w-4 h-4" />
+                                  追客中に戻す
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setIsEditing(true)}
+                                className="flex items-center gap-2 bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition text-sm"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                                編集
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {/* 追客中案件：ジャンプボタン */}
+                        {onJump && detailedCall && showJumpButton && !isCompletedCall && (
                             <button
                                 onClick={() => onJump(detailedCall)}
                                 className="flex items-center justify-center gap-2 bg-slate-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-slate-700 transition"

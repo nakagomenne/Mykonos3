@@ -514,8 +514,12 @@ const App: React.FC = () => {
       const uniqueCustomerIds = [...new Set<string>(matchedCalls.map(call => call.customerId))];
       const customerResults: SearchResultItem[] = uniqueCustomerIds.map(customerId => {
         const relatedCalls = matchedCalls.filter(c => c.customerId === customerId);
-        const call = relatedCalls[0];
-        return { type: 'customer', value: customerId, call, _count: relatedCalls.length, _assignee: call?.assignee } as SearchResultItem & { _count: number; _assignee: string };
+        const activeCalls = relatedCalls.filter(c => c.status === '追客中');
+        const completedCalls = relatedCalls.filter(c => c.status === '完了');
+        // 追客中があれば代表、なければ完了を代表に
+        const call = activeCalls[0] ?? relatedCalls[0];
+        const allCompleted = activeCalls.length === 0 && completedCalls.length > 0;
+        return { type: 'customer', value: customerId, call, _count: relatedCalls.length, _assignee: call?.assignee, _activeCount: activeCalls.length, _completedCount: completedCalls.length, _allCompleted: allCompleted } as SearchResultItem & { _count: number; _assignee: string; _activeCount: number; _completedCount: number; _allCompleted: boolean };
       });
 
       const userResults: SearchResultItem[] = users
@@ -782,7 +786,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
-    if (!currentUser) return;
 
     try {
       const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name);
@@ -796,8 +799,20 @@ const App: React.FC = () => {
       alert(`案件の更新に失敗しました: ${err?.message ?? err}`);
     }
   };
-  
-  const handleSelectCall = (call: CallRequest) => {
+
+  // 完了案件を追客中に戻す（担当者変更も同時に可能）
+  const handleReactivateCall = async (call: CallRequest, newAssignee?: string) => {
+    if (!currentUser) return;
+    try {
+      const updates: Partial<Omit<CallRequest, 'id'>> = { status: '追客中' };
+      if (newAssignee && newAssignee !== call.assignee) updates.assignee = newAssignee;
+      const updated = await apiUpdateCallRequest(call.id, updates, currentUser.name);
+      setCalls(prev => prev.map(c => c.id === call.id ? updated : c));
+    } catch (err: any) {
+      alert(`更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+    const handleSelectCall = (call: CallRequest) => {
     setSelectedCall(call);
     setSearchResults(null);
   };
@@ -1141,7 +1156,26 @@ const App: React.FC = () => {
     return getTimePriority(timePartA) - getTimePriority(timePartB);
   });
 
+  // JST今日の日付文字列 "YYYY-MM-DD"
+  const todayJSTStr = (() => {
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    return jst.toISOString().split('T')[0];
+  })();
+
+  // 完了案件を翌日0時以降に非表示にするフィルタ
+  // completedAt が今日より前（昨日以前）であれば一覧から除外
+  const isHiddenCompletedCall = (call: CallRequest): boolean => {
+    if (call.status !== '完了') return false;
+    if (!call.completedAt) return false;
+    const completedDate = call.completedAt.split('T')[0];
+    return completedDate < todayJSTStr;
+  };
+
   const filteredCalls = sortedCalls.filter(call => {
+    // 翌日以降の完了案件は全タブで非表示
+    if (isHiddenCompletedCall(call)) return false;
+
     if (viewMode === 'mine') {
       return call.assignee === currentUser?.name;
     } else if (viewMode === 'precheck') {
@@ -1382,21 +1416,33 @@ const App: React.FC = () => {
                               isHighlighted ? 'bg-[#0193be]/10' : (isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50')
                             } ${index === 0 ? 'rounded-t-xl' : ''} ${index === searchResultsList.length - 1 ? 'rounded-b-xl' : `border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}`}
                           >
-                            {item.type === 'customer' ? (
-                              <>
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                                  <MagnifyingGlassIcon className="w-4 h-4 text-[#0193be]" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-[#0193be] truncate">{item.value}</div>
-                                  <div className="text-xs text-slate-400">
-                                    {extItem._assignee && <span>担当: {extItem._assignee}</span>}
-                                    {extItem._count !== undefined && <span className="ml-2">{extItem._count}件</span>}
+                            {item.type === 'customer' ? (() => {
+                              const ext = item as SearchResultItem & { _count?: number; _assignee?: string; _activeCount?: number; _completedCount?: number; _allCompleted?: boolean };
+                              return (
+                                <>
+                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
+                                    <MagnifyingGlassIcon className="w-4 h-4 text-[#0193be]" />
                                   </div>
-                                </div>
-                                <span className="flex-shrink-0 text-xs bg-blue-50 text-[#0193be] px-2 py-0.5 rounded-full">顧客ID</span>
-                              </>
-                            ) : (
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-[#0193be] truncate">{item.value}</div>
+                                    <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+                                      {ext._assignee && <span>担当: {ext._assignee}</span>}
+                                      {ext._activeCount !== undefined && ext._activeCount > 0 && (
+                                        <span className="text-blue-500">追客中 {ext._activeCount}件</span>
+                                      )}
+                                      {ext._completedCount !== undefined && ext._completedCount > 0 && (
+                                        <span className="text-green-500">完了 {ext._completedCount}件</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {ext._allCompleted ? (
+                                    <span className="flex-shrink-0 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">完了済み</span>
+                                  ) : (
+                                    <span className="flex-shrink-0 text-xs bg-blue-50 text-[#0193be] px-2 py-0.5 rounded-full">顧客ID</span>
+                                  )}
+                                </>
+                              );
+                            })() : (
                               <>
                                 <div className="flex-shrink-0 w-8 h-8 rounded-full overflow-hidden ring-2 ring-slate-200">
                                   {userData?.profilePicture ? (
@@ -2341,10 +2387,12 @@ const App: React.FC = () => {
             handleCancelDuplicateCreation();
         }}
         onJump={handleJumpToCall}
+        onReactivate={handleReactivateCall}
         showJumpButton={!!searchResults}
         isConfirmingDuplicate={!!pendingDuplicate}
         onConfirmDuplicate={handleConfirmDuplicateCreation}
         isPrecheckTheme={isPrecheckTheme}
+        users={users}
       />
 
       <ConfirmationModal
