@@ -62,6 +62,7 @@ export interface CallRequest {
 
 export interface User {
   name: string;
+  furigana?: string;
   isAdmin: boolean;
   isLinePrechecker?: boolean;
   isSuperAdmin?: boolean;

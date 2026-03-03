@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { CallRequest, User } from '../types';
-import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon } from './icons';
+import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon, CalendarIcon } from './icons';
 import BulkTaskModal from './BulkTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import { ADMIN_USER_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from '../constants';
@@ -29,6 +29,7 @@ interface AdminMenuProps {
     alerts: Alert[];
     onJumpToMember: (userName: string) => void;
     calls?: CallRequest[];
+    onOpenSchedule: (user: User) => void;
 }
 
 type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version' | 'export';
@@ -42,6 +43,7 @@ interface NewUserModalProps {
 
 const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availableProductsOptions }) => {
     const [name, setName] = useState('');
+    const [furigana, setFurigana] = useState('');
     const [profilePicture, setProfilePicture] = useState<string | null>(null);
     const [availableProducts, setAvailableProducts] = useState<string[]>(['回線']);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -98,7 +100,7 @@ const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availab
             alert('案内可能商材を少なくとも1つ選択してください。');
             return;
         }
-        onAddUser({ name: name.trim(), profilePicture, availableProducts, isAdmin, isSuperAdmin, isLinePrechecker });
+        onAddUser({ name: name.trim(), furigana: furigana.trim() || undefined, profilePicture, availableProducts, isAdmin, isSuperAdmin, isLinePrechecker });
     };
 
     return createPortal(
@@ -133,18 +135,31 @@ const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availab
                                 </div>
                             )}
                         </div>
-                        <div className="flex-grow">
-                            <label htmlFor="newUserName" className="block text-sm font-medium text-[#0193be]/80 mb-1">ユーザー名 <span className="text-red-500">*</span></label>
-                            <input
-                                type="text"
-                                id="newUserName"
-                                value={name}
-                                onChange={e => setName(e.target.value)}
-                                placeholder="例: 山田 太郎"
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
-                                required
-                                autoFocus
-                            />
+                        <div className="flex-grow space-y-2">
+                            <div>
+                                <label htmlFor="newUserName" className="block text-sm font-medium text-[#0193be]/80 mb-1">ユーザー名 <span className="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    id="newUserName"
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    placeholder="例: 山田 太郎"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="newUserFurigana" className="block text-sm font-medium text-[#0193be]/80 mb-1">フリガナ（カタカナ）</label>
+                                <input
+                                    type="text"
+                                    id="newUserFurigana"
+                                    value={furigana}
+                                    onChange={e => setFurigana(e.target.value)}
+                                    placeholder="例: ヤマダ タロウ"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -233,9 +248,15 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     alerts,
     onJumpToMember,
     calls = [],
+    onOpenSchedule,
 }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [exportTarget, setExportTarget] = useState<ExportTarget>('all');
+    // 名前・フリガナ編集中のユーザー名
+    const [editingNameUser, setEditingNameUser] = useState<string | null>(null);
+    const [editingNameValue, setEditingNameValue] = useState('');
+    const [editingFuriganaUser, setEditingFuriganaUser] = useState<string | null>(null);
+    const [editingFuriganaValue, setEditingFuriganaValue] = useState('');
     
     const [localUsers, setLocalUsers] = useState<User[]>([]);
     const [usersToDelete, setUsersToDelete] = useState<Set<string>>(new Set());
@@ -333,6 +354,21 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                 user.name === userName ? { ...user, availableProducts: products } : user
             )
         );
+    };
+
+    const handleUpdateName = (oldName: string, newName: string) => {
+        const trimmed = newName.trim();
+        if (!trimmed) { alert('名前を入力してください。'); return; }
+        if (trimmed !== oldName && localUsers.find(u => u.name === trimmed)) {
+            alert('同じ名前のユーザーがすでに存在します。'); return;
+        }
+        setLocalUsers(prev => prev.map(u => u.name === oldName ? { ...u, name: trimmed } : u));
+        setEditingNameUser(null);
+    };
+
+    const handleUpdateFurigana = (userName: string, newFurigana: string) => {
+        setLocalUsers(prev => prev.map(u => u.name === userName ? { ...u, furigana: newFurigana.trim() || undefined } : u));
+        setEditingFuriganaUser(null);
     };
 
     const handleSave = () => {
@@ -638,10 +674,56 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        <div>
-                                                            <span className={`text-[#0193be] text-sm font-medium ${isMarkedForDeletion ? 'line-through' : ''}`}>{user.name}</span>
+                                                        <div className="min-w-0">
+                                                            {/* 名前インライン編集 */}
+                                                            {editingNameUser === user.name ? (
+                                                                <form
+                                                                    className="flex items-center gap-1"
+                                                                    onSubmit={e => { e.preventDefault(); handleUpdateName(user.name, editingNameValue); }}
+                                                                >
+                                                                    <input
+                                                                        autoFocus
+                                                                        value={editingNameValue}
+                                                                        onChange={e => setEditingNameValue(e.target.value)}
+                                                                        className="w-28 px-1.5 py-0.5 text-sm border border-[#0193be] rounded focus:outline-none"
+                                                                        onBlur={() => handleUpdateName(user.name, editingNameValue)}
+                                                                    />
+                                                                </form>
+                                                            ) : (
+                                                                <button
+                                                                    className={`text-[#0193be] text-sm font-medium hover:underline text-left ${isMarkedForDeletion ? 'line-through' : ''}`}
+                                                                    title="クリックで名前を編集"
+                                                                    onClick={() => { setEditingNameUser(user.name); setEditingNameValue(user.name); }}
+                                                                >
+                                                                    {user.name}
+                                                                </button>
+                                                            )}
+                                                            {/* フリガナインライン編集 */}
+                                                            {editingFuriganaUser === user.name ? (
+                                                                <form
+                                                                    className="flex items-center gap-1 mt-0.5"
+                                                                    onSubmit={e => { e.preventDefault(); handleUpdateFurigana(user.name, editingFuriganaValue); }}
+                                                                >
+                                                                    <input
+                                                                        autoFocus
+                                                                        value={editingFuriganaValue}
+                                                                        onChange={e => setEditingFuriganaValue(e.target.value)}
+                                                                        placeholder="フリガナ"
+                                                                        className="w-28 px-1.5 py-0.5 text-xs border border-slate-400 rounded focus:outline-none"
+                                                                        onBlur={() => handleUpdateFurigana(user.name, editingFuriganaValue)}
+                                                                    />
+                                                                </form>
+                                                            ) : (
+                                                                <button
+                                                                    className="block text-xs text-slate-400 hover:text-[#0193be] hover:underline text-left mt-0.5"
+                                                                    title="クリックでフリガナを編集"
+                                                                    onClick={() => { setEditingFuriganaUser(user.name); setEditingFuriganaValue(user.furigana || ''); }}
+                                                                >
+                                                                    {user.furigana || <span className="italic text-slate-300">フリガナ未設定</span>}
+                                                                </button>
+                                                            )}
                                                             {user.createdAt && (
-                                                                <span className="block text-xs text-[#0193be]/70">
+                                                                <span className="block text-xs text-[#0193be]/50 mt-0.5">
                                                                     登録日: {new Date(user.createdAt).toLocaleDateString('ja-JP')}
                                                                 </span>
                                                             )}
@@ -702,6 +784,13 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                                 title="プロフィール画像を変更"
                                                             >
                                                                 <CameraIcon className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => onOpenSchedule(user)}
+                                                                className="p-1.5 rounded-full text-slate-500 hover:bg-slate-200 hover:text-[#0193be] transition"
+                                                                title="スケジュールを編集"
+                                                            >
+                                                                <CalendarIcon className="w-5 h-5" />
                                                             </button>
                                                             {isSuperAdmin && (
                                                                 <button

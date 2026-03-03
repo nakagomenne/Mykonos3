@@ -551,8 +551,20 @@ const App: React.FC = () => {
         return { type: 'customer', value: customerId, call, _count: relatedCalls.length, _assignee: call?.assignee, _activeCount: activeCalls.length, _completedCount: completedCalls.length, _allCompleted: allCompleted } as SearchResultItem & { _count: number; _assignee: string; _activeCount: number; _completedCount: number; _allCompleted: boolean };
       });
 
+      // カタカナ→ひらがな / ひらがな→カタカナ 変換ヘルパー
+      const toHiragana = (str: string) => str.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+      const toKatakana = (str: string) => str.replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+      const queryHira = toHiragana(trimmedQuery);
+      const queryKata = toKatakana(trimmedQuery);
+
       const userResults: SearchResultItem[] = users
-        .filter(user => user.name.toLowerCase().includes(trimmedQuery))
+        .filter(user => {
+          const nameMatch = user.name.toLowerCase().includes(trimmedQuery);
+          const furiHira = toHiragana(user.furigana || '');
+          const furiKata = toKatakana(user.furigana || '');
+          const furiganaMatch = furiHira.includes(queryHira) || furiKata.includes(queryKata);
+          return nameMatch || furiganaMatch;
+        })
         .map(user => {
           const userCallCount = calls.filter(c => c.assignee === user.name && c.status === '追客中').length;
           return { type: 'user', value: user.name, user, _count: userCallCount } as SearchResultItem & { _count: number };
@@ -2539,6 +2551,7 @@ const App: React.FC = () => {
             alerts={alerts}
             onJumpToMember={handleJumpToMember}
             calls={calls}
+            onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setScheduleViewingUser(user); }}
         />
       )}
 
@@ -2547,6 +2560,16 @@ const App: React.FC = () => {
           isOpen={isScheduleModalOpen}
           onClose={() => setIsScheduleModalOpen(false)}
           user={currentUserWithData}
+          onSave={handleUpdateNonWorkingDays}
+        />
+      )}
+
+      {/* AdminMenu からメンバーのスケジュールを編集するモーダル */}
+      {scheduleViewingUser && (
+        <ScheduleModal
+          isOpen={!!scheduleViewingUser}
+          onClose={() => setScheduleViewingUser(null)}
+          user={scheduleViewingUser}
           onSave={handleUpdateNonWorkingDays}
         />
       )}
