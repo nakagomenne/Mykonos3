@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import * as XLSX from 'xlsx';
 import { CallRequest, User } from '../types';
 import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon } from './icons';
 import BulkTaskModal from './BulkTaskModal';
@@ -27,9 +28,11 @@ interface AdminMenuProps {
     onCreateTasks: (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId'>, assignees: string[]) => void;
     alerts: Alert[];
     onJumpToMember: (userName: string) => void;
+    calls?: CallRequest[];
 }
 
-type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version';
+type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version' | 'export';
+type ExportTarget = 'active' | 'completed' | 'all';
 
 interface NewUserModalProps {
     onClose: () => void;
@@ -229,8 +232,10 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     onCreateTasks,
     alerts,
     onJumpToMember,
+    calls = [],
 }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
+    const [exportTarget, setExportTarget] = useState<ExportTarget>('all');
     
     const [localUsers, setLocalUsers] = useState<User[]>([]);
     const [usersToDelete, setUsersToDelete] = useState<Set<string>>(new Set());
@@ -347,6 +352,57 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         e.preventDefault();
         onSetAppVersion(versionText);
         alert('バージョンが更新されました。');
+    };
+
+    const handleExport = () => {
+        // エクスポート対象を絞り込む
+        let targetCalls = calls;
+        if (exportTarget === 'active') {
+            targetCalls = calls.filter(c => c.status !== '完了');
+        } else if (exportTarget === 'completed') {
+            targetCalls = calls.filter(c => c.status === '完了');
+        }
+
+        if (targetCalls.length === 0) {
+            alert('エクスポートする案件がありません。');
+            return;
+        }
+
+        // Excelシート用データに変換
+        const rows = targetCalls.map(c => ({
+            '案件ID': c.id,
+            '顧客ID': c.customerId,
+            '依頼者': c.requester,
+            '担当者': c.assignee,
+            '回線前確担当': c.prechecker ?? '',
+            'リスト種別': c.listType,
+            'ランク': c.rank,
+            '架電日時': c.dateTime,
+            'ステータス': c.status,
+            '不在回数': c.absenceCount ?? 0,
+            '備考': c.notes,
+            '作成日時': c.createdAt,
+            '完了日時': c.completedAt ?? '',
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(rows);
+
+        // 列幅を自動調整
+        const colWidths = Object.keys(rows[0] || {}).map(key => ({
+            wch: Math.max(key.length * 2, 12),
+        }));
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        const sheetName =
+            exportTarget === 'active' ? '追客中案件' :
+            exportTarget === 'completed' ? '完了案件' : '全案件';
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        const fileName = `Mykonos_${sheetName}_${dateStr}.xlsx`;
+        XLSX.writeFile(wb, fileName);
     };
     
     const handlePictureUploadClick = (userName: string) => {
@@ -497,6 +553,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                 <TabButton tab="users" label="ユーザー管理" />
                                 <TabButton tab="tasks" label="全体タスク" />
                                 <TabButton tab="announcement" label="周知事項" />
+                                {isSuperAdmin && <TabButton tab="export" label="エクスポート" />}
                                 {isSuperAdmin && <TabButton tab="version" label="バージョン" />}
                             </nav>
                         </div>
@@ -751,6 +808,56 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                 </div>
                             )}
 
+                            {isSuperAdmin && activeTab === 'export' && (
+                                <div role="tabpanel" aria-labelledby="tab-export">
+                                    <h3 className="text-base font-semibold text-slate-700 mb-4">案件エクスポート</h3>
+                                    <div className="space-y-5 max-w-sm">
+                                        {/* エクスポート対象選択 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 mb-2">エクスポート対象</label>
+                                            <div className="flex flex-col gap-2">
+                                                {([
+                                                    { value: 'active',    label: '追客中案件のみ' },
+                                                    { value: 'completed', label: '完了案件のみ' },
+                                                    { value: 'all',       label: '全案件' },
+                                                ] as { value: ExportTarget; label: string }[]).map(opt => (
+                                                    <label key={opt.value} className="flex items-center gap-3 cursor-pointer group">
+                                                        <input
+                                                            type="radio"
+                                                            name="exportTarget"
+                                                            value={opt.value}
+                                                            checked={exportTarget === opt.value}
+                                                            onChange={() => setExportTarget(opt.value)}
+                                                            className="accent-[#0193be] w-4 h-4"
+                                                        />
+                                                        <span className="text-sm text-slate-700 group-hover:text-[#0193be] transition-colors">
+                                                            {opt.label}
+                                                            <span className="ml-2 text-xs text-slate-400">
+                                                                ({opt.value === 'active'
+                                                                    ? calls.filter(c => c.status !== '完了').length
+                                                                    : opt.value === 'completed'
+                                                                    ? calls.filter(c => c.status === '完了').length
+                                                                    : calls.length} 件)
+                                                            </span>
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* エクスポートボタン */}
+                                        <div className="pt-2">
+                                            <button
+                                                onClick={handleExport}
+                                                className="flex items-center gap-2 bg-[#0193be] hover:bg-[#017a9a] text-white font-bold py-2.5 px-6 rounded-lg transition shadow"
+                                            >
+                                                <CloudArrowUpIcon className="w-5 h-5" />
+                                                Excelにエクスポート
+                                            </button>
+                                            <p className="mt-2 text-xs text-slate-400">※ .xlsx 形式でダウンロードされます</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {isSuperAdmin && activeTab === 'version' && (
                                 <div role="tabpanel" aria-labelledby="tab-version">
                                     <h3 className="sr-only">バージョン</h3>

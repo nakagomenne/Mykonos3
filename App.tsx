@@ -2538,6 +2538,7 @@ const App: React.FC = () => {
             onCreateTasks={handleCreateBulkTasks}
             alerts={alerts}
             onJumpToMember={handleJumpToMember}
+            calls={calls}
         />
       )}
 
