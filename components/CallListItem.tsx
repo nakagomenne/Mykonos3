@@ -135,7 +135,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
           // Rule 2: Urgent / Overdue Today
           if (isUrgent || isOverdue) {
-              finalLiStyle = { backgroundColor: '#ff8080', color: 'white' };
+              finalLiStyle = { backgroundColor: '#f78a8a', color: 'white' };
               finalDateTimeStyle = { color: 'white' };
               finalAbsenceCounterClass = 'text-white';
           }
