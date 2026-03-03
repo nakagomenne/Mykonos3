@@ -66,6 +66,7 @@ function rowToUser(row: any): User {
     availableProducts:  row.available_products ?? [],
     comment:            row.comment ?? '',
     commentUpdatedAt:   row.comment_updated_at ?? undefined,
+    statusRevertAt:     row.status_revert_at ?? null,
     createdAt:          row.created_at,
   };
 }
@@ -84,6 +85,7 @@ function userToRow(data: Partial<User>): Record<string, any> {
   if (data.availableProducts  !== undefined) row.available_products  = data.availableProducts;
   if (data.comment            !== undefined) row.comment             = data.comment;
   if (data.commentUpdatedAt   !== undefined) row.comment_updated_at  = data.commentUpdatedAt;
+  if (data.statusRevertAt     !== undefined) row.status_revert_at   = data.statusRevertAt;
   return row;
 }
 
@@ -294,6 +296,22 @@ export async function updateUserAvailabilityStatus(
   const { error } = await supabase
     .from('users')
     .update({ availability_status: status })
+    .eq('name', name);
+
+  if (error) throw new Error(`ステータスの更新に失敗しました: ${error.message}`);
+}
+
+/** 稼働ステータスを更新し、'一時受付不可'の場合は90分後の復帰時刻を保存する */
+export async function updateUserAvailabilityStatusWithRevert(
+  name: string,
+  status: AvailabilityStatus
+): Promise<void> {
+  const revertAt = status === '一時受付不可'
+    ? new Date(Date.now() + 90 * 60 * 1000).toISOString()
+    : null;
+  const { error } = await supabase
+    .from('users')
+    .update({ availability_status: status, status_revert_at: revertAt })
     .eq('name', name);
 
   if (error) throw new Error(`ステータスの更新に失敗しました: ${error.message}`);

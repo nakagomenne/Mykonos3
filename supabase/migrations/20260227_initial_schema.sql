@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   password         text NOT NULL DEFAULT 'NNE040121',
   profile_picture  text,
   availability_status text NOT NULL DEFAULT '受付可'
-    CHECK (availability_status IN ('受付可','受付不可','当日受付不可','非稼働')),
+    CHECK (availability_status IN ('受付可','一時受付不可','当日受付不可','非稼働')),
   non_working_days text[]  NOT NULL DEFAULT '{}',
   available_products text[] NOT NULL DEFAULT '{回線,水}',
   comment          text    NOT NULL DEFAULT '',

@@ -218,7 +218,7 @@ const ShiftCalendar: React.FC<ShiftCalendarProps> = ({ users, onSelectMemberWith
                   if (popupData.isToday) {
                       const statusOrder: Record<AvailabilityStatus, number> = {
                           '受付可': 1,
-                          '受付不可': 2,
+                          '一時受付不可': 2,
                           '当日受付不可': 3,
                           '非稼働': 4,
                       };

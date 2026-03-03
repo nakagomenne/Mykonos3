@@ -30,6 +30,7 @@ import {
   upsertUsers,
   deleteUser as apiDeleteUser,
   updateUserAvailabilityStatus,
+  updateUserAvailabilityStatusWithRevert,
   updateUserPassword as apiUpdateUserPassword,
   updateUserNonWorkingDays,
   updateUserComment,
@@ -394,6 +395,38 @@ const App: React.FC = () => {
     }
   }, [currentUser, users]);
 
+  // ── 一時受付不可の90分後自動復帰 ──────────────────────────────
+  useEffect(() => {
+    // 一時受付不可のユーザーで statusRevertAt が設定されているものをチェック
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    users.forEach(u => {
+      if (u.availabilityStatus === '一時受付不可' && u.statusRevertAt) {
+        const revertMs = new Date(u.statusRevertAt).getTime() - Date.now();
+        if (revertMs > 0) {
+          const timer = setTimeout(async () => {
+            try {
+              await updateUserAvailabilityStatusWithRevert(u.name, '受付可');
+              setUsers(prev =>
+                prev.map(p => p.name === u.name ? { ...p, availabilityStatus: '受付可', statusRevertAt: null } : p)
+              );
+            } catch (e) {
+              console.error('自動復帰に失敗しました:', e);
+            }
+          }, revertMs);
+          timers.push(timer);
+        } else {
+          // すでに時間を過ぎていたら即時復帰
+          updateUserAvailabilityStatusWithRevert(u.name, '受付可').then(() => {
+            setUsers(prev =>
+              prev.map(p => p.name === u.name ? { ...p, availabilityStatus: '受付可', statusRevertAt: null } : p)
+            );
+          }).catch(e => console.error('自動復帰に失敗しました:', e));
+        }
+      }
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [users.map(u => `${u.name}:${u.statusRevertAt}`).join(',')]);
+
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
     if (!notificationSettings.callNotifyEnabled || !currentUser || Notification.permission !== 'granted') {
@@ -684,7 +717,7 @@ const App: React.FC = () => {
           return false;
       }
       
-      if (assigneeUser?.availabilityStatus === '受付不可' && requestDate === todayStr) {
+      if (assigneeUser?.availabilityStatus === '一時受付不可' && requestDate === todayStr) {
           const isUrgentOrSoon = ['至急', 'このあとOK'].includes(requestTime);
           let isWithinTwoHours = false;
           
@@ -943,9 +976,12 @@ const App: React.FC = () => {
 
   const handleUpdateUserStatus = async (name: string, status: AvailabilityStatus) => {
     try {
-      await updateUserAvailabilityStatus(name, status);
+      await updateUserAvailabilityStatusWithRevert(name, status);
+      const revertAt = status === '一時受付不可'
+        ? new Date(Date.now() + 90 * 60 * 1000).toISOString()
+        : null;
       setUsers(prevUsers =>
-        prevUsers.map(u => (u.name === name ? { ...u, availabilityStatus: status } : u))
+        prevUsers.map(u => (u.name === name ? { ...u, availabilityStatus: status, statusRevertAt: revertAt } : u))
       );
     } catch (err: any) {
       alert(`ステータスの更新に失敗しました: ${err?.message ?? err}`);
@@ -1852,7 +1888,7 @@ const App: React.FC = () => {
                                       className={`relative w-24 h-24 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${
                                           {
                                               '受付可': 'ring-[#0193be]',
-                                              '受付不可': 'ring-yellow-500',
+                                              '一時受付不可': 'ring-yellow-500',
                                               '当日受付不可': 'ring-red-500',
                                               '非稼働': 'ring-slate-500',
                                           }[currentUserWithData?.availabilityStatus || '受付可']
@@ -1943,25 +1979,25 @@ const App: React.FC = () => {
                           const status = selectedUserDetails.availabilityStatus;
                           const ringColorClass = {
                               '受付可': 'ring-[#0193be]',
-                              '受付不可': 'ring-yellow-500',
+                              '一時受付不可': 'ring-yellow-500',
                               '当日受付不可': 'ring-red-500',
                               '非稼働': 'ring-slate-500',
                           }[status] ?? 'ring-[#0193be]';
                           const statusTextColor = {
                               '受付可': 'text-[#0193be]',
-                              '受付不可': 'text-yellow-500',
+                              '一時受付不可': 'text-yellow-500',
                               '当日受付不可': 'text-red-500',
                               '非稼働': 'text-slate-500',
                           }[status] ?? 'text-[#0193be]';
                           const statusBgColor = {
                               '受付可': 'bg-[#0193be]',
-                              '受付不可': 'bg-yellow-500',
+                              '一時受付不可': 'bg-yellow-500',
                               '当日受付不可': 'bg-red-500',
                               '非稼働': 'bg-slate-500',
                           }[status] ?? 'bg-[#0193be]';
                           const statusBgHex = {
                               '受付可': '#0193be',
-                              '受付不可': '#eab308',
+                              '一時受付不可': '#eab308',
                               '当日受付不可': '#ef4444',
                               '非稼働': '#64748b',
                           }[status] ?? '#0193be';
@@ -2172,7 +2208,7 @@ const App: React.FC = () => {
                         const status = selectedUserDetails.availabilityStatus;
                         const ringColorClass = {
                             '受付可': 'ring-[#0193be]',
-                            '受付不可': 'ring-yellow-500',
+                            '一時受付不可': 'ring-yellow-500',
                             '当日受付不可': 'ring-red-500',
                             '非稼働': 'ring-slate-500',
                         }[status];
@@ -2351,13 +2387,13 @@ const App: React.FC = () => {
         isOpen={!!pendingUnavailableConfirmation}
         onClose={() => setPendingUnavailableConfirmation(null)}
         onConfirm={handleConfirmUnavailableCreation}
-        title="受付不可の確認"
+        title="一時受付不可の確認"
       >
         {pendingUnavailableConfirmation && (
           <div>
             <p>
               <strong className="text-slate-800">{pendingUnavailableConfirmation.assignee}</strong>さんは現在
-              <strong className="text-slate-800 mx-1">「受付不可」</strong>
+              <strong className="text-slate-800 mx-1">「一時受付不可」</strong>
               に設定されています。
             </p>
             <p className="mt-2">このまま本日付で緊急の依頼を作成しますか？</p>
@@ -2466,7 +2502,7 @@ const App: React.FC = () => {
               const pu = profilePopupUser;
               const ringHex: Record<string, string> = {
                 '受付可': '#0193be',
-                '受付不可': '#eab308',
+                '一時受付不可': '#eab308',
                 '当日受付不可': '#ef4444',
                 '非稼働': '#64748b',
               };

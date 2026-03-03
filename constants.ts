@@ -30,7 +30,7 @@ export const NON_PRECHECK_RANK_OPTIONS: Rank[] = RANK_OPTIONS.filter(rank => !PR
 
 export const CALL_STATUS_OPTIONS: CallStatus[] = ['追客中', '完了'];
 
-export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '受付不可', '当日受付不可', '非稼働'];
+export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '一時受付不可', '当日受付不可', '非稼働'];
 
 export const ADMIN_USER_NAME = '中込賢三';
 export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
@@ -97,7 +97,7 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
 
 export const AVAILABILITY_STATUS_STYLES: Record<AvailabilityStatus, { bg: string; text: string }> = {
   '受付可': { bg: 'bg-[#0193be]', text: 'text-white' },
-  '受付不可': { bg: 'bg-yellow-500', text: 'text-white' },
+  '一時受付不可': { bg: 'bg-yellow-500', text: 'text-white' },
   '当日受付不可': { bg: 'bg-red-500', text: 'text-white' },
   '非稼働': { bg: 'bg-slate-500', text: 'text-white' },
 };

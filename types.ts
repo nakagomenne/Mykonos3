@@ -27,7 +27,7 @@ export type Rank =
 
 export type CallStatus = '追客中' | '完了';
 
-export type AvailabilityStatus = '受付可' | '受付不可' | '当日受付不可' | '非稼働';
+export type AvailabilityStatus = '受付可' | '一時受付不可' | '当日受付不可' | '非稼働';
 
 export type CallRequestUpdatableFields = 'customerId' | 'requester' | 'assignee' | 'listType' | 'rank' | 'dateTime' | 'notes' | 'status' | 'absenceCount' | 'prechecker' | 'imported';
 
@@ -74,4 +74,5 @@ export interface User {
   comment?: string;
   password?: string;
   commentUpdatedAt?: string;
+  statusRevertAt?: string | null;
 }
