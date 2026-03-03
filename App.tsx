@@ -98,6 +98,11 @@ const App: React.FC = () => {
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
+  // 最後にメンバータイムラインを開いた時刻（既読管理）
+  const [lastReadCommentAt, setLastReadCommentAt] = useState<number>(() => {
+    const stored = localStorage.getItem('lastReadCommentAt');
+    return stored ? parseInt(stored, 10) : 0;
+  });
   const [pendingDuplicate, setPendingDuplicate] = useState<{
     existingCalls: CallRequest[];
     newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>;
@@ -1397,17 +1402,28 @@ const App: React.FC = () => {
                 <div className="relative">
                   <button
                     ref={commentButtonRef}
-                    onClick={() => setIsCommentPopupOpen(prev => !prev)}
+                    onClick={() => {
+                      const now = Date.now();
+                      setLastReadCommentAt(now);
+                      localStorage.setItem('lastReadCommentAt', String(now));
+                      setIsCommentPopupOpen(prev => !prev);
+                    }}
                     className={`relative p-2 rounded-full transition-colors duration-500 ${adminButtonClass}`}
                     title="メンバーコメント一覧"
                     aria-expanded={isCommentPopupOpen}
                   >
                     <SpeechBubbleIcon className="w-6 h-6" />
-                    {commentedUsers.length > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white">
-                        {commentedUsers.length}
-                      </span>
-                    )}
+                    {/* 未読バッジ：前回既読後に更新されたコメントの件数のみ表示 */}
+                    {(() => {
+                      const unreadCount = commentedUsers.filter(u =>
+                        u.commentUpdatedAt && new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt
+                      ).length;
+                      return unreadCount > 0 ? (
+                        <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
+                          {unreadCount}
+                        </span>
+                      ) : null;
+                    })()}
                   </button>
                   {isCommentPopupOpen && (() => {
                     const rect = commentButtonRef.current?.getBoundingClientRect();
