@@ -147,7 +147,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                   onChange={e => setEditAssignee(e.target.value)}
                   className={`mt-1 w-full border border-slate-300 rounded px-2 py-1 text-sm ${mainColorClass} focus:outline-none focus:ring-2 focus:ring-[#0193be]/30`}
                 >
-                  {users.filter(u => !u.isLinePrechecker).map(u => (
+                  {users.map(u => (
                     <option key={u.name} value={u.name}>{u.name}</option>
                   ))}
                 </select>
