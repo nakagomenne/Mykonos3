@@ -1265,11 +1265,24 @@ const App: React.FC = () => {
   const otherMemberNames = memberNames.filter(m => m !== currentUser?.name);
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
   // タブ順: 新規依頼 → 全体 → 回線前確 → 各メンバー
+  // 各メンバー部分: その日稼働（非稼働でない）が先、非稼働が後ろ
+  // 同グループ内はcommentUpdatedAt が新しい順（未設定は末尾）
+  const sortedOtherMemberNames = [...otherMemberNames].sort((a, b) => {
+    const ua = users.find(u => u.name === a);
+    const ub = users.find(u => u.name === b);
+    const aIsWorking = ua?.availabilityStatus !== '非稼働' ? 0 : 1;
+    const bIsWorking = ub?.availabilityStatus !== '非稼働' ? 0 : 1;
+    if (aIsWorking !== bIsWorking) return aIsWorking - bIsWorking;
+    // 同グループ内はコメント更新日が新しい順
+    const aTime = ua?.commentUpdatedAt ? new Date(ua.commentUpdatedAt).getTime() : 0;
+    const bTime = ub?.commentUpdatedAt ? new Date(ub.commentUpdatedAt).getTime() : 0;
+    return bTime - aTime;
+  });
   const otherMembers = ['新規依頼', '全体'];
   if (hasPrecheckers) {
     otherMembers.push(PRECHECKER_ASSIGNEE_NAME);
   }
-  otherMembers.push(...otherMemberNames);
+  otherMembers.push(...sortedOtherMemberNames);
 
   
   const defaultAssigneeForForm = () => {
