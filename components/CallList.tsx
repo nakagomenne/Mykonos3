@@ -59,11 +59,11 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
   const allCallsHidden = hideCompleted && displayedCalls.length === 0 && calls.length > 0;
 
   const listBg = isDarkMode
-    ? 'linear-gradient(180deg, #1a1f2e 0%, #161b27 100%)'
+    ? 'linear-gradient(180deg, #0e1118 0%, #0b0e15 100%)'
     : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)';
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.04)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
+    <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
         <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
           isPrecheckTheme

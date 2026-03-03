@@ -78,12 +78,14 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     if (call.status === '完了') {
       return {
         liStyle: {
-          background: 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
-          color: 'white',
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #2a2f3a 0%, #1e2330 100%)'
+            : 'linear-gradient(135deg, #4b5563 0%, #374151 100%)',
+          color: isDarkMode ? 'rgba(255,255,255,0.55)' : 'white',
           boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
         },
-        dateTimeStyle: { color: 'rgba(255,255,255,0.75)' },
-        absenceCounterClass: 'text-white/70'
+        dateTimeStyle: { color: isDarkMode ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.75)' },
+        absenceCounterClass: isDarkMode ? 'text-white/40' : 'text-white/70'
       };
     }
 
@@ -102,15 +104,19 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
       // Rule 1: Previous day or earlier (Highest priority)
       if (callDay < today) {
-          finalLiStyle = { backgroundColor: '#ff0000', color: 'white' };
-          finalDateTimeStyle = { color: 'white' };
-          finalAbsenceCounterClass = 'text-white';
+          finalLiStyle = isDarkMode
+            ? { backgroundColor: '#5c1a1a', color: '#ffaaaa' }
+            : { backgroundColor: '#ff0000', color: 'white' };
+          finalDateTimeStyle = { color: isDarkMode ? '#ffaaaa' : 'white' };
+          finalAbsenceCounterClass = isDarkMode ? 'text-red-300' : 'text-white';
       }
       // Rule for '待機中'
       else if (timePart === '待機中') {
-          finalLiStyle = { backgroundColor: '#7ed1aa', color: 'white' };
-          finalDateTimeStyle = { color: 'white' };
-          finalAbsenceCounterClass = 'text-white';
+          finalLiStyle = isDarkMode
+            ? { backgroundColor: '#1a3d2e', color: '#7ed1aa' }
+            : { backgroundColor: '#7ed1aa', color: 'white' };
+          finalDateTimeStyle = { color: isDarkMode ? '#7ed1aa' : 'white' };
+          finalAbsenceCounterClass = isDarkMode ? 'text-green-300' : 'text-white';
       }
       // All subsequent rules are for today
       else if (callDay.getTime() === today.getTime()) {
@@ -135,28 +141,36 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
           // Rule 2: Urgent / Overdue Today
           if (isUrgent || isOverdue) {
-              finalLiStyle = { backgroundColor: '#f793a4', color: 'white' };
-              finalDateTimeStyle = { color: 'white' };
-              finalAbsenceCounterClass = 'text-white';
+              finalLiStyle = isDarkMode
+                ? { backgroundColor: '#4a1a28', color: '#f793a4' }
+                : { backgroundColor: '#f793a4', color: 'white' };
+              finalDateTimeStyle = { color: isDarkMode ? '#f793a4' : 'white' };
+              finalAbsenceCounterClass = isDarkMode ? 'text-pink-300' : 'text-white';
           }
           // Rule 3: Within one hour from now
           else if (isWithinAnHour) {
-              finalLiStyle = { backgroundColor: '#ffe0e0' };
+              finalLiStyle = isDarkMode
+                ? { backgroundColor: '#2d1a1e' }
+                : { backgroundColor: '#ffe0e0' };
           }
           // Rule 4: Today's non-urgent/non-overdue calls
           else {
-              finalLiStyle = { backgroundColor: '#ffffff' };
-              finalDateTimeStyle = { backgroundColor: '#ffe0e0' };
+              finalLiStyle = isDarkMode
+                ? { backgroundColor: '#151b28' }
+                : { backgroundColor: '#ffffff' };
+              finalDateTimeStyle = isDarkMode
+                ? { backgroundColor: '#2d1a1e' }
+                : { backgroundColor: '#ffe0e0' };
           }
       }
     }
 
     // Overrides for specific time parts on the date/time banner
     if (timePart === '至急') {
-        finalDateTimeStyle.backgroundColor = '#ff0000';
-        finalDateTimeStyle.color = 'white'; // Ensure text is readable
+        finalDateTimeStyle.backgroundColor = isDarkMode ? '#5c1a1a' : '#ff0000';
+        finalDateTimeStyle.color = isDarkMode ? '#ffaaaa' : 'white';
     } else if (timePart === '時設なし' || timePart === '入電待ち') {
-        finalDateTimeStyle.color = '#797979';
+        finalDateTimeStyle.color = isDarkMode ? '#6b7280' : '#797979';
     }
 
     return { 
@@ -164,7 +178,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
         dateTimeStyle: finalDateTimeStyle, 
         absenceCounterClass: finalAbsenceCounterClass 
     };
-  }, [call.status, call.dateTime, isPrecheckTheme]);
+  }, [call.status, call.dateTime, isPrecheckTheme, isDarkMode]);
   
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -269,7 +283,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
       ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
       : isCompleted
       ? ''  // completed style is set via liStyle (gradient)
-      : `${isDarkMode ? 'bg-[#1e2535]' : 'bg-white'} ${mainTextClass} card-shadow-hover`,
+      : `${isDarkMode ? 'bg-[#151b28]' : 'bg-white'} ${mainTextClass} card-shadow-hover`,
   ].filter(Boolean).join(' ');
 
   const handleEditClick = (e: React.MouseEvent, field: EditableField) => {
