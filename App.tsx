@@ -428,6 +428,34 @@ const App: React.FC = () => {
     return () => timers.forEach(clearTimeout);
   }, [users.map(u => `${u.name}:${u.statusRevertAt}`).join(',')]);
 
+  // ── 毎日0時（JST）に自動ログアウト ──────────────────────────
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const scheduleLogout = () => {
+      const now = new Date();
+      // JSTの翌日0時を計算
+      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const jstMidnight = new Date(
+        Date.UTC(
+          jstNow.getUTCFullYear(),
+          jstNow.getUTCMonth(),
+          jstNow.getUTCDate() + 1,
+          0, 0, 0, 0
+        ) - 9 * 60 * 60 * 1000 // JSTをUTCに戻す
+      );
+      const msUntilMidnight = jstMidnight.getTime() - now.getTime();
+
+      return setTimeout(() => {
+        localStorage.removeItem('mykonosUser');
+        setCurrentUser(null);
+      }, msUntilMidnight);
+    };
+
+    const timer = scheduleLogout();
+    return () => clearTimeout(timer);
+  }, [currentUser]);
+
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
     if (!notificationSettings.callNotifyEnabled || !currentUser || Notification.permission !== 'granted') {
