@@ -5,9 +5,10 @@ import { MASTER_PASSWORD } from '../constants';
 interface LoginProps {
   onLogin: (user: User, isLoggedInAsAdmin: boolean) => void;
   users: User[];
+  appVersion?: string;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, users, appVersion = 'ver 3.0.0' }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -275,7 +276,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         </div>
 
         {/* バージョン */}
-        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos v1.0</p>
+        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos — {appVersion}</p>
       </div>
     </div>
   );

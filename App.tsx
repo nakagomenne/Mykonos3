@@ -1351,7 +1351,7 @@ const App: React.FC = () => {
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} users={users} />;
+    return <Login onLogin={handleLogin} users={users} appVersion={appVersion} />;
   }
   
   const currentUserWithData = users.find(u => u.name === currentUser.name);
