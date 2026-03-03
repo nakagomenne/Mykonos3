@@ -569,16 +569,16 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
           </div>
           {/* 厳守 / 詳細な時設 チェックボックス */}
           <div className="mt-2 flex items-center gap-5">
-            <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>
+            <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClassLight}`}>
               <input
                 type="checkbox"
                 checked={isStrict}
                 onChange={e => setIsStrict(e.target.checked)}
-                className="w-4 h-4 accent-[#0193be] cursor-pointer"
+                className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>厳守</span>
             </label>
-            <label className={`flex items-center gap-1.5 text-sm cursor-pointer select-none ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClassLight}`}>
               <input
                 type="checkbox"
                 checked={isDetailedTime}
@@ -586,18 +586,12 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                   const next = e.target.checked;
                   setIsDetailedTime(next);
                   if (!next) {
-                    // チェックを外したとき: 特殊値でなければ15分単位に丸める
-                    if (!isSpecialTime(time)) {
-                      setTime(roundTo15(time));
-                    }
+                    if (!isSpecialTime(time)) setTime(roundTo15(time));
                   } else {
-                    // チェックを入れたとき: 特殊値なら11:00に設定
-                    if (isSpecialTime(time)) {
-                      setTime('11:00');
-                    }
+                    if (isSpecialTime(time)) setTime('11:00');
                   }
                 }}
-                className="w-4 h-4 cursor-pointer"
+                className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>詳細な時設</span>
             </label>

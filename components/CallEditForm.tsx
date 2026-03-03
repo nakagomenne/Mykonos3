@@ -11,6 +11,26 @@ interface CallEditFormProps {
   isPrecheckTheme?: boolean;
 }
 
+const SLIDER_MIN = 11 * 60; // 11:00
+const SLIDER_MAX = 21 * 60; // 21:00
+
+const minutesToTime = (mins: number): string => {
+  const h = Math.floor(mins / 60).toString().padStart(2, '0');
+  const m = (mins % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+};
+
+const roundTo15 = (t: string): string => {
+  const m = t.match(/^(\d{2}):(\d{2})$/);
+  if (!m) return t;
+  const totalMins = parseInt(m[1]) * 60 + parseInt(m[2]);
+  const rounded = Math.round(totalMins / 15) * 15;
+  const clamped = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, rounded));
+  return minutesToTime(clamped);
+};
+
+const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
+
 const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
@@ -20,6 +40,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const [date, setDate] = useState(call.dateTime.split('T')[0]);
   const [time, setTime] = useState(call.dateTime.split('T')[1]);
   const [notes, setNotes] = useState(call.notes);
+  const [isStrict, setIsStrict] = useState(call.isStrict ?? false);
+  const [isDetailedTime, setIsDetailedTime] = useState(call.isDetailedTime ?? false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
 
@@ -46,7 +68,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         return;
     }
     
-    const specialTimesForToday = isPrecheckTheme ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : PRECHECK_SPECIAL_TIME_OPTIONS_TOP;
+    const specialTimesForToday = isPrecheckTheme ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
     if (specialTimesForToday.includes(time) && date !== today) {
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
@@ -61,6 +83,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       rank,
       dateTime: `${date}T${time}`,
       notes,
+      isStrict,
+      isDetailedTime,
     });
   };
   
@@ -70,6 +94,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
   const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
   const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const checkboxColor = isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
 
   return (
     <>
@@ -107,9 +132,51 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
             <div className={`flex items-center border border-slate-300 rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 ${mainColorClass}`} />
-              <select value={time} onChange={(e) => setTime(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
-                {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
-              </select>
+              {/* isDetailedTime ON: 1分単位 select / OFF: 通常 select */}
+              {isDetailedTime && !isSpecialTime(time) ? (
+                <select
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}
+                >
+                  {Array.from({ length: (SLIDER_MAX - SLIDER_MIN) + 1 }, (_, i) => minutesToTime(SLIDER_MIN + i)).map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              ) : (
+                <select value={time} onChange={(e) => setTime(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
+                  {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+                </select>
+              )}
+            </div>
+            {/* 厳守 / 詳細な時設 チェックボックス */}
+            <div className="mt-2 flex items-center gap-5">
+              <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClassLight}`}>
+                <input
+                  type="checkbox"
+                  checked={isStrict}
+                  onChange={e => setIsStrict(e.target.checked)}
+                  className={`w-4 h-4 ${checkboxColor} cursor-pointer`}
+                />
+                <span>厳守</span>
+              </label>
+              <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClassLight}`}>
+                <input
+                  type="checkbox"
+                  checked={isDetailedTime}
+                  onChange={e => {
+                    const next = e.target.checked;
+                    setIsDetailedTime(next);
+                    if (!next) {
+                      if (!isSpecialTime(time)) setTime(roundTo15(time));
+                    } else {
+                      if (isSpecialTime(time)) setTime('11:00');
+                    }
+                  }}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <span>詳細な時設</span>
+              </label>
             </div>
           </div>
         </div>

@@ -339,16 +339,16 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                         </div>
                         {/* 厳守 / 詳細な時設 チェックボックス */}
                         <div className="mt-2 flex items-center gap-5">
-                            <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>
+                            <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClass}/80`}>
                                 <input
                                     type="checkbox"
                                     checked={isStrict}
                                     onChange={e => setIsStrict(e.target.checked)}
-                                    className="w-4 h-4 accent-[#0193be] cursor-pointer"
+                                    className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
                                 />
                                 <span>厳守</span>
                             </label>
-                            <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none text-slate-600">
+                            <label className={`flex items-center gap-1.5 text-sm font-medium cursor-pointer select-none ${mainColorClass}/80`}>
                                 <input
                                     type="checkbox"
                                     checked={isDetailedTime}
@@ -361,7 +361,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                                             if (isSpecialTime(time)) setTime('11:00');
                                         }
                                     }}
-                                    className="w-4 h-4 cursor-pointer"
+                                    className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
                                 />
                                 <span>詳細な時設</span>
                             </label>
