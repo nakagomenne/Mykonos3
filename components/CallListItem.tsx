@@ -173,12 +173,22 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
         finalDateTimeStyle.color = isDarkMode ? '#6b7280' : '#797979';
     }
 
+    // 厳守フラグ: 未完了のみ強調（左ボーダーをオレンジ系で強調）
+    if (call.isStrict && call.status !== '完了') {
+        finalLiStyle = {
+            ...finalLiStyle,
+            boxShadow: isDarkMode
+                ? 'inset 4px 0 0 #f97316, 0 1px 4px rgba(0,0,0,0.2)'
+                : 'inset 4px 0 0 #f97316, 0 1px 4px rgba(0,0,0,0.08)',
+        };
+    }
+
     return { 
         liStyle: finalLiStyle, 
         dateTimeStyle: finalDateTimeStyle, 
         absenceCounterClass: finalAbsenceCounterClass 
     };
-  }, [call.status, call.dateTime, isPrecheckTheme, isDarkMode]);
+  }, [call.status, call.dateTime, call.isStrict, isPrecheckTheme, isDarkMode]);
   
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -427,6 +437,13 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                {formatDateTimeDisplay()}
              </button>
           </div>
+
+          {/* 厳守バッジ */}
+          {call.isStrict && !isCompleted && (
+            <div className="flex-shrink-0">
+              <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500 text-white leading-none">厳守</span>
+            </div>
+          )}
 
           {!isPrecheckTheme && (
             <div className={`w-12 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>

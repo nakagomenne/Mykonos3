@@ -24,12 +24,14 @@ function rowToCallRequest(row: any): CallRequest {
     dateTime:     row.date_time,
     notes:        row.notes,
     status:       row.status,
-    absenceCount: row.absence_count ?? 0,
-    prechecker:   row.prechecker ?? null,
-    imported:     row.imported ?? false,
-    history:      row.history ?? [],
-    completedAt:  row.completed_at ?? undefined,
-    createdAt:    row.created_at,
+    absenceCount:   row.absence_count ?? 0,
+    prechecker:     row.prechecker ?? null,
+    imported:       row.imported ?? false,
+    isStrict:       row.is_strict ?? false,
+    isDetailedTime: row.is_detailed_time ?? false,
+    history:        row.history ?? [],
+    completedAt:    row.completed_at ?? undefined,
+    createdAt:      row.created_at,
   };
 }
 
@@ -46,8 +48,10 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
   if (data.status       !== undefined) row.status        = data.status;
   if (data.absenceCount !== undefined) row.absence_count = data.absenceCount;
   if (data.prechecker   !== undefined) row.prechecker    = data.prechecker;
-  if (data.imported     !== undefined) row.imported      = data.imported;
-  if (data.history      !== undefined) row.history       = data.history;
+  if (data.imported       !== undefined) row.imported         = data.imported;
+  if (data.isStrict       !== undefined) row.is_strict        = data.isStrict;
+  if (data.isDetailedTime !== undefined) row.is_detailed_time = data.isDetailedTime;
+  if (data.history        !== undefined) row.history          = data.history;
   if (data.completedAt  !== undefined) row.completed_at  = data.completedAt;
   return row;
 }

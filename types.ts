@@ -58,6 +58,8 @@ export interface CallRequest {
   absenceCount?: number;
   prechecker?: string | null;
   imported?: boolean;
+  isStrict?: boolean;
+  isDetailedTime?: boolean;
 }
 
 export interface User {

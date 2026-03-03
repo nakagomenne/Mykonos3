@@ -44,6 +44,31 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
     const [notes, setNotes] = useState(call.notes);
     const [member, setMember] = useState(call.assignee);
     const [requester, setRequester] = useState(call.requester);
+    const [isStrict, setIsStrict] = useState(call.isStrict ?? false);
+    const [isDetailedTime, setIsDetailedTime] = useState(call.isDetailedTime ?? false);
+
+    // 1分スライダーヘルパー
+    const SLIDER_MIN = 11 * 60;
+    const SLIDER_MAX = 21 * 60;
+    const timeToMinutes = (t: string): number => {
+        const m = t.match(/^(\d{2}):(\d{2})$/);
+        if (!m) return SLIDER_MIN;
+        return parseInt(m[1]) * 60 + parseInt(m[2]);
+    };
+    const minutesToTime = (mins: number): string => {
+        const h = Math.floor(mins / 60).toString().padStart(2, '0');
+        const m = (mins % 60).toString().padStart(2, '0');
+        return `${h}:${m}`;
+    };
+    const roundTo15 = (t: string): string => {
+        const m = t.match(/^(\d{2}):(\d{2})$/);
+        if (!m) return t;
+        const totalMins = parseInt(m[1]) * 60 + parseInt(m[2]);
+        const rounded = Math.round(totalMins / 15) * 15;
+        const clamped = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, rounded));
+        return minutesToTime(clamped);
+    };
+    const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [alertContent, setAlertContent] = useState({ title: '', message: '' });
@@ -112,7 +137,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                     setIsAlertOpen(true);
                     return;
                 }
-                updatedData = { dateTime: `${date}T${time}` };
+                updatedData = { dateTime: `${date}T${time}`, isStrict, isDetailedTime };
                 break;
             case 'listType':
                 updatedData = { listType };
@@ -296,9 +321,58 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                                     {date}
                                 </button>
                             </div>
-                            <select value={time} onChange={(e) => setTime(e.target.value)} className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
-                                {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
-                            </select>
+                            {isDetailedTime && !isSpecialTime(time) ? (
+                                <div className={`w-1/2 flex items-center justify-center border-l border-slate-300 px-2 py-1.5 font-bold text-sm ${mainColorClass}`}>
+                                    {time}
+                                </div>
+                            ) : (
+                                <select value={time} onChange={(e) => setTime(e.target.value)} className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
+                                    {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+                                </select>
+                            )}
+                        </div>
+                        {/* 詳細な時設: 1分スライダー */}
+                        {isDetailedTime && !isSpecialTime(time) && (
+                            <div className="mt-1.5">
+                                <input
+                                    type="range"
+                                    min={SLIDER_MIN}
+                                    max={SLIDER_MAX}
+                                    step={1}
+                                    value={timeToMinutes(time)}
+                                    onChange={(e) => setTime(minutesToTime(parseInt(e.target.value)))}
+                                    className="w-full accent-[#0193be]"
+                                />
+                            </div>
+                        )}
+                        {/* 厳守 / 詳細な時設 チェックボックス */}
+                        <div className="mt-2 flex items-center gap-5">
+                            <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>
+                                <input
+                                    type="checkbox"
+                                    checked={isStrict}
+                                    onChange={e => setIsStrict(e.target.checked)}
+                                    className="w-4 h-4 accent-[#0193be] cursor-pointer"
+                                />
+                                <span>厳守</span>
+                            </label>
+                            <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={isDetailedTime}
+                                    onChange={e => {
+                                        const next = e.target.checked;
+                                        setIsDetailedTime(next);
+                                        if (!next) {
+                                            if (!isSpecialTime(time)) setTime(roundTo15(time));
+                                        } else {
+                                            if (isSpecialTime(time)) setTime('11:00');
+                                        }
+                                    }}
+                                    className="w-4 h-4 cursor-pointer"
+                                />
+                                <span>詳細な時設</span>
+                            </label>
                         </div>
                         {isCalendarOpen && createPortal(CalendarPopup, document.body)}
                     </>

@@ -73,7 +73,31 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  
+  const [isStrict, setIsStrict] = useState(false);
+  const [isDetailedTime, setIsDetailedTime] = useState(false);
+  // 1分スライダー用: HH:MM 形式の time を分数に変換（特殊値は -1）
+  const SLIDER_MIN = 11 * 60;  // 11:00
+  const SLIDER_MAX = 21 * 60;  // 21:00
+  const timeToMinutes = (t: string): number => {
+    const m = t.match(/^(\d{2}):(\d{2})$/);
+    if (!m) return SLIDER_MIN;
+    return parseInt(m[1]) * 60 + parseInt(m[2]);
+  };
+  const minutesToTime = (mins: number): string => {
+    const h = Math.floor(mins / 60).toString().padStart(2, '0');
+    const m = (mins % 60).toString().padStart(2, '0');
+    return `${h}:${m}`;
+  };
+  const roundTo15 = (t: string): string => {
+    const m = t.match(/^(\d{2}):(\d{2})$/);
+    if (!m) return t;
+    const totalMins = parseInt(m[1]) * 60 + parseInt(m[2]);
+    const rounded = Math.round(totalMins / 15) * 15;
+    const clamped = Math.max(SLIDER_MIN, Math.min(SLIDER_MAX, rounded));
+    return minutesToTime(clamped);
+  };
+  const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
+
   const [notes, setNotes] = useState('');
   
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
@@ -212,6 +236,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     setCustomerId('');
     setRank('');
     setNotes('');
+    setIsStrict(false);
+    setIsDetailedTime(false);
 
     const newAssignee = defaultAssignee || '';
     setAssignee(newAssignee);
@@ -296,6 +322,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       rank,
       dateTime: `${date}T${time}`,
       notes,
+      isStrict,
+      isDetailedTime,
     });
     
     if (success) {
@@ -525,6 +553,56 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               <option value="" disabled>--</option>
               {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
             </select>
+          </div>
+          {/* 詳細な時設: 1分スライダー */}
+          {isDetailedTime && !isSpecialTime(time) && (
+            <div className="mt-2">
+              <input
+                type="range"
+                min={SLIDER_MIN}
+                max={SLIDER_MAX}
+                step={1}
+                value={timeToMinutes(time)}
+                onChange={(e) => setTime(minutesToTime(parseInt(e.target.value)))}
+                className="w-full accent-[#0193be]"
+              />
+              <div className={`text-center text-sm font-bold ${mainColorClass}`}>{time}</div>
+            </div>
+          )}
+          {/* 厳守 / 詳細な時設 チェックボックス */}
+          <div className="mt-2 flex items-center gap-5">
+            <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>
+              <input
+                type="checkbox"
+                checked={isStrict}
+                onChange={e => setIsStrict(e.target.checked)}
+                className="w-4 h-4 accent-[#0193be] cursor-pointer"
+              />
+              <span>厳守</span>
+            </label>
+            <label className={`flex items-center gap-1.5 text-sm cursor-pointer select-none ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              <input
+                type="checkbox"
+                checked={isDetailedTime}
+                onChange={e => {
+                  const next = e.target.checked;
+                  setIsDetailedTime(next);
+                  if (!next) {
+                    // チェックを外したとき: 特殊値でなければ15分単位に丸める
+                    if (!isSpecialTime(time)) {
+                      setTime(roundTo15(time));
+                    }
+                  } else {
+                    // チェックを入れたとき: 特殊値なら11:00に設定
+                    if (isSpecialTime(time)) {
+                      setTime('11:00');
+                    }
+                  }
+                }}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span>詳細な時設</span>
+            </label>
           </div>
         </div>
         <div className="md:col-span-2">
