@@ -556,13 +556,21 @@ const App: React.FC = () => {
       const toKatakana = (str: string) => str.replace(/[\u3041-\u3096]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
       const queryHira = toHiragana(trimmedQuery);
       const queryKata = toKatakana(trimmedQuery);
+      // スペース除去クエリ（「山田太郎」→「やまだたろう」のようなスペースなし入力に対応）
+      const queryNoSpace = trimmedQuery.replace(/\s+/g, '');
+      const queryHiraNoSpace = queryHira.replace(/\s+/g, '');
+      const queryKataNoSpace = queryKata.replace(/\s+/g, '');
 
       const userResults: SearchResultItem[] = users
         .filter(user => {
-          const nameMatch = user.name.toLowerCase().includes(trimmedQuery);
-          const furiHira = toHiragana(user.furigana || '');
-          const furiKata = toKatakana(user.furigana || '');
-          const furiganaMatch = furiHira.includes(queryHira) || furiKata.includes(queryKata);
+          // 名前：通常の部分一致 + スペース除去での部分一致
+          const nameNorm = user.name.toLowerCase();
+          const nameNoSpace = nameNorm.replace(/\s+/g, '');
+          const nameMatch = nameNorm.includes(trimmedQuery) || nameNoSpace.includes(queryNoSpace);
+          // フリガナ：ひらがな・カタカナ両方でスペース除去も含めて一致
+          const furiHira = toHiragana((user.furigana || '').replace(/\s+/g, ''));
+          const furiKata = toKatakana((user.furigana || '').replace(/\s+/g, ''));
+          const furiganaMatch = furiHira.includes(queryHiraNoSpace) || furiKata.includes(queryKataNoSpace);
           return nameMatch || furiganaMatch;
         })
         .map(user => {
