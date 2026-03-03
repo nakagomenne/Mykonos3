@@ -118,6 +118,7 @@ const App: React.FC = () => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [scheduleViewingUser, setScheduleViewingUser] = useState<User | null>(null);
+  const [isScheduleViewReadOnly, setIsScheduleViewReadOnly] = useState(false);
   const [pendingNonWorkingDayConfirmation, setPendingNonWorkingDayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [pendingUnavailableTodayConfirmation, setPendingUnavailableTodayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [pendingUnavailableConfirmation, setPendingUnavailableConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
@@ -1092,6 +1093,7 @@ const App: React.FC = () => {
   const handleShowUserSchedule = (userName: string) => {
     const userToShow = users.find(u => u.name === userName);
     if (userToShow) {
+      setIsScheduleViewReadOnly(true);
       setScheduleViewingUser(userToShow);
     }
   };
@@ -2616,7 +2618,7 @@ const App: React.FC = () => {
             alerts={alerts}
             onJumpToMember={handleJumpToMember}
             calls={calls}
-            onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setScheduleViewingUser(user); }}
+            onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setIsScheduleViewReadOnly(false); setScheduleViewingUser(user); }}
             feedbackReports={feedbackReports}
             onDeleteFeedback={async (id) => {
               await apiDeleteFeedbackReport(id);
@@ -2638,13 +2640,14 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* AdminMenu からメンバーのスケジュールを編集するモーダル */}
+      {/* AdminMenu からメンバーのスケジュールを編集 / 一般ユーザーが閲覧するモーダル */}
       {scheduleViewingUser && (
         <ScheduleModal
           isOpen={!!scheduleViewingUser}
-          onClose={() => setScheduleViewingUser(null)}
+          onClose={() => { setScheduleViewingUser(null); setIsScheduleViewReadOnly(false); }}
           user={scheduleViewingUser}
-          onSave={handleUpdateNonWorkingDays}
+          onSave={isScheduleViewReadOnly ? undefined : handleUpdateNonWorkingDays}
+          readOnly={isScheduleViewReadOnly}
         />
       )}
 
@@ -2691,14 +2694,7 @@ const App: React.FC = () => {
         }}
       />
       
-      {scheduleViewingUser && (
-        <ScheduleModal
-            isOpen={true}
-            onClose={() => setScheduleViewingUser(null)}
-            user={scheduleViewingUser}
-            readOnly={true}
-        />
-      )}
+      {/* scheduleViewingUser の readOnly モーダルは AdminMenu 用の編集モーダル（上記）に統合済み */}
 
       {/* プロフィール画像拡大ポップアップ */}
       {profilePopupUser && (
