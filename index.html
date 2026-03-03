@@ -387,6 +387,20 @@
     display: inline-block;
     animation: logo-wave 0.65s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
   }
+
+  /* ────────────────────────────────────────────
+     厳守案件：日時外枠がじわっと赤く点滅
+  ──────────────────────────────────────────── */
+  @keyframes strict-pulse {
+    0%   { box-shadow: 0 0 0 0px rgba(239,68,68,0);   border-color: transparent; }
+    40%  { box-shadow: 0 0 0 3px rgba(239,68,68,0.55); border-color: #ef4444; }
+    100% { box-shadow: 0 0 0 0px rgba(239,68,68,0);   border-color: transparent; }
+  }
+  .strict-pulse {
+    animation: strict-pulse 2.2s ease-in-out infinite;
+    border-radius: 4px;
+    border: 1.5px solid transparent;
+  }
 </style>
 </head>
   <body>

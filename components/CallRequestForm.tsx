@@ -543,32 +543,30 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                   </button>
                   {isCalendarOpen && createPortal(CalendarPopup, document.body)}
               </div>
-            <select 
-              id="time" 
-              value={time} 
-              onChange={(e) => setTime(e.target.value)} 
-              required 
-              className={`w-1/2 px-3 py-2 border-0 border-l ${darkFieldBorder} rounded-r-md focus:ring-0 ${darkFieldBg} ${mainColorClass}`}
-            >
-              <option value="" disabled>--</option>
-              {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
-            </select>
+            {/* isDetailedTime ON: 1分単位 select / OFF: 通常 select */}
+            {isDetailedTime && !isSpecialTime(time) ? (
+              <select
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className={`w-1/2 px-3 py-2 border-0 border-l ${darkFieldBorder} rounded-r-md focus:ring-0 ${darkFieldBg} ${mainColorClass}`}
+              >
+                {Array.from({ length: (SLIDER_MAX - SLIDER_MIN) + 1 }, (_, i) => minutesToTime(SLIDER_MIN + i)).map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            ) : (
+              <select 
+                id="time" 
+                value={time} 
+                onChange={(e) => setTime(e.target.value)} 
+                required 
+                className={`w-1/2 px-3 py-2 border-0 border-l ${darkFieldBorder} rounded-r-md focus:ring-0 ${darkFieldBg} ${mainColorClass}`}
+              >
+                <option value="" disabled>--</option>
+                {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+              </select>
+            )}
           </div>
-          {/* 詳細な時設: 1分スライダー */}
-          {isDetailedTime && !isSpecialTime(time) && (
-            <div className="mt-2">
-              <input
-                type="range"
-                min={SLIDER_MIN}
-                max={SLIDER_MAX}
-                step={1}
-                value={timeToMinutes(time)}
-                onChange={(e) => setTime(minutesToTime(parseInt(e.target.value)))}
-                className="w-full accent-[#0193be]"
-              />
-              <div className={`text-center text-sm font-bold ${mainColorClass}`}>{time}</div>
-            </div>
-          )}
           {/* 厳守 / 詳細な時設 チェックボックス */}
           <div className="mt-2 flex items-center gap-5">
             <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>

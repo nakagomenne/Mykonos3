@@ -322,29 +322,21 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                                 </button>
                             </div>
                             {isDetailedTime && !isSpecialTime(time) ? (
-                                <div className={`w-1/2 flex items-center justify-center border-l border-slate-300 px-2 py-1.5 font-bold text-sm ${mainColorClass}`}>
-                                    {time}
-                                </div>
+                                <select
+                                    value={time}
+                                    onChange={(e) => setTime(e.target.value)}
+                                    className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}
+                                >
+                                    {Array.from({ length: (SLIDER_MAX - SLIDER_MIN) + 1 }, (_, i) => minutesToTime(SLIDER_MIN + i)).map(t => (
+                                        <option key={t} value={t}>{t}</option>
+                                    ))}
+                                </select>
                             ) : (
                                 <select value={time} onChange={(e) => setTime(e.target.value)} className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
                                     {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
                                 </select>
                             )}
                         </div>
-                        {/* 詳細な時設: 1分スライダー */}
-                        {isDetailedTime && !isSpecialTime(time) && (
-                            <div className="mt-1.5">
-                                <input
-                                    type="range"
-                                    min={SLIDER_MIN}
-                                    max={SLIDER_MAX}
-                                    step={1}
-                                    value={timeToMinutes(time)}
-                                    onChange={(e) => setTime(minutesToTime(parseInt(e.target.value)))}
-                                    className="w-full accent-[#0193be]"
-                                />
-                            </div>
-                        )}
                         {/* 厳守 / 詳細な時設 チェックボックス */}
                         <div className="mt-2 flex items-center gap-5">
                             <label className={`flex items-center gap-1.5 text-sm font-semibold cursor-pointer select-none ${mainColorClass}`}>
