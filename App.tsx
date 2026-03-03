@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -163,6 +163,7 @@ const App: React.FC = () => {
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const announcementMarqueeRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const iconFileInputRef = useRef<HTMLInputElement>(null);
   // Realtime コールバック内で最新のstateを参照するためのref
   const notificationSettingsRef = useRef<NotificationSettings>(notificationSettings);
   const currentUserRef = useRef<User | null>(currentUser);
@@ -800,9 +801,33 @@ const App: React.FC = () => {
     }
   };
 
+  // アイコン画像変更ハンドラ
+  const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+    // ファイルサイズ上限 2MB
+    if (file.size > 2 * 1024 * 1024) {
+      alert('画像は2MB以下にしてください。');
+      e.target.value = '';
+      return;
+    }
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await updateUser(currentUser.name, { profilePicture: base64 });
+      setUsers(prev => prev.map(u => u.name === currentUser.name ? { ...u, profilePicture: base64 } : u));
+    } catch (err: any) {
+      alert(`アイコンの更新に失敗しました: ${err?.message ?? err}`);
+    }
+    e.target.value = '';
+  };
+
   // 完了案件を追客中に戻す（担当者変更も同時に可能）
-  const handleReactivateCall = async (call: CallRequest, newAssignee?: string) => {
-    if (!currentUser) return;
+  const handleReactivateCall = async (call: CallRequest, newAssignee?: string) => {    if (!currentUser) return;
     try {
       const updates: Partial<Omit<CallRequest, 'id'>> = { status: '追客中' };
       if (newAssignee && newAssignee !== call.assignee) updates.assignee = newAssignee;
@@ -1676,6 +1701,18 @@ const App: React.FC = () => {
                             <KeyIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                             <span>パスワード設定</span>
                           </button>
+                          {/* アイコン変更 */}
+                          <button
+                            onClick={() => {
+                              iconFileInputRef.current?.click();
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                            role="menuitem"
+                          >
+                            <PhotoIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                            <span>アイコン変更</span>
+                          </button>
                       </div>
                       <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
@@ -2377,6 +2414,15 @@ const App: React.FC = () => {
         </div>
         <p className="relative font-inconsolata">&copy; {new Date().getFullYear()} Mykonos. All rights reserved.</p>
       </footer>
+
+      {/* アイコン変更用の隠しファイル入力 */}
+      <input
+        ref={iconFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleIconFileChange}
+      />
       
       <CallDetailModal 
         calls={selectedCall ? [selectedCall] : searchResults}
