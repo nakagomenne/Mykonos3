@@ -464,3 +464,76 @@ export function subscribeToAppSettings(callback: (settings: Record<string, strin
     supabase.removeChannel(channel);
   };
 }
+
+// ────────────────────────────────────────────────────────────
+// Feedback Reports CRUD
+// ────────────────────────────────────────────────────────────
+
+function rowToFeedback(row: any): FeedbackReport {
+  return {
+    id:        row.id,
+    type:      row.type as FeedbackType,
+    title:     row.title,
+    body:      row.body ?? '',
+    reporter:  row.reporter,
+    createdAt: row.created_at,
+    isRead:    row.is_read ?? false,
+  };
+}
+
+/** フィードバック一覧を取得（SA用） */
+export async function fetchFeedbackReports(): Promise<FeedbackReport[]> {
+  const { data, error } = await supabase
+    .from('feedback_reports')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`フィードバックの取得に失敗しました: ${error.message}`);
+  return (data ?? []).map(rowToFeedback);
+}
+
+/** フィードバックを送信 */
+export async function submitFeedbackReport(
+  type: FeedbackType,
+  title: string,
+  body: string,
+  reporter: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('feedback_reports')
+    .insert({ type, title, body, reporter });
+  if (error) throw new Error(`フィードバックの送信に失敗しました: ${error.message}`);
+}
+
+/** フィードバックを既読にする */
+export async function markFeedbackRead(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('feedback_reports')
+    .update({ is_read: true })
+    .eq('id', id);
+  if (error) throw new Error(`既読更新に失敗しました: ${error.message}`);
+}
+
+/** フィードバックを削除 */
+export async function deleteFeedbackReport(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('feedback_reports')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(`フィードバックの削除に失敗しました: ${error.message}`);
+}
+
+/** フィードバックのリアルタイム購読 */
+export function subscribeToFeedbackReports(callback: (reports: FeedbackReport[]) => void): () => void {
+  const channel = supabase
+    .channel('feedback_reports_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback_reports' }, async () => {
+      try {
+        const reports = await fetchFeedbackReports();
+        callback(reports);
+      } catch (e) {
+        console.error('Feedback realtime error:', e);
+      }
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}

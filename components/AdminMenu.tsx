@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
-import { CallRequest, User } from '../types';
+import { CallRequest, User, FeedbackReport } from '../types';
 import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon, CalendarIcon } from './icons';
 import BulkTaskModal from './BulkTaskModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -30,9 +30,12 @@ interface AdminMenuProps {
     onJumpToMember: (userName: string) => void;
     calls?: CallRequest[];
     onOpenSchedule: (user: User) => void;
+    feedbackReports?: FeedbackReport[];
+    onDeleteFeedback?: (id: string) => Promise<void>;
+    onMarkFeedbackRead?: (id: string) => Promise<void>;
 }
 
-type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version' | 'export';
+type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version' | 'export' | 'feedback';
 type ExportTarget = 'active' | 'completed' | 'all';
 
 interface NewUserModalProps {
@@ -249,6 +252,9 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     onJumpToMember,
     calls = [],
     onOpenSchedule,
+    feedbackReports = [],
+    onDeleteFeedback,
+    onMarkFeedbackRead,
 }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [exportTarget, setExportTarget] = useState<ExportTarget>('all');
@@ -590,6 +596,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                 <TabButton tab="tasks" label="全体タスク" />
                                 <TabButton tab="announcement" label="周知事項" />
                                 {isSuperAdmin && <TabButton tab="export" label="エクスポート" />}
+                                {isSuperAdmin && <TabButton tab="feedback" label="報告・要望" count={feedbackReports.filter(r => !r.isRead).length} />}
                                 {isSuperAdmin && <TabButton tab="version" label="バージョン" />}
                             </nav>
                         </div>
@@ -945,6 +952,60 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                             <p className="mt-2 text-xs text-slate-400">※ .xlsx 形式でダウンロードされます</p>
                                         </div>
                                     </div>
+                                </div>
+                            )}
+                            {isSuperAdmin && activeTab === 'feedback' && (
+                                <div role="tabpanel" aria-labelledby="tab-feedback">
+                                    <h3 className="text-base font-semibold text-slate-700 mb-4">バグ報告 / 要望一覧</h3>
+                                    {feedbackReports.length === 0 ? (
+                                        <p className="text-slate-400 text-sm py-8 text-center">報告・要望はありません</p>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {feedbackReports.map(report => {
+                                                const typeLabel = report.type === 'bug' ? 'バグ報告' : report.type === 'request' ? '機能要望' : 'その他';
+                                                const typeBadge = report.type === 'bug'
+                                                    ? 'bg-red-100 text-red-700'
+                                                    : report.type === 'request'
+                                                    ? 'bg-yellow-100 text-yellow-700'
+                                                    : 'bg-slate-100 text-slate-600';
+                                                return (
+                                                    <div key={report.id} className={`rounded-xl border p-4 transition ${report.isRead ? 'border-slate-200 bg-white' : 'border-[#0193be]/40 bg-blue-50'}`}>
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${typeBadge}`}>{typeLabel}</span>
+                                                                    {!report.isRead && <span className="inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-[#0193be] text-white">未読</span>}
+                                                                </div>
+                                                                <p className="font-semibold text-slate-800 text-sm truncate">{report.title}</p>
+                                                                {report.body && <p className="text-slate-500 text-xs mt-1 whitespace-pre-wrap line-clamp-3">{report.body}</p>}
+                                                                <p className="text-slate-400 text-xs mt-2">{report.reporter} · {new Date(report.createdAt).toLocaleString('ja-JP')}</p>
+                                                            </div>
+                                                            <div className="flex flex-col gap-1 flex-shrink-0">
+                                                                {!report.isRead && onMarkFeedbackRead && (
+                                                                    <button
+                                                                        onClick={() => onMarkFeedbackRead(report.id)}
+                                                                        className="text-xs px-2 py-1 rounded-lg bg-[#0193be] text-white hover:bg-[#017a9a] transition"
+                                                                        title="既読にする"
+                                                                    >
+                                                                        既読
+                                                                    </button>
+                                                                )}
+                                                                {onDeleteFeedback && (
+                                                                    <button
+                                                                        onClick={() => onDeleteFeedback(report.id)}
+                                                                        className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                                                                        title="削除"
+                                                                    >
+                                                                        削除
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             {isSuperAdmin && activeTab === 'version' && (

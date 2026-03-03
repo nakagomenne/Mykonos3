@@ -77,3 +77,15 @@ export interface User {
   commentUpdatedAt?: string;
   statusRevertAt?: string | null;
 }
+
+export type FeedbackType = 'bug' | 'request' | 'other';
+
+export interface FeedbackReport {
+  id: string;
+  type: FeedbackType;
+  title: string;
+  body: string;
+  reporter: string;
+  createdAt: string;
+  isRead: boolean;
+}

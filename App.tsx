@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields } from './types';
+import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
 import AdminMenu from './components/AdminMenu';
+import FeedbackModal from './components/FeedbackModal';
 import ScheduleModal from './components/ScheduleModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import ShiftCalendar from './components/ShiftCalendar';
@@ -39,6 +40,11 @@ import {
   subscribeToCallRequests,
   subscribeToUsers,
   subscribeToAppSettings,
+  submitFeedbackReport,
+  fetchFeedbackReports,
+  deleteFeedbackReport as apiDeleteFeedbackReport,
+  markFeedbackRead as apiMarkFeedbackRead,
+  subscribeToFeedbackReports,
 } from './services/apiService';
 
 interface SearchResultItem {
@@ -141,6 +147,8 @@ const App: React.FC = () => {
     }
   });
   const [isNotificationSettingsModalOpen, setIsNotificationSettingsModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
   const [duplicateCustomerIds, setDuplicateCustomerIds] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('mykonosDarkMode');
@@ -262,12 +270,16 @@ const App: React.FC = () => {
       if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
       if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
     });
+    // フィードバック初期取得 + リアルタイム購読（SA用）
+    fetchFeedbackReports().then(setFeedbackReports).catch(() => {});
+    const unsubFeedback = subscribeToFeedbackReports(setFeedbackReports);
 
     return () => {
       isMounted = false;
       unsubCalls();
       unsubUsers();
       unsubSettings();
+      unsubFeedback();
     };
   }, []);
 
@@ -1788,6 +1800,18 @@ const App: React.FC = () => {
                           <PencilIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                           <span>コメント設定</span>
                         </button>
+                        {/* バグ報告・要望 */}
+                        <button
+                          onClick={() => {
+                            setIsFeedbackModalOpen(true);
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                          role="menuitem"
+                        >
+                          <FlagIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                          <span>バグ報告 / 要望</span>
+                        </button>
                       </div>
                       <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
@@ -2573,6 +2597,15 @@ const App: React.FC = () => {
             onJumpToMember={handleJumpToMember}
             calls={calls}
             onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setScheduleViewingUser(user); }}
+            feedbackReports={feedbackReports}
+            onDeleteFeedback={async (id) => {
+              await apiDeleteFeedbackReport(id);
+              setFeedbackReports(prev => prev.filter(r => r.id !== id));
+            }}
+            onMarkFeedbackRead={async (id) => {
+              await apiMarkFeedbackRead(id);
+              setFeedbackReports(prev => prev.map(r => r.id === id ? { ...r, isRead: true } : r));
+            }}
         />
       )}
 
@@ -2626,6 +2659,16 @@ const App: React.FC = () => {
             ? 'unsupported'
             : Notification.permission
         }
+      />
+
+      {/* バグ報告・要望モーダル */}
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => setIsFeedbackModalOpen(false)}
+        onSubmit={async (type, title, body) => {
+          if (!currentUser) return;
+          await submitFeedbackReport({ type, title, body, reporter: currentUser.name });
+        }}
       />
       
       {scheduleViewingUser && (
