@@ -2401,7 +2401,7 @@ const App: React.FC = () => {
                   // 「全体」タブ：回線前確以外の全員案件を時系列で一覧表示
                   <CallList 
                     calls={filteredCalls}
-                    selectedMember={undefined}
+                    selectedMember="全体"
                     onUpdateCall={handleUpdateCall}
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}

@@ -11,7 +11,7 @@ interface CallListItemProps {
   call: CallRequest;
   onUpdateCall: (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
   onSelectCall: (call: CallRequest) => void;
-  selectedMember: string;
+  selectedMember: string | undefined;
   isHighlighted: boolean;
   showRequesterColumn: boolean;
   members: string[];
@@ -28,7 +28,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember, isHighlighted, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -238,7 +238,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
 
   const isCompleted = call.status === '完了';
-  const isAllMembersView = selectedMember === '全体';
+  const isAllMembersView = !selectedMember || selectedMember === '全体';
   
   const absenteeRanks: Rank[] = ['見込C留守', '見込B留守', '見込A留守', '見込S留守'];
   const mikomRanks: Record<string, Rank> = {

@@ -6,7 +6,7 @@ import { PRECHECKER_ASSIGNEE_NAME } from '../constants';
 
 interface CallListProps {
   calls: CallRequest[];
-  selectedMember: string;
+  selectedMember: string | undefined;
   onUpdateCall: (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
   onSelectCall: (call: CallRequest) => void;
   highlightedCallId: string | null;
@@ -18,7 +18,7 @@ interface CallListProps {
   isDarkMode?: boolean;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall, onSelectCall, highlightedCallId, members, users, isPrecheckTheme = false, currentUser, duplicateCustomerIds, isDarkMode = false }) => {
+const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, members, users, isPrecheckTheme = false, currentUser, duplicateCustomerIds, isDarkMode = false }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
 
   if (calls.length === 0) {
@@ -51,7 +51,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
     )
   }
 
-  const isAllMembersView = selectedMember === '全体';
+  const isAllMembersView = !selectedMember || selectedMember === '全体';
   const showRequesterColumn = !isAllMembersView && calls.some(call => call.requester !== call.assignee);
 
   const displayedCalls = hideCompleted ? calls.filter(call => call.status !== '完了') : calls;
@@ -90,7 +90,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember, onUpdateCall
                   </button>
               )}
             </div>
-            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当</div>}
+            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
             <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
             <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
             {!isPrecheckTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
