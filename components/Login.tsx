@@ -210,9 +210,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
               Mykonos
             </h1>
             <p
-              className="login-subtitle mt-1 mb-6 text-xs tracking-widest uppercase font-semibold"
+              className="login-subtitle mt-1 mb-6 text-xs tracking-widest font-semibold font-inconsolata"
             >
-              ログインしてください
+              CRM Platform
             </p>
 
             {/* フォーム */}
@@ -275,7 +275,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
         </div>
 
         {/* バージョン */}
-        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos — CRM Platform</p>
+        <p className="mt-6 text-xs text-slate-400 font-inconsolata tracking-wider">Mykonos v1.0</p>
       </div>
     </div>
   );
