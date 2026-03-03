@@ -149,6 +149,7 @@ const App: React.FC = () => {
   const [isNotificationSettingsModalOpen, setIsNotificationSettingsModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
+  const [isLogoWaving, setIsLogoWaving] = useState(false);
   const [duplicateCustomerIds, setDuplicateCustomerIds] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('mykonosDarkMode');
@@ -1460,7 +1461,26 @@ const App: React.FC = () => {
         </div>
         <div className="relative px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-4">
           <div className="flex-shrink-0 flex items-end gap-2">
-            <h1 className={`text-5xl font-bold font-inconsolata transition-colors duration-500 ${headerTextClass}`}>Mykonos</h1>
+            <h1
+              className={`text-5xl font-bold font-inconsolata transition-colors duration-500 cursor-pointer select-none ${headerTextClass}`}
+              onClick={() => {
+                if (isLogoWaving) return;
+                setIsLogoWaving(true);
+                // 全文字のアニメーション終了後にリセット（最後の文字のdelay + duration）
+                setTimeout(() => setIsLogoWaving(false), 650 + 6 * 60 + 50);
+              }}
+              title="Mykonos"
+            >
+              {'Mykonos'.split('').map((char, i) => (
+                <span
+                  key={i}
+                  className={isLogoWaving ? 'logo-char-wave' : ''}
+                  style={isLogoWaving ? { animationDelay: `${i * 60}ms` } : undefined}
+                >
+                  {char}
+                </span>
+              ))}
+            </h1>
             <span className={`text-xs font-inconsolata transition-colors duration-500 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
           </div>
 
