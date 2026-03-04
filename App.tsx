@@ -217,25 +217,22 @@ const App: React.FC = () => {
         setIsLoading(true);
         setLoadError(null);
 
-        // 期限切れの完了済み案件を先に削除（失敗してもアプリ起動は継続）
-        try {
-          await deleteExpiredCompletedCalls();
-        } catch (cleanupErr) {
+        // 期限切れ案件の削除はバックグラウンドで実行（ローディングをブロックしない）
+        deleteExpiredCompletedCalls().catch(cleanupErr => {
           console.warn('期限切れ案件の削除をスキップしました:', cleanupErr);
-        }
+        });
 
-        const [fetchedUsers, fetchedCalls, settings, fetchedFeedback] = await Promise.all([
+        // 表示に必要なデータのみ並列取得
+        const [fetchedUsers, fetchedCalls, settings] = await Promise.all([
           fetchUsers(),
           fetchCallRequests(),
           fetchAppSettings(),
-          fetchFeedbackReports().catch(() => [] as FeedbackReport[]),
         ]);
 
         if (!isMounted) return;
 
         setUsers(fetchedUsers);
         setCalls(fetchedCalls);
-        setFeedbackReports(fetchedFeedback);
         if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
         if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
 
@@ -246,6 +243,9 @@ const App: React.FC = () => {
       } finally {
         if (isMounted) setIsLoading(false);
       }
+
+      // フィードバックはローディング完了後にバックグラウンドで取得（SA以外には不要）
+      fetchFeedbackReports().then(r => { if (isMounted) setFeedbackReports(r); }).catch(() => {});
     };
 
     loadInitialData();
