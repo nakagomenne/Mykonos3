@@ -706,6 +706,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       members={members}
                       isPrecheckTheme={isPrecheckTheme}
                       currentUserName={currentUser.name}
+                      isDarkMode={isDarkMode}
                   />
               </div>
           </div>

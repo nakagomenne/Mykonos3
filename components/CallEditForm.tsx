@@ -11,6 +11,7 @@ interface CallEditFormProps {
   members: string[];
   isPrecheckTheme?: boolean;
   currentUserName?: string;
+  isDarkMode?: boolean;
 }
 
 const SLIDER_MIN = 11 * 60; // 11:00
@@ -33,7 +34,7 @@ const roundTo15 = (t: string): string => {
 
 const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
-const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false, currentUserName }) => {
+const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false, currentUserName, isDarkMode = false }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
   const [requester, setRequester] = useState(call.requester);
@@ -98,37 +99,50 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
   const checkboxColor = isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
 
+  // ダークモード対応フィールドクラス
+  const fieldBg      = isDarkMode ? 'bg-[#0f1623]'    : 'bg-white';
+  const fieldBorder  = isDarkMode ? 'border-slate-600' : 'border-slate-300';
+  const fieldDivider = isDarkMode ? 'border-slate-600' : 'border-slate-300';
+
+  const inputClass   = `w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`;
+  const selectClass  = `w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${fieldBg} ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`;
+  const dateInputClass = `w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 ${fieldBg} ${mainColorClass}`;
+  const timeSelectClass = `w-1/2 px-2 py-1.5 border-0 border-l ${fieldDivider} rounded-r-md ${fieldBg} focus:ring-0 transition ${mainColorClass}`;
+  const cancelBtnClass = isDarkMode
+    ? 'bg-[#0f1623] text-slate-300 border border-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition'
+    : 'bg-white text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition';
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-3 text-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label htmlFor={`edit-customerId-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>顧客ID</label>
-            <input type="text" id={`edit-customerId-${call.id}`} value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass}`} />
+            <input type="text" id={`edit-customerId-${call.id}`} value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={inputClass} />
           </div>
           <div>
             <label htmlFor={`edit-assignee-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>担当者</label>
-            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => setAssignee(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
+            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => setAssignee(e.target.value)} required className={selectClass}>
               {members.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
           <div className="md:col-span-2">
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
-            <div className={`flex items-center border border-slate-300 rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 bg-white ${mainColorClass}`} />
+            <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={dateInputClass} />
               {/* isDetailedTime ON: 1分単位 select / OFF: 通常 select */}
               {isDetailedTime && !isSpecialTime(time) ? (
                 <select
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}
+                  className={timeSelectClass}
                 >
                   {Array.from({ length: (SLIDER_MAX - SLIDER_MIN) + 1 }, (_, i) => minutesToTime(SLIDER_MIN + i)).map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
               ) : (
-                <select value={time} onChange={(e) => setTime(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 border-l border-slate-300 rounded-r-md bg-white focus:ring-0 transition ${mainColorClass}`}>
+                <select value={time} onChange={(e) => setTime(e.target.value)} required className={timeSelectClass}>
                   {timeOptions.map(slot => <option key={slot} value={slot}>{slot}</option>)}
                 </select>
               )}
@@ -171,17 +185,18 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
               required
               label="ランク"
               mainColorClassLight={mainColorClassLight}
+              isDarkMode={isDarkMode}
             />
           </div>
           <div>
             <label htmlFor={`edit-listType-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>リスト種別</label>
-            <select id={`edit-listType-${call.id}`} value={listType} onChange={(e) => setListType(e.target.value as ListType)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
+            <select id={`edit-listType-${call.id}`} value={listType} onChange={(e) => setListType(e.target.value as ListType)} required className={selectClass}>
               {LIST_TYPE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
           <div>
             <label htmlFor={`edit-requester-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>依頼者</label>
-            <select id={`edit-requester-${call.id}`} value={requester} onChange={(e) => setRequester(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
+            <select id={`edit-requester-${call.id}`} value={requester} onChange={(e) => setRequester(e.target.value)} required className={selectClass}>
               {members
                 .filter(opt => {
                   // ログイン中の本人 または 現在設定されている依頼者のみ選択可
@@ -193,10 +208,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         </div>
         <div>
           <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>備考</label>
-          <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass}`}></textarea>
+          <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`}></textarea>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onCancel} className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition">キャンセル</button>
+          <button type="button" onClick={onCancel} className={cancelBtnClass}>キャンセル</button>
           <button type="submit" className={`${mainBgClass} text-white font-bold py-2 px-4 rounded-lg ${mainHoverBgClass} transition`}>保存</button>
         </div>
       </form>

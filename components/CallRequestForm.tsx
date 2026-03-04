@@ -605,6 +605,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               required
               label="ランク"
               mainColorClassLight={mainColorClassLight}
+              isDarkMode={isDarkMode}
             />
         </div>
         <div>

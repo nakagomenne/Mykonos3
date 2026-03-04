@@ -10,6 +10,7 @@ interface RankSelectorProps {
   required?: boolean;
   label?: string;
   mainColorClassLight?: string;
+  isDarkMode?: boolean;
 }
 
 const RankSelector: React.FC<RankSelectorProps> = ({
@@ -19,6 +20,7 @@ const RankSelector: React.FC<RankSelectorProps> = ({
   required = false,
   label,
   mainColorClassLight = 'text-[#0193be]/80',
+  isDarkMode = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -65,6 +67,16 @@ const RankSelector: React.FC<RankSelectorProps> = ({
     setIsOpen(prev => !prev);
   };
 
+  // 未選択時のボタン背景・枠
+  const emptyButtonClass = isDarkMode
+    ? 'bg-[#0f1623] border border-slate-600 text-slate-400'
+    : 'bg-white border border-slate-300 text-slate-400';
+
+  // ドロップダウン背景・枠
+  const dropdownBgClass = isDarkMode
+    ? 'bg-[#0f1623] border-slate-600'
+    : 'bg-white border-slate-200';
+
   return (
     <div>
       {label && (
@@ -84,9 +96,7 @@ const RankSelector: React.FC<RankSelectorProps> = ({
           border: (selectedStyle as any)?.border || '1px solid transparent',
         }}
         className={`w-full text-center px-3 py-2 text-sm font-bold rounded-md shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-1 ${
-          isEmpty
-            ? 'bg-white border border-slate-300 text-slate-400'
-            : ''
+          isEmpty ? emptyButtonClass : ''
         }`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -97,7 +107,7 @@ const RankSelector: React.FC<RankSelectorProps> = ({
       {isOpen && dropdownPosition && createPortal(
         <div
           ref={dropdownRef}
-          className="fixed z-[200] bg-white rounded-md shadow-xl border border-slate-200 max-h-72 overflow-auto animate-wipe-in-down"
+          className={`fixed z-[200] rounded-md shadow-xl border max-h-72 overflow-auto animate-wipe-in-down ${dropdownBgClass}`}
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
