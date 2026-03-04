@@ -1764,12 +1764,11 @@ const App: React.FC = () => {
                   {isCommentPopupOpen && (() => {
                     const rect = commentButtonRef.current?.getBoundingClientRect();
                     const top = rect ? rect.bottom + 8 : 60;
-                    const right = rect ? window.innerWidth - rect.right : 16;
                     return createPortal(
                       <div
                         ref={commentPopupRef}
                         className="fixed z-[200] rounded-xl shadow-xl w-80 max-h-[60vh] flex flex-col animate-fade-in-up"
-                        style={{ top, right, background: 'linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%)' }}
+                        style={{ top, right: 16, background: 'linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%)' }}
                       >
                         <div className="p-3 border-b border-white/20 flex justify-between items-center flex-shrink-0">
                           <h3 className="text-base font-bold text-white">メンバータイムライン</h3>
