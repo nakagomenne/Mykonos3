@@ -497,11 +497,9 @@ export async function fetchFeedbackReports(): Promise<FeedbackReport[]> {
 
 /** フィードバックを送信 */
 export async function submitFeedbackReport(
-  type: FeedbackType,
-  title: string,
-  body: string,
-  reporter: string
+  params: { type: FeedbackType; title: string; body: string; reporter: string }
 ): Promise<void> {
+  const { type, title, body, reporter } = params;
   const { error } = await supabase
     .from('feedback_reports')
     .insert({ type, title, body, reporter });
