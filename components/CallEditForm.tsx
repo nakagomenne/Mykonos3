@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CallRequest, ListType, Rank } from '../types';
 import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS } from '../constants';
 import AlertModal from './AlertModal';
+import RankSelector from './RankSelector';
 
 interface CallEditFormProps {
   call: CallRequest;
@@ -163,10 +164,14 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
             </div>
           </div>
           <div className="md:col-span-2">
-            <label htmlFor={`edit-rank-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>ランク</label>
-            <select id={`edit-rank-${call.id}`} value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
-              {rankOptionsForEdit.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
+            <RankSelector
+              value={rank}
+              options={rankOptionsForEdit}
+              onChange={(r) => setRank(r)}
+              required
+              label="ランク"
+              mainColorClassLight={mainColorClassLight}
+            />
           </div>
           <div>
             <label htmlFor={`edit-listType-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>リスト種別</label>

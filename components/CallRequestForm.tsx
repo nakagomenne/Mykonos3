@@ -4,6 +4,7 @@ import { CallRequest, ListType, Rank, User } from '../types';
 import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS } from '../constants';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
+import RankSelector from './RankSelector';
 
 interface CallRequestFormProps {
   onAddCall: (call: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => boolean;
@@ -586,11 +587,14 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
           </div>
         </div>
         <div>
-            <label htmlFor="rank" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>ランク <span className="text-red-500">*</span></label>
-            <select id="rank" value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}>
-                <option value="" disabled>--</option>
-                {rankOptionsToDisplay.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
+            <RankSelector
+              value={rank}
+              options={rankOptionsToDisplay}
+              onChange={(r) => setRank(r)}
+              required
+              label="ランク"
+              mainColorClassLight={mainColorClassLight}
+            />
         </div>
         <div>
           <label htmlFor="listType" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>リスト種別 <span className="text-red-500">*</span></label>
