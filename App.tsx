@@ -342,6 +342,7 @@ const App: React.FC = () => {
     const precheckCounts = new Map<string, number>();
 
     calls.forEach(call => {
+      if (call.status === '完了') return; // 完了案件は重複カウントに含めない
       const trimmedId = call.customerId.trim().toLowerCase();
       if (!trimmedId) return;
       if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
@@ -1518,7 +1519,12 @@ const App: React.FC = () => {
   const selectedCallDuplicates = useMemo(() => {
     if (!selectedCall) return [];
     const trimmed = selectedCall.customerId.trim().toLowerCase();
-    return calls.filter(c => c.id !== selectedCall.id && c.customerId.trim().toLowerCase() === trimmed);
+    // 完了案件は重複として表示しない
+    return calls.filter(c =>
+      c.id !== selectedCall.id &&
+      c.customerId.trim().toLowerCase() === trimmed &&
+      c.status !== '完了'
+    );
   }, [selectedCall, calls]);
 
 

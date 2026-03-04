@@ -216,13 +216,9 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                           <strong className="text-amber-600/80 block text-xs">ランク</strong>
                           <span className="text-amber-800 font-medium">{dup.rank}</span>
                         </div>
-                        <div>
+                        <div className="col-span-2">
                           <strong className="text-amber-600/80 block text-xs">架電予定日時</strong>
                           <span className="text-amber-800 font-medium">{formatDetailDateTime(dup.dateTime)}</span>
-                        </div>
-                        <div>
-                          <strong className="text-amber-600/80 block text-xs">ステータス</strong>
-                          <StatusBadge status={dup.status} />
                         </div>
                       </div>
                     ))}
