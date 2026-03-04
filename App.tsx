@@ -2312,12 +2312,14 @@ const App: React.FC = () => {
                           ? {}
                           : { backgroundColor: { '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[mineStatus] ?? '#64748b' };
                       const mineBgClass = mineIsAvailable ? '' : '';
-                      const mineRingColor = {
-                          '受付可': 'ring-[#0193be]',
-                          '一時受付不可': 'ring-yellow-500',
-                          '当日受付不可': 'ring-red-500',
-                          '非稼働': 'ring-slate-500',
-                      }[mineStatus] ?? 'ring-[#0193be]';
+                      const mineRingHex = {
+                          '受付可': '#0193be',
+                          '一時受付不可': '#eab308',
+                          '当日受付不可': '#ef4444',
+                          '非稼働': '#64748b',
+                      }[mineStatus] ?? '#0193be';
+                      const mineRingColor = ''; // box-shadowで管理
+                      const mineRingBoxShadow = `0 0 0 3px white, 0 0 0 7px ${mineRingHex}, 0 0 0 10px white`;
                       const mineTextColor = mineIsAvailable ? 'text-[#0193be]' : 'text-white';
                       const mineCalendarHover = mineIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
                       return (
@@ -2330,16 +2332,17 @@ const App: React.FC = () => {
                               <div className="relative" ref={statusDropdownRef}>
                                   <button
                                       onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${mineRingColor}`}
+                                      className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
+                                      style={{ boxShadow: mineRingBoxShadow }}
                                       aria-haspopup="true"
                                       aria-expanded={isStatusDropdownOpen}
                                       title="稼働ステータスを変更"
                                   >
                                       {currentUserWithData?.profilePicture ? (
-                                          <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-full h-full rounded-full object-cover" />
+                                          <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-24 h-24 rounded-full object-cover" />
                                       ) : (
-                                          <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                            <UserIcon className="w-20 h-20 text-[#0193be]/80" />
+                                          <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                            <UserIcon className="w-16 h-16 text-[#0193be]/80" />
                                           </div>
                                       )}
                                   </button>
@@ -2447,12 +2450,14 @@ const App: React.FC = () => {
                           
                           const status = selectedUserDetails.availabilityStatus;
                           const isAvailable = status === '受付可';
-                          const ringColorClass = {
-                              '受付可': 'ring-[#0193be]',
-                              '一時受付不可': 'ring-yellow-500',
-                              '当日受付不可': 'ring-red-500',
-                              '非稼働': 'ring-slate-500',
-                          }[status] ?? 'ring-[#0193be]';
+                          const ringHex = {
+                              '受付可': '#0193be',
+                              '一時受付不可': '#eab308',
+                              '当日受付不可': '#ef4444',
+                              '非稼働': '#64748b',
+                          }[status] ?? '#0193be';
+                          const ringColorClass = ''; // box-shadowで管理
+                          const ringBoxShadow = `0 0 0 3px white, 0 0 0 7px ${ringHex}, 0 0 0 10px white`;
                           const statusTextColor = isAvailable ? 'text-[#0193be]' : 'text-white';
                           const statusBgColor = {
                               '受付可': 'bg-[#0193be]',
@@ -2479,14 +2484,15 @@ const App: React.FC = () => {
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
+                                          className="relative w-32 h-32 rounded-full transition-all duration-500 hover:scale-105"
+                                          style={{ boxShadow: ringBoxShadow }}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
-                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-full h-full rounded-full object-cover" />
+                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-24 h-24 rounded-full object-cover" />
                                           ) : (
-                                              <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                                  <UserIcon className={`w-20 h-20 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
+                                              <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                                  <UserIcon className={`w-16 h-16 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
                                               </div>
                                           )}
                                       </button>
@@ -2675,23 +2681,20 @@ const App: React.FC = () => {
                         const selectedUserDetails = users.find(u => u.name === previewMember);
                         if (!selectedUserDetails) return null;
                         const status = selectedUserDetails.availabilityStatus;
-                        const ringColorClass = {
-                            '受付可': 'ring-[#0193be]',
-                            '一時受付不可': 'ring-yellow-500',
-                            '当日受付不可': 'ring-red-500',
-                            '非稼働': 'ring-slate-500',
-                        }[status];
                         return (
                           <div key={previewMember} className="animate-wipe-in-down-slow">
                             <div className="mb-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-4 ml-4">
-                                  <div className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${ringColorClass}`}>
+                                  <div
+                              className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
+                              style={{ boxShadow: `0 0 0 3px white, 0 0 0 7px ${{ '受付可': '#0193be', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? '#0193be'}, 0 0 0 10px white` }}
+                          >
                                       {selectedUserDetails.profilePicture ? (
-                                        <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-full h-full rounded-full object-cover" />
+                                        <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-24 h-24 rounded-full object-cover" />
                                       ) : (
-                                        <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                          <UserIcon className="w-20 h-20 text-[#0193be]/80" />
+                                        <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                          <UserIcon className="w-16 h-16 text-[#0193be]/80" />
                                         </div>
                                       )}
                                   </div>
