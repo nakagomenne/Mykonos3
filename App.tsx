@@ -2314,7 +2314,7 @@ const App: React.FC = () => {
                               <div className="relative" ref={statusDropdownRef}>
                                   <button
                                       onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className={`relative w-24 h-24 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${
+                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${
                                           {
                                               '受付可': 'ring-[#0193be]',
                                               '一時受付不可': 'ring-yellow-500',
@@ -2330,7 +2330,7 @@ const App: React.FC = () => {
                                           <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-full h-full rounded-full object-cover" />
                                       ) : (
                                           <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                            <UserIcon className="w-16 h-16 text-[#0193be]/80" />
+                                            <UserIcon className="w-20 h-20 text-[#0193be]/80" />
                                           </div>
                                       )}
                                   </button>
@@ -2382,7 +2382,7 @@ const App: React.FC = () => {
                                                     <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent border-t-[8px] border-t-[#0193be]"></div>
                                                 </div>
                                             </div>
-                                            <h2 className="text-4xl font-bold text-[#0193be]">{currentUser.name}</h2>
+                                            <h2 className="text-5xl font-bold text-[#0193be]">{currentUser.name}</h2>
                                         </div>
                                     </>
                                 ) : (
@@ -2395,7 +2395,7 @@ const App: React.FC = () => {
                                         >
                                             <SpeechBubbleIcon className="w-8 h-8" />
                                         </button>
-                                        <h2 className="text-4xl font-bold text-[#0193be]">{currentUser.name}</h2>
+                                        <h2 className="text-5xl font-bold text-[#0193be]">{currentUser.name}</h2>
                                     </div>
                                 )}
                               </div>
@@ -2437,14 +2437,14 @@ const App: React.FC = () => {
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
+                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
                                               <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-full h-full rounded-full object-cover" />
                                           ) : (
                                               <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                                  <UserIcon className={`w-16 h-16 ${statusTextColor}/80`} />
+                                                  <UserIcon className={`w-20 h-20 ${statusTextColor}/80`} />
                                               </div>
                                           )}
                                       </button>
@@ -2467,7 +2467,7 @@ const App: React.FC = () => {
                                               </div>
                                           )}
                                           <div className="flex items-baseline gap-2">
-                                            <h2 className={`text-4xl font-bold ${statusTextColor}`}>
+                                            <h2 className={`text-5xl font-bold ${statusTextColor}`}>
                                                 {selectedMember}
                                             </h2>
                                             <button
@@ -2646,12 +2646,12 @@ const App: React.FC = () => {
                             <div className="mb-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-4 ml-4">
-                                  <div className={`relative w-24 h-24 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${ringColorClass}`}>
+                                  <div className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${ringColorClass}`}>
                                       {selectedUserDetails.profilePicture ? (
                                         <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-full h-full rounded-full object-cover" />
                                       ) : (
                                         <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                          <UserIcon className="w-16 h-16 text-[#0193be]/80" />
+                                          <UserIcon className="w-20 h-20 text-[#0193be]/80" />
                                         </div>
                                       )}
                                   </div>
@@ -2674,7 +2674,7 @@ const App: React.FC = () => {
                                         </div>
                                     )}
                                     <div className="flex items-baseline gap-2">
-                                      <h2 className="text-4xl font-bold text-[#0193be]">
+                                      <h2 className="text-5xl font-bold text-[#0193be]">
                                         {previewMember}
                                       </h2>
                                        <button
