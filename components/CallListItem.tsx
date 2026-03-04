@@ -705,6 +705,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       onCancel={() => setIsEditing(false)}
                       members={members}
                       isPrecheckTheme={isPrecheckTheme}
+                      currentUserName={currentUser.name}
                   />
               </div>
           </div>

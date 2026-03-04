@@ -9,6 +9,7 @@ interface CallEditFormProps {
   onCancel: () => void;
   members: string[];
   isPrecheckTheme?: boolean;
+  currentUserName?: string;
 }
 
 const SLIDER_MIN = 11 * 60; // 11:00
@@ -31,7 +32,7 @@ const roundTo15 = (t: string): string => {
 
 const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
-const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false }) => {
+const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false, currentUserName }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
   const [requester, setRequester] = useState(call.requester);
@@ -176,7 +177,12 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           <div>
             <label htmlFor={`edit-requester-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>依頼者</label>
             <select id={`edit-requester-${call.id}`} value={requester} onChange={(e) => setRequester(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
-              {members.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              {members
+                .filter(opt => {
+                  // ログイン中の本人 または 現在設定されている依頼者のみ選択可
+                  return opt === currentUserName || opt === call.requester;
+                })
+                .map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
         </div>
