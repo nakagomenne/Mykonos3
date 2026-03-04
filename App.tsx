@@ -173,6 +173,7 @@ const App: React.FC = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const announcementMarqueeRef = useRef<HTMLDivElement>(null);
+  const [marqueeRepeat, setMarqueeRepeat] = useState(4); // 初期値は適当な数（後でJS計算で上書き）
   const searchRef = useRef<HTMLDivElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
   // Realtime コールバック内で最新のstateを参照するためのref
@@ -349,38 +350,44 @@ const App: React.FC = () => {
     if (!container) return;
 
     if (announcement) {
-      // アニメーションを一旦リセットしてから再計算する
       container.style.animation = 'none';
       container.style.willChange = 'auto';
 
-      // requestAnimationFrame を2回ネストして、
-      // ブラウザがレイアウトを確実に完了した後に scrollWidth を取得する
       const raf = requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // 2コピー構造のため scrollWidth / 2 が1周分の正確な幅
-          // scrollWidth が 0 の場合は文字数で推定（1文字 ≈ 16px）
-          const singleWidth = container.scrollWidth > 0
-            ? container.scrollWidth / 2
-            : announcement.length * 16;
+          // 各スパンの実幅を取得（先頭のスパンの幅で計算）
+          const spans = container.querySelectorAll<HTMLSpanElement>('[data-marquee-item]');
+          const spanWidth = spans.length > 0 ? spans[0].getBoundingClientRect().width : announcement.length * 16 + 96;
+          const viewportWidth = window.innerWidth;
 
-          if (singleWidth > 0) {
-            // 速度: 80px/s 固定（短くても長くても同じ速さで流れる）
-            const pixelsPerSecond = 80;
-            const duration = Math.max(3, singleWidth / pixelsPerSecond);
-            container.style.animation = `marquee ${duration}s linear infinite`;
-            container.style.willChange = 'transform';
-          }
+          // 1セット内に何個繰り返すか：画面幅の少なくとも 1.5 倍以上になるまで
+          const repeatCount = Math.max(2, Math.ceil((viewportWidth * 1.5) / spanWidth));
+
+          // 現在の span 数と一致しない場合は再描画が必要——ここでは state 経由で届けるので
+          // 先に計算完了後、React state で届ける
+          setMarqueeRepeat(repeatCount);
+
+          // アニメを再設定（次の rAF で DOM が更新された後に実行）
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // 1セット分の幅 = repeatCount 個の span 幅の合計
+              const singleSetWidth = spanWidth * repeatCount;
+              const pixelsPerSecond = 80;
+              const duration = Math.max(3, singleSetWidth / pixelsPerSecond);
+              if (container) {
+                container.style.animation = `marquee ${duration}s linear infinite`;
+                container.style.willChange = 'transform';
+              }
+            });
+          });
         });
       });
 
       return () => cancelAnimationFrame(raf);
-
     } else {
-      // お知らせが空になったらアニメーション停止
       container.style.animation = 'none';
       container.style.willChange = 'auto';
     }
-  // currentUser?.name を deps に追加することで再ログイン時にもアニメーションを再計算する
   }, [announcement, currentUser?.name]);
   
   // 期限切れ案件の削除は初回ロード時に apiService 側で実行済み
@@ -1993,24 +2000,27 @@ const App: React.FC = () => {
             }}
           >
             <div className="p-2 overflow-hidden">
-              <div 
+              <div
                 ref={announcementMarqueeRef}
                 className="flex whitespace-nowrap flex-shrink-0"
               >
-                {/* 
-                  シームレスループ構造:
-                  - 各spanに min-w-full を指定して1コピーが最低でも画面幅を埋める
-                  - 2コピー合計の幅に対して translateX(-50%) → 左半分分だけスライドでループ
+                {/*
+                  1セット = テキストを marqueeRepeat 個並べたもの
+                  それを2セット用意して translateX(-50%) でシームレスループ。
+                  marqueeRepeat は JS で「1セット幅 ≥ 画面幅」になるよう動的計算。
                 */}
-                {[0, 1].map((i) => (
-                  <span
-                    key={i}
-                    className="font-semibold tracking-wider text-amber-800 inline-block"
-                    style={{ paddingLeft: '4rem', paddingRight: '4rem', minWidth: '100vw' }}
-                    aria-hidden={i > 0}
-                  >
-                    {announcement}
-                  </span>
+                {[0, 1].map((copy) => (
+                  <div key={copy} className="flex flex-shrink-0" aria-hidden={copy > 0}>
+                    {Array.from({ length: marqueeRepeat }).map((_, i) => (
+                      <span
+                        key={i}
+                        data-marquee-item="1"
+                        className="font-semibold tracking-wider text-amber-800 px-12"
+                      >
+                        {announcement}
+                      </span>
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>
