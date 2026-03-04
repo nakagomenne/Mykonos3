@@ -116,8 +116,8 @@ const generateTimeSlots = (): string[] => {
 };
 export const TIME_SLOTS = generateTimeSlots();
 
-export const SPECIAL_TIME_OPTIONS_TOP = ['至急', 'このあとOK'];
-export const PRECHECK_SPECIAL_TIME_OPTIONS_TOP = ['待機中', ...SPECIAL_TIME_OPTIONS_TOP];
+export const SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', 'このあとOK'];
+export const PRECHECK_SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', 'このあとOK'];
 export const SPECIAL_TIME_OPTIONS_BOTTOM = ['時設なし', '入電待ち'];
 export const ALL_TIME_OPTIONS = [
   ...SPECIAL_TIME_OPTIONS_TOP,
