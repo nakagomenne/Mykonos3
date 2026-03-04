@@ -2302,23 +2302,36 @@ const App: React.FC = () => {
                   />
                 )}
 
-                <div className="my-4 py-2">
+                <div className="my-4">
                   {displayViewMode === 'precheck' || (displayViewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME) ? (
                       null
-                  ) : displayViewMode === 'mine' ? (
+                  ) : displayViewMode === 'mine' ? (() => {
+                      const mineStatus = currentUserWithData?.availabilityStatus || '受付可';
+                      const mineIsAvailable = mineStatus === '受付可';
+                      const mineBgStyle: React.CSSProperties = mineIsAvailable
+                          ? {}
+                          : { backgroundColor: { '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[mineStatus] ?? '#64748b' };
+                      const mineBgClass = mineIsAvailable ? '' : '';
+                      const mineRingOffset = mineIsAvailable ? 'ring-offset-white' : 'ring-offset-[4px]';
+                      const mineRingColor = {
+                          '受付可': 'ring-[#0193be]',
+                          '一時受付不可': 'ring-yellow-500',
+                          '当日受付不可': 'ring-red-500',
+                          '非稼働': 'ring-slate-500',
+                      }[mineStatus] ?? 'ring-[#0193be]';
+                      const mineTextColor = mineIsAvailable ? 'text-[#0193be]' : 'text-white';
+                      const mineCalendarHover = mineIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
+                      return (
+                      <div
+                          className={`rounded-xl py-4 px-4 transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                          style={mineIsAvailable ? {} : mineBgStyle}
+                      >
                       <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-4 ml-4">
+                          <div className="flex items-center gap-4">
                               <div className="relative" ref={statusDropdownRef}>
                                   <button
                                       onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${
-                                          {
-                                              '受付可': 'ring-[#0193be]',
-                                              '一時受付不可': 'ring-yellow-500',
-                                              '当日受付不可': 'ring-red-500',
-                                              '非稼働': 'ring-slate-500',
-                                          }[currentUserWithData?.availabilityStatus || '受付可']
-                                      }`}
+                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 transition-colors duration-500 ${mineRingColor} ${mineIsAvailable ? 'ring-offset-white' : 'ring-offset-transparent'}`}
                                       aria-haspopup="true"
                                       aria-expanded={isStatusDropdownOpen}
                                       title="稼働ステータスを変更"
@@ -2379,42 +2392,69 @@ const App: React.FC = () => {
                                                     <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent border-t-[8px] border-t-[#0193be]"></div>
                                                 </div>
                                             </div>
-                                            <h2 className="text-5xl font-bold text-[#0193be]">{currentUser.name}</h2>
+                                            <div className="flex items-baseline gap-2">
+                                              <h2 className={`text-5xl font-bold transition-colors duration-500 ${mineTextColor}`}>{currentUser.name}</h2>
+                                              <button
+                                                  onClick={() => handleShowUserSchedule(currentUser.name)}
+                                                  className={`${mineTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${mineCalendarHover} transition`}
+                                                  title={`${currentUser.name}さんのスケジュールを表示`}
+                                              >
+                                                  <CalendarIcon className="w-6 h-6" />
+                                              </button>
+                                            </div>
+                                            {(currentUserWithData?.availableProducts && currentUserWithData.availableProducts.length > 0) && (
+                                              <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
+                                                対応可能商材：{currentUserWithData.availableProducts.join('・')}
+                                              </p>
+                                            )}
                                         </div>
                                     </>
                                 ) : (
                                     <div className="relative">
                                          <button
                                             onClick={() => setIsCommentModalOpen(true)}
-                                            className="absolute bottom-full left-0 mb-1 text-[#0193be] hover:text-[#017a9a] transition-colors"
+                                            className={`absolute bottom-full left-0 mb-1 ${mineTextColor} opacity-70 hover:opacity-100 transition-colors`}
                                             title="コメントを設定"
                                             aria-label="コメントを設定"
                                         >
                                             <SpeechBubbleIcon className="w-8 h-8" />
                                         </button>
-                                        <h2 className="text-5xl font-bold text-[#0193be]">{currentUser.name}</h2>
+                                        <div className="flex items-baseline gap-2">
+                                          <h2 className={`text-5xl font-bold transition-colors duration-500 ${mineTextColor}`}>{currentUser.name}</h2>
+                                          <button
+                                              onClick={() => handleShowUserSchedule(currentUser.name)}
+                                              className={`${mineTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${mineCalendarHover} transition`}
+                                              title={`${currentUser.name}さんのスケジュールを表示`}
+                                          >
+                                              <CalendarIcon className="w-6 h-6" />
+                                          </button>
+                                        </div>
+                                        {(currentUserWithData?.availableProducts && currentUserWithData.availableProducts.length > 0) && (
+                                          <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
+                                            対応可能商材：{currentUserWithData.availableProducts.join('・')}
+                                          </p>
+                                        )}
                                     </div>
                                 )}
                               </div>
                           </div>
                       </div>
-                  ) : displayViewMode === 'others' && selectedMember !== '新規依頼' && selectedMember !== '全体' && (() => {
+                      </div>
+                      );
+                  })()
+                  : displayViewMode === 'others' && selectedMember !== '新規依頼' && selectedMember !== '全体' && (() => {
                           const selectedUserDetails = users.find(u => u.name === selectedMember);
                           if (!selectedUserDetails) return null;
                           
                           const status = selectedUserDetails.availabilityStatus;
+                          const isAvailable = status === '受付可';
                           const ringColorClass = {
                               '受付可': 'ring-[#0193be]',
                               '一時受付不可': 'ring-yellow-500',
                               '当日受付不可': 'ring-red-500',
                               '非稼働': 'ring-slate-500',
                           }[status] ?? 'ring-[#0193be]';
-                          const statusTextColor = {
-                              '受付可': 'text-[#0193be]',
-                              '一時受付不可': 'text-yellow-500',
-                              '当日受付不可': 'text-red-500',
-                              '非稼働': 'text-slate-500',
-                          }[status] ?? 'text-[#0193be]';
+                          const statusTextColor = isAvailable ? 'text-[#0193be]' : 'text-white';
                           const statusBgColor = {
                               '受付可': 'bg-[#0193be]',
                               '一時受付不可': 'bg-yellow-500',
@@ -2427,21 +2467,27 @@ const App: React.FC = () => {
                               '当日受付不可': '#ef4444',
                               '非稼働': '#64748b',
                           }[status] ?? '#0193be';
+                          const calendarHover = isAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
+                          const headerBgStyle: React.CSSProperties = isAvailable ? {} : { backgroundColor: statusBgHex };
 
                           return (
+                              <div
+                                  className={`rounded-xl py-4 px-4 transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                                  style={headerBgStyle}
+                              >
                               <div className="flex items-center justify-between gap-4">
-                                  <div className="flex items-center gap-4 ml-4">
+                                  <div className="flex items-center gap-4">
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
+                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass} ${isAvailable ? 'ring-offset-white' : 'ring-offset-transparent'}`}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
                                               <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-full h-full rounded-full object-cover" />
                                           ) : (
                                               <div className="w-full h-full rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                                  <UserIcon className={`w-20 h-20 ${statusTextColor}/80`} />
+                                                  <UserIcon className={`w-20 h-20 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
                                               </div>
                                           )}
                                       </button>
@@ -2464,24 +2510,25 @@ const App: React.FC = () => {
                                               </div>
                                           )}
                                           <div className="flex items-baseline gap-2">
-                                            <h2 className={`text-5xl font-bold ${statusTextColor}`}>
+                                            <h2 className={`text-5xl font-bold transition-colors duration-500 ${statusTextColor}`}>
                                                 {selectedMember}
                                             </h2>
                                             <button
                                                 onClick={() => handleShowUserSchedule(selectedMember)}
-                                                className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full hover:bg-slate-200/60 transition`}
+                                                className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${calendarHover} transition`}
                                                 title={`${selectedMember}さんのスケジュールを表示`}
                                             >
                                                 <CalendarIcon className="w-6 h-6" />
                                             </button>
                                           </div>
                                           {(selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) && (
-                                            <p className={`mt-2 text-lg font-bold ${statusTextColor} opacity-80`}>
+                                            <p className={`mt-2 text-lg font-bold transition-colors duration-500 ${statusTextColor} opacity-80`}>
                                               対応可能商材：{selectedUserDetails.availableProducts.join('・')}
                                             </p>
                                           )}
                                       </div>
                                   </div>
+                              </div>
                               </div>
                           );
                       })()}
