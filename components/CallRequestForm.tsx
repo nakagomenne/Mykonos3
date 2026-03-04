@@ -11,6 +11,8 @@ interface CallRequestFormProps {
   defaultAssignee?: string;
   currentUser: string;
   users: User[];
+  /** 担当者ソート用に渡す案件一覧（enableProductFiltering=true 時のみ使用） */
+  calls?: CallRequest[];
   formResetCounter: number;
   onAssigneeChange?: (assignee: string) => void;
   enableProductFiltering?: boolean;
@@ -66,7 +68,7 @@ const getListTypeForAssignee = (
 };
 
 
-const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
+const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, calls = [], formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
   // users を ref でも保持することで resetForm の useCallback 依存から外し、
   // Realtime更新による users 参照変化がフォームリセットを引き起こさないようにする
   const usersRef = useRef(users);
@@ -180,17 +182,52 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     if (isPrecheckMode) {
         return users; // App.tsx will already have filtered to pre-checkers
     }
-    if (!enableProductFiltering || !listType) {
-      return users;
+
+    // 商材フィルター
+    let base = users;
+    if (enableProductFiltering && listType) {
+      if (listType === '回線') {
+        base = users.filter(user => (user.availableProducts || []).includes('回線'));
+      } else if (['MF', 'OK', 'NG'].includes(listType)) {
+        base = users.filter(user => (user.availableProducts || []).includes('水'));
+      }
     }
-    if (listType === '回線') {
-      return users.filter(user => (user.availableProducts || []).includes('回線'));
+
+    if (!enableProductFiltering) {
+      return base;
     }
-    if (['MF', 'OK', 'NG'].includes(listType)) {
-      return users.filter(user => (user.availableProducts || []).includes('水'));
+
+    // 非稼働日フィルター：選択中の予定日が非稼働日のメンバーを除外
+    if (date) {
+      base = base.filter(user => !(user.nonWorkingDays || []).includes(date));
     }
-    return users;
-  }, [users, listType, enableProductFiltering, isPrecheckMode]);
+
+    // ソート：①受付可を上位 → ②受付可の中では直近予定日時付き案件が少ない順
+    const now = new Date();
+    // 直近（今日以降）の未完了案件数をメンバーごとに集計
+    const upcomingCountMap = new Map<string, number>();
+    for (const call of calls) {
+      if (call.status === '完了') continue;
+      // dateTime が「YYYY-MM-DDThh:mm」形式の案件のみカウント
+      if (!call.dateTime || !call.dateTime.includes('T')) continue;
+      const dt = new Date(call.dateTime);
+      if (isNaN(dt.getTime()) || dt < now) continue;
+      upcomingCountMap.set(call.assignee, (upcomingCountMap.get(call.assignee) || 0) + 1);
+    }
+
+    return [...base].sort((a, b) => {
+      const aIsAvailable = a.availabilityStatus === '受付可' ? 0 : 1;
+      const bIsAvailable = b.availabilityStatus === '受付可' ? 0 : 1;
+      if (aIsAvailable !== bIsAvailable) return aIsAvailable - bIsAvailable;
+      // 受付可同士は直近案件数が少ない順
+      if (aIsAvailable === 0) {
+        const aCount = upcomingCountMap.get(a.name) || 0;
+        const bCount = upcomingCountMap.get(b.name) || 0;
+        return aCount - bCount;
+      }
+      return 0;
+    });
+  }, [users, calls, listType, date, enableProductFiltering, isPrecheckMode]);
   
   const filteredListTypeOptions = useMemo(() => {
     if (isPrecheckMode) {

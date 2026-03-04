@@ -134,7 +134,6 @@ const App: React.FC = () => {
   const [pendingUnavailableTodayConfirmation, setPendingUnavailableTodayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [pendingUnavailableConfirmation, setPendingUnavailableConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [previewMember, setPreviewMember] = useState<string | null>(null);
-  const [shouldAnimate, setShouldAnimate] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [profilePopupUser, setProfilePopupUser] = useState<User | null>(null);
   const [prefilledRequestDate, setPrefilledRequestDate] = useState<string | null>(null);
@@ -781,7 +780,6 @@ const App: React.FC = () => {
       if (newMode === 'others' && memberToSelect) {
         setSelectedMember(memberToSelect);
         setPreviewMember(null);
-        setShouldAnimate(false);
       }
       return;
     }
@@ -801,7 +799,6 @@ const App: React.FC = () => {
     if (newMode === 'others') {
       setPreviewMember(null);
       setSelectedMember(memberToSelect || '新規依頼');
-      setShouldAnimate(false);
     }
     
     setIsFormVisible(false);
@@ -2604,10 +2601,10 @@ const App: React.FC = () => {
                               onAddCall={handleAddCall}
                               currentUser={currentUser.name}
                               users={users}
+                              calls={calls}
                               formResetCounter={formResetCounter}
                               onAssigneeChange={(assignee) => {
                                 if (assignee !== previewMember) {
-                                  setShouldAnimate(true);
                                   setPreviewMember(assignee || null);
                                 }
                               }}
@@ -2626,10 +2623,7 @@ const App: React.FC = () => {
 
 
                 {displayViewMode === 'others' && selectedMember === '新規依頼' ? (
-                  <div
-                    key={previewMember || 'placeholder'}
-                    className={shouldAnimate ? 'animate-wipe-in-down' : ''}
-                  >
+                  <div>
                     {previewMember ? (
                       (() => {
                         const selectedUserDetails = users.find(u => u.name === previewMember);
@@ -2642,7 +2636,7 @@ const App: React.FC = () => {
                             '非稼働': 'ring-slate-500',
                         }[status];
                         return (
-                          <>
+                          <div key={previewMember} className="animate-wipe-in-down">
                             <div className="mb-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-4 ml-4">
@@ -2707,7 +2701,7 @@ const App: React.FC = () => {
                               precheckDuplicateIds={precheckDuplicateIds}
                               isDarkMode={isDarkMode}
                             />
-                          </>
+                          </div>
                         );
                       })()
                     ) : (
