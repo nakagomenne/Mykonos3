@@ -2339,9 +2339,9 @@ const App: React.FC = () => {
                                       title="稼働ステータスを変更"
                                   >
                                       {currentUserWithData?.profilePicture ? (
-                                          <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-24 h-24 rounded-full object-cover" />
+                                          <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-32 h-32 rounded-full object-cover" />
                                       ) : (
-                                          <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                          <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
                                             <UserIcon className="w-16 h-16 text-[#0193be]/80" />
                                           </div>
                                       )}
@@ -2489,9 +2489,9 @@ const App: React.FC = () => {
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
-                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-24 h-24 rounded-full object-cover" />
+                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-32 h-32 rounded-full object-cover" />
                                           ) : (
-                                              <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                              <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
                                                   <UserIcon className={`w-16 h-16 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
                                               </div>
                                           )}
@@ -2691,9 +2691,9 @@ const App: React.FC = () => {
                               style={{ boxShadow: `0 0 0 3px white, 0 0 0 7px ${{ '受付可': '#0193be', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? '#0193be'}, 0 0 0 10px white` }}
                           >
                                       {selectedUserDetails.profilePicture ? (
-                                        <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-24 h-24 rounded-full object-cover" />
+                                        <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-32 h-32 rounded-full object-cover" />
                                       ) : (
-                                        <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                        <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
                                           <UserIcon className="w-16 h-16 text-[#0193be]/80" />
                                         </div>
                                       )}
