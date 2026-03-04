@@ -370,9 +370,10 @@ const App: React.FC = () => {
           // アニメを再設定（次の rAF で DOM が更新された後に実行）
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              // 1セット分の幅 = repeatCount 個の span 幅の合計
+              // 移動距離 = 1セット幅（= spanWidth × repeatCount）
+              // 速度 50px/s は元の実装と同じ実効速度
               const singleSetWidth = spanWidth * repeatCount;
-              const pixelsPerSecond = 80;
+              const pixelsPerSecond = 50;
               const duration = Math.max(3, singleSetWidth / pixelsPerSecond);
               if (container) {
                 container.style.animation = `marquee ${duration}s linear infinite`;
