@@ -102,7 +102,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <label htmlFor={`edit-customerId-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>顧客ID</label>
-            <input type="text" id={`edit-customerId-${call.id}`} value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition`} />
+            <input type="text" id={`edit-customerId-${call.id}`} value={customerId} onChange={(e) => setCustomerId(e.target.value)} required className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`} />
           </div>
           <div>
             <label htmlFor={`edit-requester-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>依頼者</label>
@@ -131,7 +131,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           <div className="md:col-span-2">
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
             <div className={`flex items-center border border-slate-300 rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 ${mainColorClass}`} />
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={`w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 bg-white ${mainColorClass}`} />
               {/* isDetailedTime ON: 1分単位 select / OFF: 通常 select */}
               {isDetailedTime && !isSpecialTime(time) ? (
                 <select
@@ -182,7 +182,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         </div>
         <div>
           <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>備考</label>
-          <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition`}></textarea>
+          <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition bg-white ${mainColorClass}`}></textarea>
         </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onCancel} className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition">キャンセル</button>
