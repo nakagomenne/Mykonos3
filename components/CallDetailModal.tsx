@@ -6,6 +6,8 @@ import StatusBadge from './StatusBadge';
 interface CallDetailModalProps {
   calls?: CallRequest[] | null;
   duplicateCalls?: CallRequest[];
+  /** 表示中の案件と同じ顧客IDを持つ他の案件（重複表示用） */
+  selectedCallDuplicates?: CallRequest[];
   onClose: () => void;
   onJump?: (call: CallRequest) => void;
   onReactivate?: (call: CallRequest, newAssignee?: string) => void;
@@ -49,7 +51,7 @@ const formatHistoryValue = (field: string, value: any) => {
 
 
 const CallDetailModal: React.FC<CallDetailModalProps> = ({
-  calls, duplicateCalls, onClose, onJump, onReactivate,
+  calls, duplicateCalls, selectedCallDuplicates, onClose, onJump, onReactivate,
   isConfirmingDuplicate, onConfirmDuplicate,
   isPrecheckTheme = false, showJumpButton = false, users = []
 }) => {
@@ -117,6 +119,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
       return (
       <div className="bg-white p-5 rounded-lg border border-slate-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            {/* 顧客ID */}
             <div className="sm:col-span-2">
               <strong className={`${mainColorClassLight} block mb-1`}>顧客ID:</strong>
               <div className="flex items-center gap-2">
@@ -130,15 +133,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                 </button>
               </div>
             </div>
-            {!isConfirmingDuplicate && (
-              <>
-                <div><strong className={`${mainColorClassLight} block`}>依頼者:</strong> <span className={mainColorClass}>{callToRender.requester}</span></div>
-                {callToRender.createdAt && (
-                    <div><strong className={`${mainColorClassLight} block`}>作成日時:</strong> <span className={mainColorClass}>{new Date(callToRender.createdAt).toLocaleString('ja-JP')}</span></div>
-                )}
-              </>
-            )}
-            {/* 担当者：編集モードでは選択肢を表示 */}
+            {/* 担当者 */}
             <div>
               <strong className={`${mainColorClassLight} block`}>担当者:</strong>
               {isEditing && callToRender.status === '完了' ? (
@@ -155,13 +150,27 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                 <span className={mainColorClass}>{callToRender.assignee}</span>
               )}
             </div>
+            {/* 架電予定日時 */}
             <div><strong className={`${mainColorClassLight} block`}>架電予定日時:</strong> <span className={mainColorClass}>{formatDetailDateTime(callToRender.dateTime)}</span></div>
-            <div><strong className={`${mainColorClassLight} block`}>リスト種別:</strong> <span className={mainColorClass}>{callToRender.listType}</span></div>
+            {/* ランク */}
             <div><strong className={`${mainColorClassLight} block`}>ランク:</strong> <span className={mainColorClass}>{callToRender.rank}</span></div>
             {showAbsenceCount && callToRender.absenceCount != null && (
                 <div><strong className={`${mainColorClassLight} block`}>留守回数:</strong> <span className={mainColorClass}>{callToRender.absenceCount}回</span></div>
             )}
+            {/* リスト種別 */}
+            <div><strong className={`${mainColorClassLight} block`}>リスト種別:</strong> <span className={mainColorClass}>{callToRender.listType}</span></div>
+            {/* 依頼者・作成日時 */}
+            {!isConfirmingDuplicate && (
+              <>
+                <div><strong className={`${mainColorClassLight} block`}>依頼者:</strong> <span className={mainColorClass}>{callToRender.requester}</span></div>
+                {callToRender.createdAt && (
+                    <div><strong className={`${mainColorClassLight} block`}>作成日時:</strong> <span className={mainColorClass}>{new Date(callToRender.createdAt).toLocaleString('ja-JP')}</span></div>
+                )}
+              </>
+            )}
+            {/* 完了ステータス */}
             <div><strong className={`${mainColorClassLight} block`}>ステータス:</strong> <StatusBadge status={callToRender.status} /></div>
+            {/* 備考 */}
             {callToRender.notes && <div className="sm:col-span-2"><strong className={`${mainColorClassLight} block`}>備考:</strong> <p className={`${mainColorClass} whitespace-pre-wrap`}>{callToRender.notes}</p></div>}
         </div>
       </div>
@@ -188,6 +197,39 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
           {detailedCall ? (
             <>
               {renderSingleCallDetails(detailedCall)}
+
+              {/* 重複案件セクション：同じ顧客IDの他の案件 */}
+              {selectedCallDuplicates && selectedCallDuplicates.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-amber-200">
+                  <h3 className="text-base font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+                    重複案件 ({selectedCallDuplicates.length}件)
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedCallDuplicates.map(dup => (
+                      <div key={dup.id} className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        <div>
+                          <strong className="text-amber-600/80 block text-xs">担当者</strong>
+                          <span className="text-amber-800 font-medium">{dup.assignee}</span>
+                        </div>
+                        <div>
+                          <strong className="text-amber-600/80 block text-xs">ランク</strong>
+                          <span className="text-amber-800 font-medium">{dup.rank}</span>
+                        </div>
+                        <div>
+                          <strong className="text-amber-600/80 block text-xs">架電予定日時</strong>
+                          <span className="text-amber-800 font-medium">{formatDetailDateTime(dup.dateTime)}</span>
+                        </div>
+                        <div>
+                          <strong className="text-amber-600/80 block text-xs">ステータス</strong>
+                          <StatusBadge status={dup.status} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {detailedCall.history && detailedCall.history.length > 0 && (
                 <div className="mt-6 pt-4 border-t border-slate-200">
                   <h3 className={`text-lg font-semibold ${mainColorClass} mb-3`}>編集履歴</h3>

@@ -1514,6 +1514,13 @@ const App: React.FC = () => {
     ).length;
   }, [calls, currentUser, lastViewedTimestamps]);
 
+  // 選択中の案件と同じ顧客IDを持つ他の案件（重複表示用）
+  const selectedCallDuplicates = useMemo(() => {
+    if (!selectedCall) return [];
+    const trimmed = selectedCall.customerId.trim().toLowerCase();
+    return calls.filter(c => c.id !== selectedCall.id && c.customerId.trim().toLowerCase() === trimmed);
+  }, [selectedCall, calls]);
+
 
   if (isLoading) {
     return (
@@ -2748,6 +2755,7 @@ const App: React.FC = () => {
       <CallDetailModal 
         calls={selectedCall ? [selectedCall] : searchResults}
         duplicateCalls={pendingDuplicate?.existingCalls}
+        selectedCallDuplicates={selectedCallDuplicates}
         onClose={() => {
             setSelectedCall(null);
             setSearchResults(null);
