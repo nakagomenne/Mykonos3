@@ -272,7 +272,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
   const isMikomRank = Object.keys(mikomRanks).includes(call.rank);
   const isAbsenteeRank = absenteeRanks.includes(call.rank);
-  const showAbsenceCount = isPrecheckTheme || isAbsenteeRank || isMikomRank;
+  // 全ランクで留守ボタン・カウンターを表示（完了案件は除く）
+  const showAbsenceCount = !isCompleted;
 
   const mainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
   const mainRingClass = isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
@@ -538,9 +539,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 >
                   <PhoneMissedIcon className="w-3.5 h-3.5" />
                 </button>
-                {/* 回数カスタムドロップダウン（見込留守 or 回線前確タブ） */}
-                {(isAbsenteeRank || isPrecheckTheme) && (
-                  <div className="relative">
+                {/* 回数カスタムドロップダウン（全ランク共通） */}
+                <div className="relative">
                     <button
                       ref={absenceButtonRef}
                       onClick={(e) => {
@@ -567,7 +567,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                             onClick={(e) => {
                               e.stopPropagation();
                               if (opt.value === null) {
-                                // 「-」選択：見込留守はランク戻し、回線前確は回数リセットのみ
+                                // 「-」選択：見込留守ランクのみランク戻し、それ以外は回数リセットのみ
                                 if (isAbsenteeRank && absenteeToMikomRanks[call.rank]) {
                                   onUpdateCall(call.id, { absenceCount: 0, rank: absenteeToMikomRanks[call.rank] });
                                 } else {
@@ -591,7 +591,6 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                       document.body
                     )}
                   </div>
-                )}
               </div>
             ) : (
               <span className="text-slate-300">-</span>
