@@ -491,27 +491,6 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
             )}
           </div>
         )}
-        <div>
-          <label htmlFor="listType" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>リスト種別 <span className="text-red-500">*</span></label>
-          <select 
-            id="listType" 
-            value={listType} 
-            onChange={(e) => setListType(e.target.value as ListType)} 
-            required 
-            disabled={isPrecheckMode}
-            className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass} ${darkFieldDisabled}`}
-          >
-            <option value="" disabled>--</option>
-            {filteredListTypeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-        <div>
-            <label htmlFor="rank" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>ランク <span className="text-red-500">*</span></label>
-            <select id="rank" value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}>
-                <option value="" disabled>--</option>
-                {rankOptionsToDisplay.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
         <div className="md:col-span-2">
           <label htmlFor="date" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>予定日時 <span className="text-red-500">*</span></label>
           <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
@@ -605,6 +584,27 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               <span>詳細な時設</span>
             </label>
           </div>
+        </div>
+        <div>
+            <label htmlFor="rank" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>ランク <span className="text-red-500">*</span></label>
+            <select id="rank" value={rank} onChange={(e) => setRank(e.target.value as Rank)} required className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}>
+                <option value="" disabled>--</option>
+                {rankOptionsToDisplay.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
+        </div>
+        <div>
+          <label htmlFor="listType" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>リスト種別 <span className="text-red-500">*</span></label>
+          <select 
+            id="listType" 
+            value={listType} 
+            onChange={(e) => setListType(e.target.value as ListType)} 
+            required 
+            disabled={isPrecheckMode}
+            className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass} ${darkFieldDisabled}`}
+          >
+            <option value="" disabled>--</option>
+            {filteredListTypeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
         </div>
         <div className="md:col-span-2">
           <label htmlFor="notes" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>備考</label>
