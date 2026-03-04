@@ -263,6 +263,9 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const [editingNameValue, setEditingNameValue] = useState('');
     const [editingFuriganaUser, setEditingFuriganaUser] = useState<string | null>(null);
     const [editingFuriganaValue, setEditingFuriganaValue] = useState('');
+
+    // isOpen の「前回値」を保持して false→true の瞬間だけ初期化を行うために使う
+    const prevIsOpenRef = useRef(false);
     
     const [localUsers, setLocalUsers] = useState<User[]>([]);
     const [usersToDelete, setUsersToDelete] = useState<Set<string>>(new Set());
@@ -289,12 +292,20 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         setVersionText(appVersion);
     }, [appVersion]);
 
-     useEffect(() => {
-        if (isOpen) {
+    useEffect(() => {
+        const wasOpen = prevIsOpenRef.current;
+        prevIsOpenRef.current = isOpen;
+
+        if (isOpen && !wasOpen) {
+            // false→true になった瞬間（メニューを開いたとき）だけ全初期化
             setLocalUsers(JSON.parse(JSON.stringify(users)));
             setUsersToDelete(new Set());
             setSelectedUsersForTask(new Set());
             setActiveTab(alerts.length > 0 ? 'alerts' : 'users');
+        } else if (isOpen && wasOpen) {
+            // すでに開いている状態で users が Realtime 更新された場合は
+            // localUsers だけ同期する（タブ・選択状態はリセットしない）
+            setLocalUsers(JSON.parse(JSON.stringify(users)));
         }
     }, [isOpen, users, alerts]);
 
