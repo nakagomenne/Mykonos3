@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport } from './types';
+import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon } from './components/icons';
@@ -45,6 +45,10 @@ import {
   deleteFeedbackReport as apiDeleteFeedbackReport,
   markFeedbackRead as apiMarkFeedbackRead,
   subscribeToFeedbackReports,
+  fetchCommentReplies,
+  addCommentReply,
+  deleteRepliesByUserName,
+  subscribeToCommentReplies,
 } from './services/apiService';
 
 interface SearchResultItem {
@@ -105,6 +109,10 @@ const App: React.FC = () => {
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
+  // リプライ入力状態管理（key: コメントオーナー名, value: 入力テキスト）
+  const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
+  // リプライ入力欄を開いているユーザー名（null = 閉じている）
+  const [expandedReplyUser, setExpandedReplyUser] = useState<string | null>(null);
   // 最後にメンバータイムラインを開いた時刻（既読管理）
   const [lastReadCommentAt, setLastReadCommentAt] = useState<number>(() => {
     const stored = localStorage.getItem('lastReadCommentAt');
@@ -150,6 +158,7 @@ const App: React.FC = () => {
   const [isNotificationSettingsModalOpen, setIsNotificationSettingsModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
+  const [commentReplies, setCommentReplies] = useState<CommentReply[]>([]);
   const [isLogoWaving, setIsLogoWaving] = useState(false);
   const [normalDuplicateIds,   setNormalDuplicateIds]   = useState<Set<string>>(new Set());
   const [precheckDuplicateIds, setPrecheckDuplicateIds] = useState<Set<string>>(new Set());
@@ -246,6 +255,8 @@ const App: React.FC = () => {
 
       // フィードバックはローディング完了後にバックグラウンドで取得（SA以外には不要）
       fetchFeedbackReports().then(r => { if (isMounted) setFeedbackReports(r); }).catch(() => {});
+      // コメントリプライもバックグラウンドで取得
+      fetchCommentReplies().then(r => { if (isMounted) setCommentReplies(r); }).catch(() => {});
     };
 
     loadInitialData();
@@ -280,6 +291,8 @@ const App: React.FC = () => {
     });
     // フィードバックのリアルタイム購読（SA用）※初期取得は loadInitialData で実施済み
     const unsubFeedback = subscribeToFeedbackReports(setFeedbackReports);
+    // コメントリプライのリアルタイム購読
+    const unsubReplies = subscribeToCommentReplies(r => { if (isMounted) setCommentReplies(r); });
 
     return () => {
       isMounted = false;
@@ -287,6 +300,7 @@ const App: React.FC = () => {
       unsubUsers();
       unsubSettings();
       unsubFeedback();
+      unsubReplies();
     };
   }, []);
 
@@ -1245,6 +1259,11 @@ const App: React.FC = () => {
     try {
       const trimmed = comment.trim();
       await updateUserComment(currentUser.name, trimmed);
+      // コメントが空になった場合はリプライも削除
+      if (!trimmed) {
+        deleteRepliesByUserName(currentUser.name).catch(() => {});
+        setCommentReplies(prev => prev.filter(r => r.userName !== currentUser.name));
+      }
       setUsers(prevUsers =>
         prevUsers.map(u =>
           u.name === currentUser.name
@@ -1254,6 +1273,19 @@ const App: React.FC = () => {
       );
     } catch (err: any) {
       alert(`コメントの保存に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
+  const handleSendReply = async (userName: string) => {
+    if (!currentUser) return;
+    const body = (replyInputs[userName] ?? '').trim();
+    if (!body) return;
+    try {
+      const newReply = await addCommentReply({ userName, author: currentUser.name, body });
+      setCommentReplies(prev => [...prev, newReply]);
+      setReplyInputs(prev => ({ ...prev, [userName]: '' }));
+    } catch (err: any) {
+      alert(`リプライの送信に失敗しました: ${err?.message ?? err}`);
     }
   };
 
@@ -1713,11 +1745,15 @@ const App: React.FC = () => {
                     aria-expanded={isCommentPopupOpen}
                   >
                     <SpeechBubbleIcon className="w-6 h-6" />
-                    {/* 未読バッジ：前回既読後に更新されたコメントの件数のみ表示 */}
+                    {/* 未読バッジ：前回既読後に更新されたコメント＋リプライの件数を表示 */}
                     {(() => {
-                      const unreadCount = commentedUsers.filter(u =>
+                      const unreadComments = commentedUsers.filter(u =>
                         u.commentUpdatedAt && new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt
                       ).length;
+                      const unreadReplies = commentReplies.filter(r =>
+                        new Date(r.createdAt).getTime() > lastReadCommentAt
+                      ).length;
+                      const unreadCount = unreadComments + unreadReplies;
                       return unreadCount > 0 ? (
                         <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                           {unreadCount}
@@ -1743,42 +1779,99 @@ const App: React.FC = () => {
                         </div>
                         <div className="overflow-y-auto p-2">
                           {commentedUsers.length > 0 ? (
-                            <ul className="space-y-1">
-                              {commentedUsers.map(u => (
-                                <li key={u.name}>
-                                  <button
-                                    onClick={() => {
-                                      if (u.name === currentUser.name) {
-                                        handleViewModeChange('mine');
-                                      } else {
-                                        handleViewModeChange('others', u.name);
-                                      }
-                                      setIsCommentPopupOpen(false);
-                                    }}
-                                    className="w-full text-left p-2 rounded-lg hover:bg-white/15 transition-colors"
-                                  >
-                                    <div className="flex items-center gap-3 mb-1">
-                                      <div className="relative w-8 h-8 flex-shrink-0">
-                                        {u.profilePicture ? (
-                                          <img src={u.profilePicture} alt={u.name} className="w-8 h-8 rounded-full object-cover"/>
-                                        ) : (
-                                          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                                            <UserIcon className="w-5 h-5 text-white/80"/>
+                            <ul className="space-y-2">
+                              {commentedUsers.map(u => {
+                                const userReplies = commentReplies.filter(r => r.userName === u.name);
+                                const isReplyOpen = expandedReplyUser === u.name;
+                                const replyText = replyInputs[u.name] ?? '';
+                                return (
+                                  <li key={u.name} className="rounded-lg overflow-hidden bg-white/10">
+                                    {/* コメント本体 */}
+                                    <button
+                                      onClick={() => {
+                                        if (u.name === currentUser.name) {
+                                          handleViewModeChange('mine');
+                                        } else {
+                                          handleViewModeChange('others', u.name);
+                                        }
+                                        setIsCommentPopupOpen(false);
+                                      }}
+                                      className="w-full text-left p-2 hover:bg-white/10 transition-colors"
+                                    >
+                                      <div className="flex items-center gap-3 mb-1">
+                                        <div className="relative w-8 h-8 flex-shrink-0">
+                                          {u.profilePicture ? (
+                                            <img src={u.profilePicture} alt={u.name} className="w-8 h-8 rounded-full object-cover"/>
+                                          ) : (
+                                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                                              <UserIcon className="w-5 h-5 text-white/80"/>
+                                            </div>
+                                          )}
+                                          <span className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#0193be] ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
+                                        </div>
+                                        <div className="flex-1 flex justify-between items-center">
+                                          <span className="font-semibold text-sm text-white">{u.name}</span>
+                                          {u.commentUpdatedAt && (
+                                            <span className="text-xs text-white/70 whitespace-nowrap ml-2">{formatRelativeTime(u.commentUpdatedAt)}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
+                                    </button>
+                                    {/* リプライ一覧 */}
+                                    {userReplies.length > 0 && (
+                                      <div className="px-2 pb-1 space-y-1">
+                                        {userReplies.map(reply => (
+                                          <div key={reply.id} className="flex items-start gap-2 pl-3 border-l-2 border-white/30">
+                                            <div className="flex-1">
+                                              <div className="flex items-baseline gap-1.5">
+                                                <span className="text-xs font-semibold text-white/90">{reply.author}</span>
+                                                <span className="text-xs text-white/50">{formatRelativeTime(reply.createdAt)}</span>
+                                              </div>
+                                              <p className="text-xs text-white/80 break-all">{reply.body}</p>
+                                            </div>
                                           </div>
-                                        )}
-                                        <span className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#0193be] ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
+                                        ))}
                                       </div>
-                                      <div className="flex-1 flex justify-between items-center">
-                                        <span className="font-semibold text-sm text-white">{u.name}</span>
-                                        {u.commentUpdatedAt && (
-                                          <span className="text-xs text-white/70 whitespace-nowrap ml-2">{formatRelativeTime(u.commentUpdatedAt)}</span>
-                                        )}
-                                      </div>
+                                    )}
+                                    {/* リプライ入力エリア */}
+                                    <div className="px-2 pb-2">
+                                      {isReplyOpen ? (
+                                        <div className="flex gap-1 mt-1">
+                                          <input
+                                            type="text"
+                                            value={replyText}
+                                            onChange={e => setReplyInputs(prev => ({ ...prev, [u.name]: e.target.value }))}
+                                            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleSendReply(u.name); } }}
+                                            maxLength={100}
+                                            placeholder="返信を入力（100字以内）"
+                                            className="flex-1 text-xs px-2 py-1 rounded bg-white/20 text-white placeholder-white/40 outline-none focus:ring-1 focus:ring-white/50"
+                                            autoFocus
+                                            onClick={e => e.stopPropagation()}
+                                          />
+                                          <button
+                                            onClick={e => { e.stopPropagation(); handleSendReply(u.name); }}
+                                            disabled={!replyText.trim()}
+                                            className="text-xs px-2 py-1 rounded bg-white/25 text-white hover:bg-white/35 disabled:opacity-40 transition-colors"
+                                          >送信</button>
+                                          <button
+                                            onClick={e => { e.stopPropagation(); setExpandedReplyUser(null); }}
+                                            className="text-xs px-1.5 py-1 rounded text-white/60 hover:text-white transition-colors"
+                                          ><XMarkIcon className="w-3.5 h-3.5"/></button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setExpandedReplyUser(u.name); }}
+                                          className="mt-1 text-xs text-white/60 hover:text-white/90 transition-colors flex items-center gap-1"
+                                        >
+                                          <SpeechBubbleIcon className="w-3 h-3"/>返信
+                                          {userReplies.length > 0 && <span className="ml-0.5">({userReplies.length})</span>}
+                                        </button>
+                                      )}
                                     </div>
-                                    <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
-                                  </button>
-                                </li>
-                              ))}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           ) : (
                             <p className="p-4 text-sm text-white/70 text-center">コメントを設定しているメンバーはいません。</p>

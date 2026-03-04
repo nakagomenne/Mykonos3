@@ -91,3 +91,11 @@ export interface FeedbackReport {
   createdAt: string;
   isRead: boolean;
 }
+
+export interface CommentReply {
+  id: string;
+  userName: string;  // リプライ先のユーザー名（コメントオーナー）
+  author: string;    // リプライ投稿者名
+  body: string;
+  createdAt: string;
+}

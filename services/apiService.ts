@@ -5,7 +5,7 @@
 // ============================================================
 
 import { supabase } from '../lib/supabaseClient';
-import { CallRequest, User, AvailabilityStatus, EditHistory } from '../types';
+import { CallRequest, User, AvailabilityStatus, EditHistory, CommentReply, FeedbackType, FeedbackReport } from '../types';
 
 // ────────────────────────────────────────────────────────────
 // 型変換ヘルパー
@@ -534,6 +534,72 @@ export function subscribeToFeedbackReports(callback: (reports: FeedbackReport[])
         callback(reports);
       } catch (e) {
         console.error('Feedback realtime error:', e);
+      }
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+// ============================================================
+// コメントリプライ (comment_replies)
+// ============================================================
+
+function rowToReply(row: any): CommentReply {
+  return {
+    id:        row.id,
+    userName:  row.user_name,
+    author:    row.author,
+    body:      row.body,
+    createdAt: row.created_at,
+  };
+}
+
+/** 全リプライを取得 */
+export async function fetchCommentReplies(): Promise<CommentReply[]> {
+  const { data, error } = await supabase
+    .from('comment_replies')
+    .select('*')
+    .order('created_at', { ascending: true });
+  // テーブルが未作成の場合は空配列を返す（graceful fallback）
+  if (error) {
+    if (error.message?.includes('schema cache') || error.code === 'PGRST205') return [];
+    throw new Error(`リプライの取得に失敗しました: ${error.message}`);
+  }
+  return (data ?? []).map(rowToReply);
+}
+
+/** リプライを投稿 */
+export async function addCommentReply(
+  params: { userName: string; author: string; body: string }
+): Promise<CommentReply> {
+  const { data, error } = await supabase
+    .from('comment_replies')
+    .insert({ user_name: params.userName, author: params.author, body: params.body })
+    .select()
+    .single();
+  if (error) throw new Error(`リプライの投稿に失敗しました: ${error.message}`);
+  return rowToReply(data);
+}
+
+/** 特定ユーザーへのリプライをすべて削除（コメント削除時に呼ぶ） */
+export async function deleteRepliesByUserName(userName: string): Promise<void> {
+  const { error } = await supabase
+    .from('comment_replies')
+    .delete()
+    .eq('user_name', userName);
+  if (error) throw new Error(`リプライの削除に失敗しました: ${error.message}`);
+}
+
+/** リプライのリアルタイム購読 */
+export function subscribeToCommentReplies(callback: (replies: CommentReply[]) => void): () => void {
+  const channel = supabase
+    .channel('comment_replies_changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, async () => {
+      try {
+        const replies = await fetchCommentReplies();
+        callback(replies);
+      } catch (e) {
+        console.error('CommentReply realtime error:', e);
       }
     })
     .subscribe();
