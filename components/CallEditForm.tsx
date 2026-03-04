@@ -72,7 +72,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     }
     
     const specialTimesForToday = isPrecheckTheme ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
-    if (specialTimesForToday.includes(time) && date !== today) {
+    if (specialTimesForToday.includes(time) && time !== '待機中' && date !== today) {
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
         return;

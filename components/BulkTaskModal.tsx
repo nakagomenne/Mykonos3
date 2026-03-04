@@ -35,7 +35,7 @@ const BulkTaskModal: React.FC<BulkTaskModalProps> = ({ isOpen, onClose, onSubmit
       return;
     }
 
-    if (SPECIAL_TIME_OPTIONS_TOP.includes(time) && date !== today) {
+    if (SPECIAL_TIME_OPTIONS_TOP.includes(time) && time !== '待機中' && date !== today) {
       setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
       setIsAlertOpen(true);
       return;
