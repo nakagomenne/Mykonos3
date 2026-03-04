@@ -224,16 +224,18 @@ const App: React.FC = () => {
           console.warn('期限切れ案件の削除をスキップしました:', cleanupErr);
         }
 
-        const [fetchedUsers, fetchedCalls, settings] = await Promise.all([
+        const [fetchedUsers, fetchedCalls, settings, fetchedFeedback] = await Promise.all([
           fetchUsers(),
           fetchCallRequests(),
           fetchAppSettings(),
+          fetchFeedbackReports().catch(() => [] as FeedbackReport[]),
         ]);
 
         if (!isMounted) return;
 
         setUsers(fetchedUsers);
         setCalls(fetchedCalls);
+        setFeedbackReports(fetchedFeedback);
         if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
         if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
 
@@ -276,8 +278,7 @@ const App: React.FC = () => {
       if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
       if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
     });
-    // フィードバック初期取得 + リアルタイム購読（SA用）
-    fetchFeedbackReports().then(setFeedbackReports).catch(() => {});
+    // フィードバックのリアルタイム購読（SA用）※初期取得は loadInitialData で実施済み
     const unsubFeedback = subscribeToFeedbackReports(setFeedbackReports);
 
     return () => {
@@ -2789,6 +2790,8 @@ const App: React.FC = () => {
         onSubmit={async (type, title, body) => {
           if (!currentUser) return;
           await submitFeedbackReport({ type, title, body, reporter: currentUser.name });
+          // 送信後に手動で再取得（Realtimeが遅延する場合の保険）
+          fetchFeedbackReports().then(setFeedbackReports).catch(() => {});
         }}
       />
       
