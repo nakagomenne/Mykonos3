@@ -784,12 +784,12 @@ const App: React.FC = () => {
       return;
     }
 
-    if (newMode === 'mine' && currentUser) {
+    if (viewMode === 'mine' && currentUser) {
       setLastViewedTimestamps(prev => ({
         ...prev,
         [currentUser.name]: new Date().toISOString(),
       }));
-    } else if (newMode === 'precheck') {
+    } else if (viewMode === 'precheck') {
       setLastViewedTimestamps(prev => ({
         ...prev,
         [PRECHECKER_ASSIGNEE_NAME]: new Date().toISOString(),
