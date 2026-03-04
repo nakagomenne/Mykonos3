@@ -2319,7 +2319,7 @@ const App: React.FC = () => {
                           '非稼働': '#64748b',
                       }[mineStatus] ?? '#0193be';
                       const mineRingColor = ''; // box-shadowで管理
-                      const mineRingBoxShadow = `0 0 0 3px white, 0 0 0 7px ${mineRingHex}, 0 0 0 10px white`;
+                      const mineRingBoxShadow = `0 0 0 4px ${mineRingHex}, 0 0 0 7px white`;
                       const mineTextColor = mineIsAvailable ? 'text-[#0193be]' : 'text-white';
                       const mineCalendarHover = mineIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
                       return (
@@ -2457,7 +2457,7 @@ const App: React.FC = () => {
                               '非稼働': '#64748b',
                           }[status] ?? '#0193be';
                           const ringColorClass = ''; // box-shadowで管理
-                          const ringBoxShadow = `0 0 0 3px white, 0 0 0 7px ${ringHex}, 0 0 0 10px white`;
+                          const ringBoxShadow = `0 0 0 4px ${ringHex}, 0 0 0 7px white`;
                           const statusTextColor = isAvailable ? 'text-[#0193be]' : 'text-white';
                           const statusBgColor = {
                               '受付可': 'bg-[#0193be]',
@@ -2688,7 +2688,7 @@ const App: React.FC = () => {
                                 <div className="flex items-center gap-4 ml-4">
                                   <div
                               className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
-                              style={{ boxShadow: `0 0 0 3px white, 0 0 0 7px ${{ '受付可': '#0193be', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? '#0193be'}, 0 0 0 10px white` }}
+                              style={{ boxShadow: `0 0 0 4px ${{ '受付可': '#0193be', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? '#0193be'}, 0 0 0 7px white` }}
                           >
                                       {selectedUserDetails.profilePicture ? (
                                         <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-32 h-32 rounded-full object-cover" />
