@@ -40,9 +40,11 @@ const RankSelector: React.FC<RankSelectorProps> = ({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [isOpen]);
 
+  const isEmpty = !value;
+
   const selectedStyle = value
     ? (RANK_STYLES[value as Rank] || { backgroundColor: '#f1f5f9', color: '#1e293b' })
-    : { backgroundColor: '#f1f5f9', color: '#94a3b8' };
+    : null;
 
   const handleButtonClick = () => {
     if (!isOpen && buttonRef.current) {
@@ -76,12 +78,16 @@ const RankSelector: React.FC<RankSelectorProps> = ({
         ref={buttonRef}
         type="button"
         onClick={handleButtonClick}
-        style={{
-          backgroundColor: selectedStyle.backgroundColor,
-          color: selectedStyle.color,
-          border: (selectedStyle as any).border || '1px solid transparent',
+        style={isEmpty ? undefined : {
+          backgroundColor: selectedStyle!.backgroundColor,
+          color: selectedStyle!.color,
+          border: (selectedStyle as any)?.border || '1px solid transparent',
         }}
-        className="w-full text-center px-3 py-2 text-sm font-bold rounded-md shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-1"
+        className={`w-full text-center px-3 py-2 text-sm font-bold rounded-md shadow-sm transition focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-1 ${
+          isEmpty
+            ? 'bg-white border border-slate-300 text-slate-400'
+            : ''
+        }`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
