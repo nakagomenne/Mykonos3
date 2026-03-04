@@ -357,15 +357,16 @@ const App: React.FC = () => {
       // ブラウザがレイアウトを確実に完了した後に scrollWidth を取得する
       const raf = requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // コンテンツが10個並んでいるので、1個分の幅 = scrollWidth / 10
-          // ただし scrollWidth が 0 の場合は fallback として文字数で推定
+          // 2コピー構造のため scrollWidth / 2 が1周分の正確な幅
+          // scrollWidth が 0 の場合は文字数で推定（1文字 ≈ 16px）
           const singleWidth = container.scrollWidth > 0
-            ? container.scrollWidth / 10
-            : announcement.length * 16; // 1文字 ≈ 16px で推定
+            ? container.scrollWidth / 2
+            : announcement.length * 16;
 
           if (singleWidth > 0) {
-            const pixelsPerSecond = 10;
-            const duration = Math.max(5, singleWidth / pixelsPerSecond);
+            // 速度: 80px/s 固定（短くても長くても同じ速さで流れる）
+            const pixelsPerSecond = 80;
+            const duration = Math.max(3, singleWidth / pixelsPerSecond);
             container.style.animation = `marquee ${duration}s linear infinite`;
             container.style.willChange = 'transform';
           }
@@ -379,7 +380,8 @@ const App: React.FC = () => {
       container.style.animation = 'none';
       container.style.willChange = 'auto';
     }
-  }, [announcement]);
+  // currentUser?.name を deps に追加することで再ログイン時にもアニメーションを再計算する
+  }, [announcement, currentUser?.name]);
   
   // 期限切れ案件の削除は初回ロード時に apiService 側で実行済み
   // （削除後の最新データが setCalls でセットされるため、ここは不要）
@@ -1990,13 +1992,23 @@ const App: React.FC = () => {
               boxShadow: '0 2px 8px rgba(251,191,36,0.15)',
             }}
           >
-            <div className="p-2 flex whitespace-nowrap">
+            <div className="p-2 overflow-hidden">
               <div 
                 ref={announcementMarqueeRef}
-                className="flex flex-shrink-0"
+                className="flex whitespace-nowrap flex-shrink-0"
               >
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <span key={i} className="font-semibold px-4 tracking-wider text-amber-800" aria-hidden={i > 0}>
+                {/* 
+                  シームレスループ構造:
+                  - 各spanに min-w-full を指定して1コピーが最低でも画面幅を埋める
+                  - 2コピー合計の幅に対して translateX(-50%) → 左半分分だけスライドでループ
+                */}
+                {[0, 1].map((i) => (
+                  <span
+                    key={i}
+                    className="font-semibold tracking-wider text-amber-800 inline-block"
+                    style={{ paddingLeft: '4rem', paddingRight: '4rem', minWidth: '100vw' }}
+                    aria-hidden={i > 0}
+                  >
                     {announcement}
                   </span>
                 ))}
