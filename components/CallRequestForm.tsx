@@ -166,7 +166,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   const timeOptions = isPrecheckMode ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
-  const rankOptionsToDisplay = isPrecheckMode ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+  const rankOptionsToDisplay = isPrecheckMode ? PRECHECK_RANK_OPTIONS : ['待機中' as Rank, ...NON_PRECHECK_RANK_OPTIONS];
 
   useEffect(() => {
     if (prefilledDate) {
@@ -364,7 +364,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     }
 
     const specialTimesForToday = isPrecheckMode ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
-    if (specialTimesForToday.includes(time) && date !== today) {
+    if (specialTimesForToday.includes(time) && date !== today && rank !== '待機中') {
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
         return;
