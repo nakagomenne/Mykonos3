@@ -368,6 +368,16 @@ export async function updateUserComment(name: string, comment: string): Promise<
   if (error) throw new Error(`コメントの更新に失敗しました: ${error.message}`);
 }
 
+/** プロフィール画像のみを更新する（base64を単独で送信してタイムアウトを避ける） */
+export async function updateUserProfilePicture(name: string, profilePicture: string | null): Promise<void> {
+  const { error } = await supabase
+    .from('users')
+    .update({ profile_picture: profilePicture })
+    .eq('name', name);
+
+  if (error) throw new Error(`プロフィール画像の更新に失敗しました: ${error.message}`);
+}
+
 // ────────────────────────────────────────────────────────────
 // AppSettings CRUD
 // ────────────────────────────────────────────────────────────

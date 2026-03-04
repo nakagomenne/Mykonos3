@@ -36,6 +36,7 @@ import {
   updateUserPassword as apiUpdateUserPassword,
   updateUserNonWorkingDays,
   updateUserComment,
+  updateUserProfilePicture,
   fetchAppSettings,
   updateAppSetting,
   subscribeToCallRequests,
@@ -1104,18 +1105,29 @@ const App: React.FC = () => {
       const existingNames = new Set(users.map(u => u.name));
 
       // 新規ユーザーと既存ユーザーを分離して個別処理
-      // （全件一括upsertはprofile_pictureの巨大なbase64でタイムアウトするため）
       for (const u of updatedUsers) {
         if (existingNames.has(u.name)) {
-          // 既存ユーザー: 変更があった場合のみ updateUser
           const original = users.find(orig => orig.name === u.name);
-          const hasChange = !original || JSON.stringify(original) !== JSON.stringify(u);
-          if (hasChange) {
-            await updateUser(u.name, u);
+
+          // プロフィール画像の変更を先に単独送信（base64は大きいので別リクエストで）
+          if (original?.profilePicture !== u.profilePicture) {
+            await updateUserProfilePicture(u.name, u.profilePicture ?? null);
+          }
+
+          // 画像以外の変更を比較して updateUser
+          const withoutPic = (user: User) => { const { profilePicture: _p, ...rest } = user; return rest; };
+          const hasOtherChange = !original || JSON.stringify(withoutPic(original)) !== JSON.stringify(withoutPic(u));
+          if (hasOtherChange) {
+            const { profilePicture: _pic, ...dataWithoutPic } = u;
+            await updateUser(u.name, dataWithoutPic);
           }
         } else {
-          // 新規ユーザー: insertUser
-          await apiInsertUser(u);
+          // 新規ユーザー: 画像ありの場合は2段階で（insert→画像更新）
+          const { profilePicture, ...dataWithoutPic } = u;
+          const inserted = await apiInsertUser({ ...dataWithoutPic, profilePicture: null } as User);
+          if (profilePicture) {
+            await updateUserProfilePicture(inserted.name, profilePicture);
+          }
         }
       }
 

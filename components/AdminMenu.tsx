@@ -306,8 +306,18 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
             setActiveTab(alerts.length > 0 ? 'alerts' : 'users');
         } else if (isOpen && wasOpen) {
             // すでに開いている状態で users が Realtime 更新された場合は
-            // localUsers だけ同期する（タブ・選択状態はリセットしない）
-            setLocalUsers(JSON.parse(JSON.stringify(users)));
+            // profilePicture だけ編集中の値を保持して他フィールドを同期する
+            setLocalUsers(prev => {
+                const prevMap = new Map(prev.map(u => [u.name, u]));
+                return users.map(u => {
+                    const editing = prevMap.get(u.name);
+                    if (editing) {
+                        // 編集中の profilePicture を優先して保持する
+                        return { ...u, profilePicture: editing.profilePicture };
+                    }
+                    return { ...u };
+                });
+            });
         }
     }, [isOpen, users, alerts]);
 
