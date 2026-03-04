@@ -23,7 +23,6 @@ export const RANK_OPTIONS: Rank[] = [
   '立ち上げ',
   'トス',
   'クレーム',
-  '待機中',
   ...PRECHECK_RANK_OPTIONS,
 ];
 
@@ -88,7 +87,6 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
   'クレーム': { backgroundColor: '#3d3d3d', color: '#fff600' },
-  '待機中': { backgroundColor: '#e2e8f0', color: '#64748b', border: '1px solid #94a3b8' },
   
   // Bordered
   '見込C留守': { backgroundColor: '#ffffff', color: '#0193be', border: '1px solid #0193be' },
