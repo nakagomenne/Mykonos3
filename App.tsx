@@ -2312,7 +2312,6 @@ const App: React.FC = () => {
                           ? {}
                           : { backgroundColor: { '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[mineStatus] ?? '#64748b' };
                       const mineBgClass = mineIsAvailable ? '' : '';
-                      const mineRingOffset = mineIsAvailable ? 'ring-offset-white' : 'ring-offset-[4px]';
                       const mineRingColor = {
                           '受付可': 'ring-[#0193be]',
                           '一時受付不可': 'ring-yellow-500',
@@ -2331,7 +2330,7 @@ const App: React.FC = () => {
                               <div className="relative" ref={statusDropdownRef}>
                                   <button
                                       onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 transition-colors duration-500 ${mineRingColor} ${mineIsAvailable ? 'ring-offset-white' : 'ring-offset-transparent'}`}
+                                      className={`relative w-32 h-32 rounded-full flex items-center justify-center focus:outline-none ring-4 ring-offset-4 ring-offset-white transition-colors duration-500 ${mineRingColor}`}
                                       aria-haspopup="true"
                                       aria-expanded={isStatusDropdownOpen}
                                       title="稼働ステータスを変更"
@@ -2480,7 +2479,7 @@ const App: React.FC = () => {
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass} ${isAvailable ? 'ring-offset-white' : 'ring-offset-transparent'}`}
+                                          className={`relative w-32 h-32 rounded-full ring-4 ring-offset-4 ring-offset-white transition-all duration-500 hover:ring-offset-2 hover:scale-105 focus:outline-none ${ringColorClass}`}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
