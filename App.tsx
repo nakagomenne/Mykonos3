@@ -151,7 +151,8 @@ const App: React.FC = () => {
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
   const [isLogoWaving, setIsLogoWaving] = useState(false);
-  const [duplicateCustomerIds, setDuplicateCustomerIds] = useState<Set<string>>(new Set());
+  const [normalDuplicateIds,   setNormalDuplicateIds]   = useState<Set<string>>(new Set());
+  const [precheckDuplicateIds, setPrecheckDuplicateIds] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('mykonosDarkMode');
     return saved ? JSON.parse(saved) : false;
@@ -314,21 +315,33 @@ const App: React.FC = () => {
   }, [notificationSettings]);
 
   useEffect(() => {
-    const customerIdCounts = new Map<string, number>();
+    // 回線前確案件と通常案件は別グループとして重複チェックする
+    // 「回線前確同士」で同一顧客ID → 重複
+    // 「通常案件同士」で同一顧客ID → 重複
+    // 「回線前確 vs 通常」は重複扱いしない
+    const normalCounts   = new Map<string, number>();
+    const precheckCounts = new Map<string, number>();
+
     calls.forEach(call => {
-        const trimmedId = call.customerId.trim().toLowerCase();
-        if (trimmedId) {
-            customerIdCounts.set(trimmedId, (customerIdCounts.get(trimmedId) || 0) + 1);
-        }
+      const trimmedId = call.customerId.trim().toLowerCase();
+      if (!trimmedId) return;
+      if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
+        precheckCounts.set(trimmedId, (precheckCounts.get(trimmedId) || 0) + 1);
+      } else {
+        normalCounts.set(trimmedId, (normalCounts.get(trimmedId) || 0) + 1);
+      }
     });
 
-    const duplicates = new Set<string>();
-    for (const [id, count] of customerIdCounts.entries()) {
-        if (count > 1) {
-            duplicates.add(id);
-        }
+    const normalDups   = new Set<string>();
+    const precheckDups = new Set<string>();
+    for (const [id, count] of normalCounts.entries()) {
+      if (count > 1) normalDups.add(id);
     }
-    setDuplicateCustomerIds(duplicates);
+    for (const [id, count] of precheckCounts.entries()) {
+      if (count > 1) precheckDups.add(id);
+    }
+    setNormalDuplicateIds(normalDups);
+    setPrecheckDuplicateIds(precheckDups);
   }, [calls]);
 
   useEffect(() => {
@@ -2530,7 +2543,8 @@ const App: React.FC = () => {
                               members={assigneesForEditing}
                               users={users}
                               currentUser={currentUser}
-                              duplicateCustomerIds={duplicateCustomerIds}
+                              normalDuplicateIds={normalDuplicateIds}
+                              precheckDuplicateIds={precheckDuplicateIds}
                               isDarkMode={isDarkMode}
                             />
                           </>
@@ -2553,7 +2567,8 @@ const App: React.FC = () => {
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
                     currentUser={currentUser}
-                    duplicateCustomerIds={duplicateCustomerIds}
+                    normalDuplicateIds={normalDuplicateIds}
+                    precheckDuplicateIds={precheckDuplicateIds}
                     isDarkMode={isDarkMode}
                   />
                 )}

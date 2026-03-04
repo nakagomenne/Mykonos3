@@ -14,11 +14,12 @@ interface CallListProps {
   users: User[];
   isPrecheckTheme?: boolean;
   currentUser: User;
-  duplicateCustomerIds: Set<string>;
+  normalDuplicateIds: Set<string>;
+  precheckDuplicateIds: Set<string>;
   isDarkMode?: boolean;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, members, users, isPrecheckTheme = false, currentUser, duplicateCustomerIds, isDarkMode = false }) => {
+const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
 
   if (calls.length === 0) {
@@ -117,7 +118,10 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
                     currentUser={currentUser}
-                    isDuplicate={duplicateCustomerIds.has(call.customerId.trim().toLowerCase())}
+                    isDuplicate={call.assignee === PRECHECKER_ASSIGNEE_NAME
+                      ? precheckDuplicateIds.has(call.customerId.trim().toLowerCase())
+                      : normalDuplicateIds.has(call.customerId.trim().toLowerCase())
+                    }
                     isDarkMode={isDarkMode}
                 />
             ))}
