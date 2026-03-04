@@ -7,6 +7,7 @@ import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowU
 import BulkTaskModal from './BulkTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import { ADMIN_USER_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from '../constants';
+import { resizeImageToBase64 } from '../utils/imageUtils';
 
 interface Alert {
   type: 'schedule' | 'overdue';
@@ -475,15 +476,16 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         fileInputRef.current?.click();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file && userToUpdatePicture) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleSetProfilePicture(userToUpdatePicture, reader.result as string);
+            try {
+                const resized = await resizeImageToBase64(file);
+                handleSetProfilePicture(userToUpdatePicture, resized);
                 setUserToUpdatePicture(null);
-            };
-            reader.readAsDataURL(file);
+            } catch {
+                alert('画像の処理に失敗しました。');
+            }
         }
         if(e.target) {
             e.target.value = '';
@@ -516,18 +518,19 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         }
     };
 
-    const handleDrop = (e: React.DragEvent<HTMLLIElement>, userName: string) => {
+    const handleDrop = async (e: React.DragEvent<HTMLLIElement>, userName: string) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDraggingOver(null);
         
         const file = e.dataTransfer.files?.[0];
         if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                handleSetProfilePicture(userName, reader.result as string);
-            };
-            reader.readAsDataURL(file);
+            try {
+                const resized = await resizeImageToBase64(file);
+                handleSetProfilePicture(userName, resized);
+            } catch {
+                alert('画像の処理に失敗しました。');
+            }
         } else {
             alert('画像ファイルのみアップロードできます。');
         }

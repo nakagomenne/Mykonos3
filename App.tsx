@@ -15,6 +15,7 @@ import ConfirmationModal from './components/ConfirmationModal';
 import ShiftCalendar from './components/ShiftCalendar';
 import CommentModal from './components/CommentModal';
 import PasswordSettingsModal from './components/PasswordSettingsModal';
+import { resizeImageToBase64 } from './utils/imageUtils';
 import NotificationSettingsModal, {
   NotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -985,20 +986,10 @@ const App: React.FC = () => {
   const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
-    // ファイルサイズ上限 2MB
-    if (file.size > 2 * 1024 * 1024) {
-      alert('画像は2MB以下にしてください。');
-      e.target.value = '';
-      return;
-    }
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      await updateUser(currentUser.name, { profilePicture: base64 });
+      // Canvas でリサイズ・圧縮（256×256 / JPEG 80%）してからDBに送る
+      const base64 = await resizeImageToBase64(file);
+      await updateUserProfilePicture(currentUser.name, base64);
       setUsers(prev => prev.map(u => u.name === currentUser.name ? { ...u, profilePicture: base64 } : u));
     } catch (err: any) {
       alert(`アイコンの更新に失敗しました: ${err?.message ?? err}`);
