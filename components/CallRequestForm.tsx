@@ -110,7 +110,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
   
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const [calendarDisplayDate, setCalendarDisplayDate] = useState(new Date());
+  const [calendarDisplayDate, setCalendarDisplayDate] = useState(() => new Date());
   const dateInputRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const [calendarPosition, setCalendarPosition] = useState<{ top: number; left: number } | null>(null);
@@ -129,8 +129,12 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   }, [assignee, users]);
   
   const calendarGrid = useMemo(() => {
-    const year = calendarDisplayDate.getFullYear();
-    const month = calendarDisplayDate.getMonth();
+    // Invalid Date ガード
+    const safeDate = (calendarDisplayDate instanceof Date && !isNaN(calendarDisplayDate.getTime()))
+      ? calendarDisplayDate
+      : new Date();
+    const year = safeDate.getFullYear();
+    const month = safeDate.getMonth();
     const firstDayOfMonth = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const grid: (Date | null)[][] = [];
@@ -152,6 +156,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     }
     return grid;
   }, [calendarDisplayDate]);
+
+  // calendarDisplayDate の表示用（NaN ガード済み）
+  const safeCalendarDisplayDate = (calendarDisplayDate instanceof Date && !isNaN(calendarDisplayDate.getTime()))
+    ? calendarDisplayDate
+    : new Date();
 
   const timeOptions = isPrecheckMode ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
@@ -372,13 +381,13 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       style={calendarPosition ? { top: `${calendarPosition.top}px`, left: `${calendarPosition.left}px` } : {}}
     >
         <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+            <button type="button" onClick={() => setCalendarDisplayDate(d => { const s = (d instanceof Date && !isNaN(d.getTime())) ? d : new Date(); return new Date(s.getFullYear(), s.getMonth() - 1, 1); })} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
                 <ChevronLeftIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
             </button>
             <div className={`font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-                {calendarDisplayDate.getFullYear()}年 {calendarDisplayDate.getMonth() + 1}月
+                {safeCalendarDisplayDate.getFullYear()}年 {safeCalendarDisplayDate.getMonth() + 1}月
             </div>
-            <button type="button" onClick={() => setCalendarDisplayDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+            <button type="button" onClick={() => setCalendarDisplayDate(d => { const s = (d instanceof Date && !isNaN(d.getTime())) ? d : new Date(); return new Date(s.getFullYear(), s.getMonth() + 1, 1); })} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
                 <ChevronRightIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
             </button>
         </div>
@@ -522,7 +531,9 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                                   
                                   setCalendarPosition({ top, left });
                               }
-                              setCalendarDisplayDate(new Date(date + 'T00:00:00'));
+                              setCalendarDisplayDate(
+                                  date ? (() => { const d = new Date(date + 'T00:00:00'); return isNaN(d.getTime()) ? new Date() : d; })() : new Date()
+                              );
                               setIsCalendarOpen(true);
                           }
                       }}
