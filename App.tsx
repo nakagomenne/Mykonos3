@@ -757,7 +757,15 @@ const App: React.FC = () => {
   };
   
   const handleViewModeChange = (newMode: 'mine' | 'others' | 'precheck', memberToSelect?: string) => {
-    if (newMode === viewMode) return;
+    // 同じモードへの切り替えでも、メンバー指定がある場合はタブ選択だけ行う
+    if (newMode === viewMode) {
+      if (newMode === 'others' && memberToSelect) {
+        setSelectedMember(memberToSelect);
+        setPreviewMember(null);
+        setShouldAnimate(false);
+      }
+      return;
+    }
 
     if (newMode === 'mine' && currentUser) {
       setLastViewedTimestamps(prev => ({
