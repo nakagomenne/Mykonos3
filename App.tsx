@@ -30,6 +30,7 @@ import {
   updateUser,
   upsertUsers,
   deleteUser as apiDeleteUser,
+  insertUser as apiInsertUser,
   updateUserAvailabilityStatus,
   updateUserAvailabilityStatusWithRevert,
   updateUserPassword as apiUpdateUserPassword,
@@ -1099,9 +1100,28 @@ const App: React.FC = () => {
         await apiDeleteUser(name);
       }
 
-      // upsert (追加・更新)
-      const savedUsers = await upsertUsers(updatedUsers);
-      setUsers(savedUsers);
+      // 既存ユーザーのname一覧（削除前のstateを参照）
+      const existingNames = new Set(users.map(u => u.name));
+
+      // 新規ユーザーと既存ユーザーを分離して個別処理
+      // （全件一括upsertはprofile_pictureの巨大なbase64でタイムアウトするため）
+      for (const u of updatedUsers) {
+        if (existingNames.has(u.name)) {
+          // 既存ユーザー: 変更があった場合のみ updateUser
+          const original = users.find(orig => orig.name === u.name);
+          const hasChange = !original || JSON.stringify(original) !== JSON.stringify(u);
+          if (hasChange) {
+            await updateUser(u.name, u);
+          }
+        } else {
+          // 新規ユーザー: insertUser
+          await apiInsertUser(u);
+        }
+      }
+
+      // 最新の全ユーザーをfetchして確実に同期
+      const latestUsers = await fetchUsers();
+      setUsers(latestUsers);
 
       if (deletedUserNames.length > 0) {
         // 削除されたユーザーが担当の案件を「(削除済み)」に
@@ -1130,7 +1150,7 @@ const App: React.FC = () => {
         }
       }
 
-      const updatedSelf = savedUsers.find(u => u.name === currentUser?.name);
+      const updatedSelf = latestUsers.find(u => u.name === currentUser?.name);
       if (updatedSelf && currentUser) {
         const { isLoggedInAsAdmin } = currentUser;
         const permissionsChanged =

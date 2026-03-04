@@ -294,6 +294,18 @@ export async function deleteUser(name: string): Promise<void> {
   if (error) throw new Error(`ユーザーの削除に失敗しました: ${error.message}`);
 }
 
+/** ユーザーを新規作成する（INSERT） */
+export async function insertUser(user: User): Promise<User> {
+  const row = userToRow(user);
+  const { data, error } = await supabase
+    .from('users')
+    .insert([row])
+    .select()
+    .single();
+  if (error) throw new Error(`ユーザーの作成に失敗しました: ${error.message}`);
+  return rowToUser(data);
+}
+
 /** ユーザーの稼働ステータスを更新する */
 export async function updateUserAvailabilityStatus(
   name: string,
