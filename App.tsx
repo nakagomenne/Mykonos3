@@ -1275,10 +1275,6 @@ const App: React.FC = () => {
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
         return call.assignee === PRECHECKER_ASSIGNEE_NAME;
       }
-      // 「全体」: 回線前確以外の全員（自分除く）
-      if (selectedMember === '全体') {
-        return call.assignee !== PRECHECKER_ASSIGNEE_NAME && call.assignee !== currentUser?.name;
-      }
       // 「新規依頼」: previewMember プレビュー用（案件は非表示）
       if (selectedMember === '新規依頼') return false;
       return call.assignee === selectedMember;
@@ -1301,7 +1297,7 @@ const App: React.FC = () => {
     const bTime = ub?.commentUpdatedAt ? new Date(ub.commentUpdatedAt).getTime() : 0;
     return bTime - aTime;
   });
-  const otherMembers = ['新規依頼', '全体'];
+  const otherMembers = ['新規依頼'];
   if (hasPrecheckers) {
     otherMembers.push(PRECHECKER_ASSIGNEE_NAME);
   }
@@ -1319,7 +1315,7 @@ const App: React.FC = () => {
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
           return PRECHECKER_ASSIGNEE_NAME;
       }
-      return selectedMember === '新規依頼' || selectedMember === '全体' ? undefined : selectedMember;
+      return selectedMember === '新規依頼' ? undefined : selectedMember;
     }
     return undefined;
   };
@@ -2251,7 +2247,7 @@ const App: React.FC = () => {
                       })()}
                 </div>
                 
-                {(viewMode !== 'others' || (selectedMember !== '新規依頼' && selectedMember !== '全体')) && (
+                {(viewMode !== 'others' || selectedMember !== '新規依頼') && (
                   <div className={`mb-4 rounded-lg shadow-sm border ${isDarkMode ? 'bg-[#1e2535] border-white/10' : 'bg-white border-slate-200'}`}>
                     <button
                       onClick={() => {
@@ -2476,20 +2472,6 @@ const App: React.FC = () => {
                       </div>
                     )}
                   </div>
-                ) : displayViewMode === 'others' && selectedMember === '全体' ? (
-                  // 「全体」タブ：回線前確以外の全員案件を時系列で一覧表示
-                  <CallList 
-                    calls={filteredCalls}
-                    selectedMember="全体"
-                    onUpdateCall={handleUpdateCall}
-                    onSelectCall={handleSelectCall}
-                    highlightedCallId={highlightedCallId}
-                    members={assigneesForEditing}
-                    users={users}
-                    currentUser={currentUser}
-                    duplicateCustomerIds={duplicateCustomerIds}
-                    isDarkMode={isDarkMode}
-                  />
                 ) : (
                   <CallList 
                     calls={filteredCalls}
