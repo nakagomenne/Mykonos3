@@ -177,8 +177,10 @@ const App: React.FC = () => {
   // Realtime コールバック内で最新のstateを参照するためのref
   const notificationSettingsRef = useRef<NotificationSettings>(notificationSettings);
   const currentUserRef = useRef<User | null>(currentUser);
+  const usersRef = useRef<User[]>(users);
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+  useEffect(() => { usersRef.current = users; }, [users]);
 
   const formatRelativeTime = (isoString?: string): string => {
     if (!isoString) return '';
@@ -393,21 +395,28 @@ const App: React.FC = () => {
     };
   }, []);
   
+  // ── 起動時・users更新時：非稼働日とステータスの整合性チェック ──
+  // 「今日が非稼働日なのに受付可/一時受付不可/当日受付不可」を自動修正する
+  // ※ 逆方向（非稼働日でないのに非稼働）は手動設定の可能性があるため自動修正しない
+  //   → 0時タイマーで「翌日が稼働日なら受付可に戻す」処理が担当する
   useEffect(() => {
-    if (currentUser) {
-      const user = users.find(u => u.name === currentUser.name);
-      if (user) {
-        const today = new Date();
-        const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
-        const todayStr = localDate.toISOString().split('T')[0];
+    if (!currentUser || users.length === 0) return;
 
-        const isNonWorkingDay = (user.nonWorkingDays || []).includes(todayStr);
+    const today = new Date();
+    const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
+    const todayStr = localDate.toISOString().split('T')[0];
 
-        if (isNonWorkingDay && user.availabilityStatus !== '非稼働') {
+    users.forEach(user => {
+      const isNonWorkingDay = (user.nonWorkingDays || []).includes(todayStr);
+
+      // 今日が非稼働日なのにステータスが非稼働でない → 非稼働に修正
+      // 自分自身 or 管理者が全員分を修正する
+      if (isNonWorkingDay && user.availabilityStatus !== '非稼働') {
+        if (user.name === currentUser.name || currentUser.isAdmin) {
           handleUpdateUserStatus(user.name, '非稼働');
         }
       }
-    }
+    });
   }, [currentUser, users]);
 
   // ── 一時受付不可の90分後自動復帰 ──────────────────────────────
@@ -469,6 +478,67 @@ const App: React.FC = () => {
     const timer = scheduleLogout();
     return () => clearTimeout(timer);
   }, [currentUser]);
+
+  // ── 毎日0時（JST）に非稼働日チェックして自動ステータス更新 ──
+  // 「自動ログアウト」より先にステータスをDBへ書き込む（ログアウト後はAPIを呼べないため1秒前に実行）
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const calcMsUntilMidnight = () => {
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+      const jstMidnight = new Date(
+        Date.UTC(
+          jstNow.getUTCFullYear(),
+          jstNow.getUTCMonth(),
+          jstNow.getUTCDate() + 1,
+          0, 0, 0, 0
+        ) - 9 * 60 * 60 * 1000
+      );
+      return jstMidnight.getTime() - now.getTime();
+    };
+
+    // 1秒前に実行（自動ログアウトが0秒なのでその前に確実に書き込む）
+    const msUntilCheck = Math.max(0, calcMsUntilMidnight() - 1000);
+
+    const timer = setTimeout(async () => {
+      // 「翌日」の日付文字列を取得
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowLocal = new Date(tomorrow.getTime() - tomorrow.getTimezoneOffset() * 60000);
+      const tomorrowStr = tomorrowLocal.toISOString().split('T')[0];
+
+      // usersRef で最新の users を参照（deps に users を入れるとタイマーが毎回リセットされるため）
+      const user = usersRef.current.find(u => u.name === currentUser.name);
+      if (!user) return;
+
+      const isTomorrowNonWorking = (user.nonWorkingDays || []).includes(tomorrowStr);
+      const isTodayNonWorking    = (() => {
+        const now = new Date();
+        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        const todayStr = local.toISOString().split('T')[0];
+        return (user.nonWorkingDays || []).includes(todayStr);
+      })();
+
+      if (isTomorrowNonWorking && user.availabilityStatus !== '非稼働') {
+        // 翌日（0時を過ぎると「今日」になる）が非稼働日 → 非稼働に変更
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '非稼働');
+        } catch (e) {
+          console.error('0時 非稼働自動更新に失敗:', e);
+        }
+      } else if (!isTomorrowNonWorking && isTodayNonWorking && user.availabilityStatus === '非稼働') {
+        // 今日が非稼働日だったが翌日は稼働日 → 受付可に戻す
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
+        } catch (e) {
+          console.error('0時 受付可自動復帰に失敗:', e);
+        }
+      }
+    }, msUntilCheck);
+
+    return () => clearTimeout(timer);
+  }, [currentUser]); // usersRef経由で最新値を参照するためusersはdepsに不要
 
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
