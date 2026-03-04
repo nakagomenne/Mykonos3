@@ -44,7 +44,7 @@ interface NewUserModalProps {
     availableProductsOptions: string[];
 }
 
-const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availableProductsOptions }) => {
+const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: boolean }> = ({ onClose, onAddUser, availableProductsOptions, currentUserIsSuperAdmin }) => {
     const [name, setName] = useState('');
     const [furigana, setFurigana] = useState('');
     const [profilePicture, setProfilePicture] = useState<string | null>(null);
@@ -197,6 +197,7 @@ const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availab
                                 <ShieldCheckIcon className="w-5 h-5" />
                                 管理者
                             </label>
+                            {currentUserIsSuperAdmin && (
                             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                                 <input
                                     type="checkbox"
@@ -207,6 +208,7 @@ const AddUserModal: React.FC<NewUserModalProps> = ({ onClose, onAddUser, availab
                                 <StarIcon className="w-5 h-5 text-yellow-500" />
                                 SA
                             </label>
+                            )}
                             <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                                 <input
                                     type="checkbox"
@@ -1061,6 +1063,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                     onClose={() => setIsAddUserModalOpen(false)}
                     onAddUser={handleAddUser}
                     availableProductsOptions={AVAILABLE_PRODUCTS}
+                    currentUserIsSuperAdmin={isSuperAdmin}
                 />
             )}
 
