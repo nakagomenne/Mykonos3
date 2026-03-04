@@ -2636,7 +2636,7 @@ const App: React.FC = () => {
                             '非稼働': 'ring-slate-500',
                         }[status];
                         return (
-                          <div key={previewMember} className="animate-wipe-in-down">
+                          <div key={previewMember} className="animate-wipe-in-down-slow">
                             <div className="mb-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-4 ml-4">
