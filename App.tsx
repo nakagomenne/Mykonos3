@@ -1257,13 +1257,15 @@ const App: React.FC = () => {
       const targetUser = users.find(u => u.name === userName);
       let newStatus: AvailabilityStatus | undefined;
 
-      if (userName === currentUser?.name && targetUser) {
+      if (targetUser) {
         const isTodayNonWorking = sortedDates.includes(todayStr);
         const wasTodayNonWorking = (targetUser.nonWorkingDays || []).includes(todayStr);
 
         if (isTodayNonWorking && targetUser.availabilityStatus !== '非稼働') {
+          // 今日を非稼働日に追加 → 即時ステータスを非稼働に
           newStatus = '非稼働';
         } else if (!isTodayNonWorking && wasTodayNonWorking && targetUser.availabilityStatus === '非稼働') {
+          // 今日の非稼働日指定を解除 → 受付可に戻す
           newStatus = '受付可';
         }
       }
