@@ -13,6 +13,7 @@ interface CallListItemProps {
   onSelectCall: (call: CallRequest) => void;
   selectedMember: string | undefined;
   isHighlighted: boolean;
+  isRecentlyUpdated?: boolean;
   showRequesterColumn: boolean;
   members: string[];
   users: User[];
@@ -28,7 +29,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -282,6 +283,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const liClasses = [
     'transition-all', 'duration-200', 'rounded-lg',
     isEditing ? `ring-2 ring-offset-1 ${mainRingClass}` : '',
+    isRecentlyUpdated ? 'animate-datetime-updated' : '',
     isHighlighted
       ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
       : isCompleted

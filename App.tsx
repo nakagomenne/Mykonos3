@@ -98,6 +98,7 @@ const App: React.FC = () => {
   const [selectedCall, setSelectedCall] = useState<CallRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedCallId, setHighlightedCallId] = useState<string | null>(null);
+  const [recentlyUpdatedCallId, setRecentlyUpdatedCallId] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<CallRequest[] | null>(null);
   const [searchResultsList, setSearchResultsList] = useState<SearchResultItem[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -986,6 +987,12 @@ const App: React.FC = () => {
       setCalls(prevCalls =>
         prevCalls.map(call => (call.id === id ? updated : call))
       );
+
+      // 予定日時が変更された場合、6秒間点滅ハイライトを表示
+      if ('dateTime' in updatedData) {
+        setRecentlyUpdatedCallId(id);
+        setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
+      }
     } catch (err: any) {
       console.error('案件の更新に失敗しました:', err);
       alert(`案件の更新に失敗しました: ${err?.message ?? err}`);
@@ -2767,6 +2774,7 @@ const App: React.FC = () => {
                               onUpdateCall={handleUpdateCall}
                               onSelectCall={handleSelectCall}
                               highlightedCallId={highlightedCallId}
+                              recentlyUpdatedCallId={recentlyUpdatedCallId}
                               members={assigneesForEditing}
                               users={users}
                               currentUser={currentUser}
@@ -2790,6 +2798,7 @@ const App: React.FC = () => {
                     onUpdateCall={handleUpdateCall}
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}
+                    recentlyUpdatedCallId={recentlyUpdatedCallId}
                     members={assigneesForEditing}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
