@@ -191,6 +191,7 @@ const App: React.FC = () => {
   const notificationSettingsRef = useRef<NotificationSettings>(notificationSettings);
   const currentUserRef = useRef<User | null>(currentUser);
   const usersRef = useRef<User[]>(users);
+  const statusCheckedRef = useRef(false); // 起動時の稼働ステータス自動補正を1回だけ実行するフラグ
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { usersRef.current = users; }, [users]);
@@ -437,11 +438,13 @@ const App: React.FC = () => {
   }, []);
   
   // ── 起動時・users更新時：非稼働日とステータスの整合性チェック ──
-  // 「今日が非稼働日なのに受付可/一時受付不可/当日受付不可」を自動修正する
-  // ※ 逆方向（非稼働日でないのに非稼働）は手動設定の可能性があるため自動修正しない
-  //   → 0時タイマーで「翌日が稼働日なら受付可に戻す」処理が担当する
+  // 起動時（初回ロード完了後）に稼働ステータスを自動補正する（1回のみ）
+  // ・今日が非稼働日 かつ ステータスが非稼働でない → 非稼働に修正
+  // ・今日が稼働日  かつ ステータスが非稼働       → 受付可に戻す（0時跨ぎ後の戻し漏れを補正）
   useEffect(() => {
-    if (!currentUser || users.length === 0) return;
+    if (!currentUser || users.length === 0 || isLoading) return;
+    if (statusCheckedRef.current) return; // 2回目以降はスキップ
+    statusCheckedRef.current = true;
 
     const today = new Date();
     const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
@@ -451,14 +454,21 @@ const App: React.FC = () => {
       const isNonWorkingDay = (user.nonWorkingDays || []).includes(todayStr);
 
       // 今日が非稼働日なのにステータスが非稼働でない → 非稼働に修正
-      // 自分自身 or 管理者が全員分を修正する
       if (isNonWorkingDay && user.availabilityStatus !== '非稼働') {
         if (user.name === currentUser.name || currentUser.isAdmin) {
           handleUpdateUserStatus(user.name, '非稼働');
         }
       }
+
+      // 今日が稼働日なのにステータスが非稼働 → 受付可に戻す
+      // （前日が非稼働で0時跨ぎ後に戻し損ねたケースを補正）
+      if (!isNonWorkingDay && user.availabilityStatus === '非稼働') {
+        if (user.name === currentUser.name || currentUser.isAdmin) {
+          handleUpdateUserStatus(user.name, '受付可');
+        }
+      }
     });
-  }, [currentUser, users]);
+  }, [currentUser, users, isLoading]);
 
   // ── 一時受付不可の90分後自動復帰 ──────────────────────────────
   useEffect(() => {
@@ -766,6 +776,7 @@ const App: React.FC = () => {
   }, [users, calls, currentUser]);
 
   const handleLogin = (user: User, isLoggedInAsAdmin: boolean) => {
+    statusCheckedRef.current = false; // ログイン時に補正チェックをリセット
     setCurrentUser({ ...user, isLoggedInAsAdmin });
     setViewMode('mine');
   };
