@@ -281,9 +281,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const focusRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
 
   const liClasses = [
-    'transition-all', 'duration-200', 'rounded-lg',
+    'relative', 'transition-all', 'duration-200', 'rounded-lg',
     isEditing ? `ring-2 ring-offset-1 ${mainRingClass}` : '',
-    isRecentlyUpdated ? 'animate-datetime-updated' : '',
     isHighlighted
       ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
       : isCompleted
@@ -380,6 +379,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
   return (
     <li ref={liRef} className={liClasses} style={liStyle}>
+      {isRecentlyUpdated && (
+        <div className="animate-datetime-updated" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
+      )}
       <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
           <div className="w-6 flex-shrink-0 flex justify-center items-center">
             <div className="relative h-5 w-5">
