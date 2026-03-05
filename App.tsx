@@ -1291,8 +1291,10 @@ const App: React.FC = () => {
     try {
       const trimmed = comment.trim();
       await updateUserComment(currentUser.name, trimmed);
-      // コメントが空になった場合はリプライも削除
-      if (!trimmed) {
+      // コメントが空になった場合、または内容が変わった場合はリプライを削除
+      // （古いコメントへのリプライが新しいコメントに紐づいて残るのを防ぐ）
+      const currentComment = users.find(u => u.name === currentUser.name)?.comment ?? '';
+      if (!trimmed || trimmed !== currentComment) {
         deleteRepliesByUserName(currentUser.name).catch(() => {});
         setCommentReplies(prev => prev.filter(r => r.userName !== currentUser.name));
       }
