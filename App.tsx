@@ -108,6 +108,7 @@ const App: React.FC = () => {
   const [announcement, setAnnouncement] = useState<string>('');
   const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
+  const [scheduleOpenedFromAdmin, setScheduleOpenedFromAdmin] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
@@ -2912,7 +2913,7 @@ const App: React.FC = () => {
             alerts={alerts}
             onJumpToMember={handleJumpToMember}
             calls={calls}
-            onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setIsScheduleViewReadOnly(false); setScheduleViewingUser(user); }}
+            onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setScheduleOpenedFromAdmin(true); setIsScheduleViewReadOnly(false); setScheduleViewingUser(user); }}
             feedbackReports={feedbackReports}
             onDeleteFeedback={async (id) => {
               await apiDeleteFeedbackReport(id);
@@ -2938,7 +2939,14 @@ const App: React.FC = () => {
       {scheduleViewingUser && (
         <ScheduleModal
           isOpen={!!scheduleViewingUser}
-          onClose={() => { setScheduleViewingUser(null); setIsScheduleViewReadOnly(false); }}
+          onClose={() => {
+            setScheduleViewingUser(null);
+            setIsScheduleViewReadOnly(false);
+            if (scheduleOpenedFromAdmin) {
+              setIsAdminMenuOpen(true);
+              setScheduleOpenedFromAdmin(false);
+            }
+          }}
           user={scheduleViewingUser}
           onSave={isScheduleViewReadOnly ? undefined : handleUpdateNonWorkingDays}
           readOnly={isScheduleViewReadOnly}
