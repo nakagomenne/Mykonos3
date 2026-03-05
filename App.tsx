@@ -1293,13 +1293,10 @@ const App: React.FC = () => {
     try {
       const trimmed = comment.trim();
       await updateUserComment(currentUser.name, trimmed);
-      // コメントが空になった場合、または内容が変わった場合はリプライを削除
-      // （古いコメントへのリプライが新しいコメントに紐づいて残るのを防ぐ）
-      const currentComment = users.find(u => u.name === currentUser.name)?.comment ?? '';
-      if (!trimmed || trimmed !== currentComment) {
-        deleteRepliesByUserName(currentUser.name).catch(() => {});
-        setCommentReplies(prev => prev.filter(r => r.userName !== currentUser.name));
-      }
+      // コメントを保存（更新・削除）するたびに古いリプライを必ず削除する
+      // （コメントが更新された場合、以前のコメントへのリプライは無効になるため）
+      deleteRepliesByUserName(currentUser.name).catch(() => {});
+      setCommentReplies(prev => prev.filter(r => r.userName !== currentUser.name));
       setUsers(prevUsers =>
         prevUsers.map(u =>
           u.name === currentUser.name
@@ -1798,9 +1795,13 @@ const App: React.FC = () => {
                       const unreadComments = commentedUsers.filter(u =>
                         u.commentUpdatedAt && new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt
                       ).length;
-                      const unreadReplies = commentReplies.filter(r =>
-                        new Date(r.createdAt).getTime() > lastReadCommentAt
-                      ).length;
+                      const unreadReplies = commentReplies.filter(r => {
+                        if (new Date(r.createdAt).getTime() <= lastReadCommentAt) return false;
+                        // 対象ユーザーのコメント更新日時より前のリプライは除外
+                        const targetUser = commentedUsers.find(u => u.name === r.userName);
+                        if (targetUser?.commentUpdatedAt && r.createdAt < targetUser.commentUpdatedAt) return false;
+                        return true;
+                      }).length;
                       const unreadCount = unreadComments + unreadReplies;
                       return unreadCount > 0 ? (
                         <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
@@ -1828,7 +1829,12 @@ const App: React.FC = () => {
                           {commentedUsers.length > 0 ? (
                             <ul className="space-y-2">
                               {commentedUsers.map(u => {
-                                const userReplies = commentReplies.filter(r => r.userName === u.name);
+                                const userReplies = commentReplies.filter(r => {
+                                  if (r.userName !== u.name) return false;
+                                  // コメントの更新日時より前に投稿されたリプライは非表示（古いコメントへのリプライを除外）
+                                  if (u.commentUpdatedAt && r.createdAt < u.commentUpdatedAt) return false;
+                                  return true;
+                                });
                                 const isReplyOpen = expandedReplyUser === u.name;
                                 const replyText = replyInputs[u.name] ?? '';
                                 return (
