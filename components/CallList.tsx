@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CallRequest, User } from '../types';
 import CallListItem from './CallListItem';
-import { CalendarIcon, CheckIcon } from './icons';
+import { CalendarIcon } from './icons';
 import { PRECHECKER_ASSIGNEE_NAME } from '../constants';
 
 interface CallListProps {
@@ -75,22 +75,24 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
         }`}>
             <div className="w-6 flex-shrink-0 flex justify-center">
               {hasCompletedCalls && (
-                  <button
-                      onClick={() => setHideCompleted(prev => !prev)}
-                      className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
-                      } ${
-                        hideCompleted
-                          ? `${isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} border-transparent`
-                          : `border-slate-400 ${isDarkMode ? 'bg-slate-700 hover:border-slate-300' : 'bg-white hover:border-slate-500'}`
-                      }`}
-                      title={hideCompleted ? '完了した案件を表示' : '完了した案件を非表示'}
-                      aria-pressed={hideCompleted}
-                  >
-                    {hideCompleted && (
-                      <CheckIcon className="h-3.5 w-3.5 text-white" />
-                    )}
-                  </button>
+                <button
+                  onClick={() => setHideCompleted(prev => !prev)}
+                  title={hideCompleted ? '完了した案件を表示' : '完了した案件を非表示'}
+                  aria-pressed={hideCompleted}
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                    isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
+                  } ${
+                    hideCompleted
+                      ? isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'
+                      : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                      hideCompleted ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               )}
             </div>
             {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
