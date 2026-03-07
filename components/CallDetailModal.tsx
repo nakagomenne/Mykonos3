@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CallRequest, Rank, User } from '../types';
 import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowRightIcon, PencilIcon } from './icons';
 import StatusBadge from './StatusBadge';
+import { fetchCallHistory } from '../services/apiService';
 
 interface CallDetailModalProps {
   calls?: CallRequest[] | null;
@@ -70,6 +71,19 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
     }
     setIsEditing(false);
   }, [calls]);
+
+  // history が空のとき遅延取得（初期ロード時に history を除外しているため）
+  useEffect(() => {
+    if (!detailedCall) return;
+    if (detailedCall.history && detailedCall.history.length > 0) return;
+    let cancelled = false;
+    fetchCallHistory(detailedCall.id).then(history => {
+      if (!cancelled && history && history.length > 0) {
+        setDetailedCall(prev => prev ? { ...prev, history } : prev);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [detailedCall?.id]);
 
   useEffect(() => {
     if (detailedCall) {

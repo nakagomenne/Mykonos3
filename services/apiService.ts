@@ -99,15 +99,30 @@ function userToRow(data: Partial<User>): Record<string, any> {
 // CallRequest CRUD
 // ────────────────────────────────────────────────────────────
 
-/** 全案件を取得する */
+// history を除いたカラム一覧（初期ロード高速化）
+const CALL_REQUEST_COLUMNS_WITHOUT_HISTORY =
+  'id,customer_id,requester,assignee,list_type,rank,date_time,notes,status,absence_count,prechecker,imported,is_strict,is_detailed_time,completed_at,created_at';
+
+/** 全案件を取得する（history 除外で高速化） */
 export async function fetchCallRequests(): Promise<CallRequest[]> {
   const { data, error } = await supabase
     .from('call_requests')
-    .select('*')
+    .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY)
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(`案件の取得に失敗しました: ${error.message}`);
   return (data ?? []).map(rowToCallRequest);
+}
+
+/** 特定案件の history のみを取得する（詳細モーダル用） */
+export async function fetchCallHistory(id: string): Promise<CallRequest['history']> {
+  const { data, error } = await supabase
+    .from('call_requests')
+    .select('history')
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(`履歴の取得に失敗しました: ${error.message}`);
+  return data?.history ?? [];
 }
 
 /** 案件を新規作成する */
@@ -132,22 +147,13 @@ export async function createCallRequest(
   return rowToCallRequest(data);
 }
 
-/** 案件を更新する */
+/** 案件を更新する（currentCall をフロントから受け取り事前SELECTを廃止） */
 export async function updateCallRequest(
   id: string,
   updatedData: Partial<Omit<CallRequest, 'id'>>,
-  editorName: string
+  editorName: string,
+  currentCall: CallRequest
 ): Promise<CallRequest> {
-  // 現在の案件を取得して履歴を計算
-  const { data: current, error: fetchError } = await supabase
-    .from('call_requests')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  if (fetchError) throw new Error(`案件の取得に失敗しました: ${fetchError.message}`);
-
-  const currentCall = rowToCallRequest(current);
 
   // 変更差分を計算
   const changes: EditHistory['changes'] = [];
@@ -246,14 +252,30 @@ export async function createBulkCallRequests(
 // ────────────────────────────────────────────────────────────
 
 /** 全ユーザーを取得する */
+// profile_picture を除いたカラム一覧（初期ロード高速化）
+const USER_COLUMNS_WITHOUT_PICTURE =
+  'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,created_at';
+
+/** ユーザー一覧を取得する（profile_picture 除外で高速化） */
 export async function fetchUsers(): Promise<User[]> {
   const { data, error } = await supabase
     .from('users')
-    .select('*')
+    .select(USER_COLUMNS_WITHOUT_PICTURE)
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(`ユーザーの取得に失敗しました: ${error.message}`);
   return (data ?? []).map(rowToUser);
+}
+
+/** profile_picture のみを取得して既存のユーザーリストにマージする（遅延ロード用） */
+export async function fetchUserProfilePictures(): Promise<Record<string, string | null>> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('name,profile_picture');
+  if (error) throw new Error(`プロフィール画像の取得に失敗しました: ${error.message}`);
+  const map: Record<string, string | null> = {};
+  (data ?? []).forEach((row: any) => { map[row.name] = row.profile_picture ?? null; });
+  return map;
 }
 
 /** ユーザーを更新する（name をキーとして使用） */
@@ -410,9 +432,9 @@ export async function updateAppSetting(key: string, value: string): Promise<void
 // Realtime Subscriptions
 // ────────────────────────────────────────────────────────────
 
-/** call_requests テーブルの変更をリアルタイムで購読する */
+/** call_requests テーブルの変更をリアルタイムで購読する（差分更新） */
 export function subscribeToCallRequests(
-  callback: (calls: CallRequest[]) => void,
+  callback: (updater: (prev: CallRequest[]) => CallRequest[]) => void,
   onInsert?: (newCall: CallRequest) => void
 ) {
   const channel = supabase
@@ -421,18 +443,24 @@ export function subscribeToCallRequests(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'call_requests' },
       async (payload: any) => {
-        // INSERT イベントのとき、挿入された行を onInsert に渡す
-        if (payload.eventType === 'INSERT' && onInsert && payload.new) {
-          try {
-            onInsert(rowToCallRequest(payload.new));
-          } catch (e) {
-            console.error('INSERT コールバック中にエラー:', e);
-          }
-        }
-        // 変更があったら全件取り直し
+        const { eventType, new: newRow, old: oldRow } = payload;
         try {
-          const calls = await fetchCallRequests();
-          callback(calls);
+          if (eventType === 'INSERT' && newRow) {
+            const newCall = rowToCallRequest(newRow);
+            if (onInsert) onInsert(newCall);
+            callback(prev => [...prev, newCall]);
+          } else if (eventType === 'UPDATE' && newRow) {
+            const updatedCall = rowToCallRequest(newRow);
+            callback(prev =>
+              prev.map(c => c.id === updatedCall.id
+                // history は payload に含まれない場合もあるので既存値を引き継ぐ
+                ? { ...updatedCall, history: updatedCall.history?.length ? updatedCall.history : c.history }
+                : c
+              )
+            );
+          } else if (eventType === 'DELETE' && oldRow?.id) {
+            callback(prev => prev.filter(c => c.id !== oldRow.id));
+          }
         } catch (e) {
           console.error('Realtime コールバック中にエラー:', e);
         }
@@ -445,17 +473,31 @@ export function subscribeToCallRequests(
   };
 }
 
-/** users テーブルの変更をリアルタイムで購読する */
-export function subscribeToUsers(callback: (users: User[]) => void) {
+/** users テーブルの変更をリアルタイムで購読する（差分更新） */
+export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) => void) {
   const channel = supabase
     .channel('users_changes')
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'users' },
-      async () => {
+      async (payload: any) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
         try {
-          const users = await fetchUsers();
-          callback(users);
+          if (eventType === 'INSERT' && newRow) {
+            const newUser = rowToUser(newRow);
+            callback(prev => [...prev, newUser]);
+          } else if (eventType === 'UPDATE' && newRow) {
+            const updatedUser = rowToUser(newRow);
+            callback(prev =>
+              prev.map(u => u.name === updatedUser.name
+                // profile_picture は payload に含まれない場合もあるので既存値を引き継ぐ
+                ? { ...u, ...updatedUser, profilePicture: updatedUser.profilePicture ?? u.profilePicture }
+                : u
+              )
+            );
+          } else if (eventType === 'DELETE' && oldRow?.name) {
+            callback(prev => prev.filter(u => u.name !== oldRow.name));
+          }
         } catch (e) {
           console.error('Realtime コールバック中にエラー:', e);
         }

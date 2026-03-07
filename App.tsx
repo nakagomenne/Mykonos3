@@ -23,11 +23,13 @@ import NotificationSettingsModal, {
 } from './components/NotificationSettingsModal';
 import {
   fetchCallRequests,
+  fetchCallHistory,
   createCallRequest,
   updateCallRequest as apiUpdateCallRequest,
   deleteExpiredCompletedCalls,
   createBulkCallRequests,
   fetchUsers,
+  fetchUserProfilePictures,
   updateUser,
   upsertUsers,
   deleteUser as apiDeleteUser,
@@ -258,9 +260,15 @@ const App: React.FC = () => {
         if (isMounted) setIsLoading(false);
       }
 
-      // フィードバックはローディング完了後にバックグラウンドで取得（SA以外には不要）
+      // ローディング完了後にバックグラウンドで遅延取得
+      // ① プロフィール画像（Base64 / 大きいので後回し）
+      fetchUserProfilePictures().then(picMap => {
+        if (!isMounted) return;
+        setUsers(prev => prev.map(u => ({ ...u, profilePicture: picMap[u.name] ?? u.profilePicture ?? null })));
+      }).catch(() => {});
+      // ② フィードバック（SA以外には不要）
       fetchFeedbackReports().then(r => { if (isMounted) setFeedbackReports(r); }).catch(() => {});
-      // コメントリプライもバックグラウンドで取得
+      // ③ コメントリプライ
       fetchCommentReplies().then(r => { if (isMounted) setCommentReplies(r); }).catch(() => {});
     };
 
@@ -979,9 +987,10 @@ const App: React.FC = () => {
   };
 
   const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
-
+    const currentCall = calls.find(c => c.id === id);
+    if (!currentCall) return;
     try {
-      const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name);
+      const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name, currentCall);
 
       // ローカル状態を即時更新（Realtime の前に反映）
       setCalls(prevCalls =>
@@ -1019,7 +1028,7 @@ const App: React.FC = () => {
     try {
       const updates: Partial<Omit<CallRequest, 'id'>> = { status: '追客中' };
       if (newAssignee && newAssignee !== call.assignee) updates.assignee = newAssignee;
-      const updated = await apiUpdateCallRequest(call.id, updates, currentUser.name);
+      const updated = await apiUpdateCallRequest(call.id, updates, currentUser.name, call);
       setCalls(prev => prev.map(c => c.id === call.id ? updated : c));
     } catch (err: any) {
       alert(`更新に失敗しました: ${err?.message ?? err}`);
@@ -1148,7 +1157,7 @@ const App: React.FC = () => {
         const updatePromises = calls
           .filter(call => deletedUserNames.includes(call.requester))
           .map(call =>
-            apiUpdateCallRequest(call.id, { requester: `${call.requester} (削除済み)` }, currentUser?.name ?? 'system')
+            apiUpdateCallRequest(call.id, { requester: `${call.requester} (削除済み)` }, currentUser?.name ?? 'system', call)
           );
         await Promise.all(updatePromises);
 
