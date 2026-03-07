@@ -32,7 +32,8 @@ const FIELD_TITLES: Record<EditableField, string> = {
 
 const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, onClose, targetRect, members, users, isPrecheckTheme = false }) => {
     const popupRef = useRef<HTMLDivElement>(null);
-    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const [position, setPosition] = useState({ top: targetRect.bottom + 4, left: targetRect.left });
+    const [positionReady, setPositionReady] = useState(false);
     const today = useMemo(() => {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -111,22 +112,49 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
         };
     }, [onClose, isCalendarOpen]);
 
-    useEffect(() => {
-      if (popupRef.current) {
-        const popupRect = popupRef.current.getBoundingClientRect();
-        let top = targetRect.bottom + window.scrollY + 4;
-        let left = targetRect.left + window.scrollX;
+    const recalcPosition = () => {
+      if (!popupRef.current) return;
+      const popupRect = popupRef.current.getBoundingClientRect();
+      const MARGIN = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
 
-        if (left + popupRect.width > window.innerWidth) {
-            left = window.innerWidth - popupRect.width - 8;
-        }
-        if (top + popupRect.height > window.innerHeight) {
-            top = targetRect.top + window.scrollY - popupRect.height - 4;
-        }
-        
-        setPosition({ top, left });
+      // デフォルト: クリック要素の真下
+      let top = targetRect.bottom + 4;
+      let left = targetRect.left;
+
+      // 右端はみ出し補正
+      if (left + popupRect.width > vw - MARGIN) {
+        left = vw - popupRect.width - MARGIN;
       }
-    }, [targetRect]);
+      left = Math.max(MARGIN, left);
+
+      // 下端はみ出し → 要素の真上に表示
+      if (top + popupRect.height > vh - MARGIN) {
+        top = targetRect.top - popupRect.height - 4;
+      }
+      // 上にも収まらない場合は画面内に収める
+      if (top < MARGIN) {
+        top = MARGIN;
+      }
+
+      // fixed なので scrollY は不要
+      setPosition({ top, left });
+      setPositionReady(true);
+    };
+
+    // マウント直後 + targetRect 変化時に計算
+    useEffect(() => {
+      recalcPosition();
+    }, [targetRect]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ポップアップ自体のサイズ変化（カレンダー開閉など）にも追従
+    useEffect(() => {
+      if (!popupRef.current) return;
+      const ro = new ResizeObserver(() => recalcPosition());
+      ro.observe(popupRef.current);
+      return () => ro.disconnect();
+    }, [targetRect]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
     const handleSave = () => {
@@ -427,7 +455,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
             <div 
               ref={popupRef}
               className="fixed z-50 bg-white rounded-lg shadow-xl border border-slate-200 p-2 w-80 animate-fade-in"
-              style={{ top: position.top, left: position.left }}
+              style={{ top: position.top, left: position.left, opacity: positionReady ? 1 : 0 }}
               onClick={e => e.stopPropagation()}
             >
                 <h4 className={`font-bold text-md mb-1 ${mainColorClass}`}>{FIELD_TITLES[field]}</h4>
