@@ -296,9 +296,6 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
                 className="w-4 h-4 accent-[#0193be] cursor-pointer"
               />
               <span className={`text-sm font-bold ${isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]'}`}>AP戻し</span>
-              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                — ランク「立ち上げ」・担当者を依頼者へ変更して通常一覧へ戻す
-              </span>
             </label>
           </div>
         )}
@@ -313,9 +310,6 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
                 className="w-4 h-4 accent-[#118f82] cursor-pointer"
               />
               <span className={`text-sm font-bold text-[#118f82]`}>回線受注</span>
-              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                — ランク「SB光前確」・担当者を回線前確へ変更して前確一覧へ移す
-              </span>
             </label>
           </div>
         )}
