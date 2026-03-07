@@ -23,7 +23,7 @@ interface CallListItemProps {
   isDarkMode?: boolean;
 }
 
-type EditableField = 'dateTime' | 'listType' | 'notes' | 'assignee' | 'requester';
+type EditableField = 'dateTime' | 'listType' | 'notes' | 'assignee' | 'requester' | 'applicationNumber';
 interface EditingState {
   field: EditableField;
   targetRect: DOMRect;
@@ -31,6 +31,7 @@ interface EditingState {
 
 const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
+  const [isAppNumCopied, setIsAppNumCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmationModalOpen, setConfirmationModalOpen] = useState(false);
@@ -195,6 +196,20 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     }
   };
   
+  const handleCopyAppNum = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const text = call.applicationNumber || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setIsAppNumCopied(true);
+      setTimeout(() => setIsAppNumCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      alert('コピーに失敗しました。');
+    }
+  };
+
   const handleConfirmComplete = () => {
     onUpdateCall(call.id, { status: '完了' });
     setConfirmationModalOpen(false);
@@ -428,6 +443,31 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                   </button>
               )}
           </div>
+
+          {isPrecheckTheme && (
+            <div className="w-28 flex-shrink-0 flex items-center gap-1 group">
+              <button
+                onClick={(e) => handleEditClick(e, 'applicationNumber')}
+                disabled={isFieldDisabled}
+                className={`flex-grow truncate text-center p-1 -m-1 rounded transition hover:enabled:bg-slate-200/60 disabled:cursor-not-allowed ${call.applicationNumber ? '' : 'text-slate-300'}`}
+                title={call.applicationNumber ? `申込番号: ${call.applicationNumber}` : '申込番号を入力'}
+              >
+                {call.applicationNumber || '-'}
+              </button>
+              {isAppNumCopied ? (
+                <CheckIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+              ) : (
+                <button
+                  onClick={handleCopyAppNum}
+                  className={`p-1 rounded hover:bg-slate-300/50 transition duration-300 flex-shrink-0 ${call.applicationNumber ? 'text-current/60 hover:text-current/80' : 'text-slate-200 cursor-default'}`}
+                  title={call.applicationNumber ? '申込番号をコピー' : '申込番号未入力'}
+                  disabled={!call.applicationNumber}
+                >
+                  <ClipboardDocumentIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
 
           <div className={`w-24 flex-shrink-0 whitespace-nowrap ${isCompleted ? 'line-through' : ''}`}>
              <button

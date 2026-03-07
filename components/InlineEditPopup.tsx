@@ -6,7 +6,7 @@ import { LIST_TYPE_OPTIONS, RANK_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OP
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 
-type EditableField = 'dateTime' | 'listType' | 'rank' | 'notes' | 'assignee' | 'requester';
+type EditableField = 'dateTime' | 'listType' | 'rank' | 'notes' | 'assignee' | 'requester' | 'applicationNumber';
 
 interface InlineEditPopupProps {
   field: EditableField;
@@ -26,6 +26,7 @@ const FIELD_TITLES: Record<EditableField, string> = {
     notes: '備考を編集',
     assignee: '担当者を編集',
     requester: '依頼者を編集',
+    applicationNumber: '申込番号を編集',
 };
 
 
@@ -44,6 +45,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
     const [notes, setNotes] = useState(call.notes);
     const [member, setMember] = useState(call.assignee);
     const [requester, setRequester] = useState(call.requester);
+    const [applicationNumber, setApplicationNumber] = useState(call.applicationNumber ?? '');
     const [isStrict, setIsStrict] = useState(call.isStrict ?? false);
     const [isDetailedTime, setIsDetailedTime] = useState(call.isDetailedTime ?? false);
 
@@ -153,6 +155,9 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                 break;
             case 'requester':
                 updatedData = { requester };
+                break;
+            case 'applicationNumber':
+                updatedData = { applicationNumber };
                 break;
         }
         onSave(updatedData);
@@ -392,12 +397,24 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                         {assigneeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
                 );
-            case 'requester':
+            case 'requester':{
                 const requesterOptions = getOptionsWithCurrent(members, call.requester);
                 return (
                      <select value={requester} onChange={(e) => setRequester(e.target.value)} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
                         {requesterOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
+                );}
+            case 'applicationNumber':
+                return (
+                    <input
+                        type="text"
+                        value={applicationNumber}
+                        onChange={(e) => setApplicationNumber(e.target.value)}
+                        className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}
+                        placeholder="申込番号を入力"
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+                    />
                 );
             default:
                 return null;
