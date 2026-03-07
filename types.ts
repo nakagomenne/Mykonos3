@@ -23,7 +23,9 @@ export type Rank =
   | 'SB光前確'
   | 'AIR前確'
   | '賃ね前確'
-  | 'IMP依頼';
+  | 'IMP依頼'
+  | '決済待ち'
+  | 'ET待ち';
 
 export type CallStatus = '追客中' | '完了';
 

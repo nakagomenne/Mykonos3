@@ -2,7 +2,7 @@ import { ListType, Rank, CallStatus, User, AvailabilityStatus } from './types';
 
 export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG'];
 
-export const PRECHECK_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼'];
+export const PRECHECK_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち'];
 
 export const RANK_OPTIONS: Rank[] = [
   '留守入電',
@@ -86,6 +86,8 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'SB光前確': { backgroundColor: '#ffeb00', color: '#0193be' },
   'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
+  '決済待ち': { backgroundColor: '#e2e2e2', color: '#008b7c' },
+  'ET待ち':  { backgroundColor: '#e2e2e2', color: '#f55d00' },
   'クレーム': { backgroundColor: '#3d3d3d', color: '#fff600' },
   
   // Bordered
