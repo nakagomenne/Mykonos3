@@ -101,6 +101,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedCallId, setHighlightedCallId] = useState<string | null>(null);
   const [recentlyUpdatedCallId, setRecentlyUpdatedCallId] = useState<string | null>(null);
+  const [recentlyAddedCallId, setRecentlyAddedCallId] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<CallRequest[] | null>(null);
   const [searchResultsList, setSearchResultsList] = useState<SearchResultItem[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -279,22 +280,31 @@ const App: React.FC = () => {
     // ──────────────────────────────────────────────
     const unsubCalls = subscribeToCallRequests(
       setCalls,
-      // 回線前確案件がINSERTされたとき即時通知
+      // 案件がINSERTされたとき
       (newCall) => {
-        // refから最新のstateを参照する
         const settings = notificationSettingsRef.current;
         const user = currentUserRef.current;
+
+        // 回線前確案件の即時通知
         if (
-          !settings.precheckInstantNotify ||
-          !user?.isLinePrechecker ||
-          Notification.permission !== 'granted'
-        ) return;
-        if (newCall.assignee !== PRECHECKER_ASSIGNEE_NAME) return;
-        new Notification('🔔 回線前確 新規案件', {
-          body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
-          tag: `precheck_insert_${newCall.id}`,
-          icon: '/vite.svg',
-        });
+          settings.precheckInstantNotify &&
+          user?.isLinePrechecker &&
+          Notification.permission === 'granted' &&
+          newCall.assignee === PRECHECKER_ASSIGNEE_NAME
+        ) {
+          new Notification('🔔 回線前確 新規案件', {
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            tag: `precheck_insert_${newCall.id}`,
+            icon: '/vite.svg',
+          });
+        }
+
+        // 他メンバーが自分宛に追加した案件 or 自分が他メンバー宛に作成した案件を点滅
+        // （自分が作成した場合は _createCall 側で既にセット済みなので requester チェックで除外）
+        if (user && newCall.assignee === user.name && newCall.requester !== user.name) {
+          setRecentlyAddedCallId(newCall.id);
+          setTimeout(() => setRecentlyAddedCallId(null), 6000);
+        }
       }
     );
     const unsubUsers    = subscribeToUsers(setUsers);
@@ -872,6 +882,11 @@ const App: React.FC = () => {
 
       // Realtime で自動更新されるが、即時性のためにローカルにも反映
       setCalls(prevCalls => [...prevCalls, newCall]);
+
+      // 自分が作成した or 自分宛に作成した案件を6秒間点滅
+      setRecentlyAddedCallId(newCall.id);
+      setTimeout(() => setRecentlyAddedCallId(null), 6000);
+
       setIsFormVisible(false);
     } catch (err: any) {
       console.error('案件の作成に失敗しました:', err);
@@ -2794,6 +2809,7 @@ const App: React.FC = () => {
                               onSelectCall={handleSelectCall}
                               highlightedCallId={highlightedCallId}
                               recentlyUpdatedCallId={recentlyUpdatedCallId}
+                              recentlyAddedCallId={recentlyAddedCallId}
                               members={assigneesForEditing}
                               users={users}
                               currentUser={currentUser}
@@ -2818,6 +2834,7 @@ const App: React.FC = () => {
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}
                     recentlyUpdatedCallId={recentlyUpdatedCallId}
+                    recentlyAddedCallId={recentlyAddedCallId}
                     members={assigneesForEditing}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
