@@ -1922,7 +1922,7 @@ const App: React.FC = () => {
                                               <UserIcon className="w-5 h-5 text-white/80"/>
                                             </div>
                                           )}
-                                          <span className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-[#0193be] ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
+                                          <span className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-[3px] ring-[#0193be] ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
                                         </div>
                                         <div className="flex-1 flex justify-between items-center">
                                           <span className="font-semibold text-sm text-white">{u.name}</span>
@@ -2041,7 +2041,7 @@ const App: React.FC = () => {
                         const ringColorClass = 'ring-white';
                         return (
                           <span 
-                            className={`absolute top-0 right-0 block h-2.5 w-2.5 rounded-full ${statusStyle.bg} ring-2 ${ringColorClass}`}
+                            className={`absolute top-0 right-0 block h-3 w-3 rounded-full ${statusStyle.bg} ring-[3px] ${ringColorClass}`}
                             title={`稼働ステータス: ${status}`}
                           />
                         )
