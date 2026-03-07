@@ -2403,7 +2403,7 @@ const App: React.FC = () => {
                       }[mineStatus] ?? 'white';
                       const mineOuterHex = mineIsAvailable ? '#0193be' : 'white';
                       const mineRingColor = ''; // box-shadowで管理
-                      const mineRingBoxShadow = `0 0 0 4px ${mineRingHex}, 0 0 0 7px ${mineOuterHex}`;
+                      const mineRingBoxShadow = `0 0 0 4px ${mineRingHex}, 0 0 0 9px ${mineOuterHex}`;
                       const mineTextColor = mineIsAvailable ? 'text-[#0193be]' : 'text-white';
                       const mineCalendarHover = mineIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
                       return (
@@ -2542,7 +2542,7 @@ const App: React.FC = () => {
                           }[status] ?? 'white';
                           const outerHex = isAvailable ? '#0193be' : 'white';
                           const ringColorClass = ''; // box-shadowで管理
-                          const ringBoxShadow = `0 0 0 4px ${ringHex}, 0 0 0 7px ${outerHex}`;
+                          const ringBoxShadow = `0 0 0 4px ${ringHex}, 0 0 0 9px ${outerHex}`;
                           const statusTextColor = isAvailable ? 'text-[#0193be]' : 'text-white';
                           const statusBgColor = {
                               '受付可': 'bg-[#0193be]',
@@ -2773,7 +2773,7 @@ const App: React.FC = () => {
                                 <div className="flex items-center gap-4 ml-4">
                                   <div
                               className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
-                              style={{ boxShadow: `0 0 0 4px ${{ '受付可': 'white', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? 'white'}, 0 0 0 7px ${status === '受付可' ? '#0193be' : 'white'}` }}
+                              style={{ boxShadow: `0 0 0 4px ${{ '受付可': 'white', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? 'white'}, 0 0 0 9px ${status === '受付可' ? '#0193be' : 'white'}` }}
                           >
                                       {selectedUserDetails.profilePicture ? (
                                         <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-32 h-32 rounded-full object-cover" />
