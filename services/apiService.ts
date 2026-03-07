@@ -453,11 +453,32 @@ export function subscribeToCallRequests(
           } else if (eventType === 'UPDATE' && newRow) {
             const updatedCall = rowToCallRequest(newRow);
             callback(prev =>
-              prev.map(c => c.id === updatedCall.id
-                // history は payload に含まれない場合もあるので既存値を引き継ぐ
-                ? { ...updatedCall, history: updatedCall.history?.length ? updatedCall.history : c.history }
-                : c
-              )
+              prev.map(c => {
+                if (c.id !== updatedCall.id) return c;
+                // payload.new が部分的な場合（REPLICA IDENTITY DEFAULT）も
+                // 既存値を保持しつつ更新されたフィールドだけ上書き
+                const merged: typeof c = {
+                  id:             c.id,
+                  customerId:     updatedCall.customerId     || c.customerId,
+                  requester:      updatedCall.requester      || c.requester,
+                  assignee:       updatedCall.assignee       || c.assignee,
+                  listType:       updatedCall.listType       || c.listType,
+                  rank:           updatedCall.rank           || c.rank,
+                  dateTime:       updatedCall.dateTime       || c.dateTime,
+                  notes:          updatedCall.notes          !== undefined ? updatedCall.notes : c.notes,
+                  status:         updatedCall.status         || c.status,
+                  absenceCount:   updatedCall.absenceCount   ?? c.absenceCount,
+                  prechecker:     updatedCall.prechecker     !== undefined ? updatedCall.prechecker : c.prechecker,
+                  imported:       updatedCall.imported       ?? c.imported,
+                  isStrict:       updatedCall.isStrict       ?? c.isStrict,
+                  isDetailedTime: updatedCall.isDetailedTime ?? c.isDetailedTime,
+                  completedAt:    updatedCall.completedAt    !== undefined ? updatedCall.completedAt : c.completedAt,
+                  createdAt:      updatedCall.createdAt      || c.createdAt,
+                  // history は payload に含まれない場合もあるので既存値を優先
+                  history:        updatedCall.history?.length ? updatedCall.history : c.history,
+                };
+                return merged;
+              })
             );
           } else if (eventType === 'DELETE' && oldRow?.id) {
             callback(prev => prev.filter(c => c.id !== oldRow.id));
@@ -490,11 +511,26 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
           } else if (eventType === 'UPDATE' && newRow) {
             const updatedUser = rowToUser(newRow);
             callback(prev =>
-              prev.map(u => u.name === updatedUser.name
-                // profile_picture は payload に含まれない場合もあるので既存値を引き継ぐ
-                ? { ...u, ...updatedUser, profilePicture: updatedUser.profilePicture ?? u.profilePicture }
-                : u
-              )
+              prev.map(u => {
+                if (u.name !== updatedUser.name) return u;
+                // null/undefined フィールドは既存値を保持（部分的 payload 対策）
+                return {
+                  name:               updatedUser.name,
+                  furigana:           updatedUser.furigana           ?? u.furigana,
+                  isAdmin:            updatedUser.isAdmin,
+                  isLinePrechecker:   updatedUser.isLinePrechecker,
+                  isSuperAdmin:       updatedUser.isSuperAdmin,
+                  password:           updatedUser.password           || u.password,
+                  profilePicture:     updatedUser.profilePicture     ?? u.profilePicture,
+                  availabilityStatus: updatedUser.availabilityStatus || u.availabilityStatus,
+                  nonWorkingDays:     updatedUser.nonWorkingDays     ?? u.nonWorkingDays,
+                  availableProducts:  updatedUser.availableProducts  ?? u.availableProducts,
+                  comment:            updatedUser.comment            ?? u.comment,
+                  commentUpdatedAt:   updatedUser.commentUpdatedAt   ?? u.commentUpdatedAt,
+                  statusRevertAt:     updatedUser.statusRevertAt     !== undefined ? updatedUser.statusRevertAt : u.statusRevertAt,
+                  createdAt:          updatedUser.createdAt          || u.createdAt,
+                };
+              })
             );
           } else if (eventType === 'DELETE' && oldRow?.name) {
             callback(prev => prev.filter(u => u.name !== oldRow.name));
