@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { CallRequest, ListType, Rank } from '../types';
-import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS } from '../constants';
+import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
 
@@ -48,6 +48,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
 
+  // AP戻し / 回線受注 チェック状態
+  const [isApReturn, setIsApReturn] = useState(false);
+  const [isLineOrder, setIsLineOrder] = useState(false);
+
   // call prop が外部（インライン編集など）で更新されたとき、フォームの state を同期する
   useEffect(() => {
     setCustomerId(call.customerId);
@@ -60,6 +64,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     setNotes(call.notes);
     setIsStrict(call.isStrict ?? false);
     setIsDetailedTime(call.isDetailedTime ?? false);
+    setIsApReturn(false);
+    setIsLineOrder(false);
   }, [call.id, call.customerId, call.assignee, call.requester, call.listType, call.rank, call.dateTime, call.notes, call.isStrict, call.isDetailedTime]);
 
   const today = useMemo(() => {
@@ -67,15 +73,66 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
+  // AP戻し チェック ON/OFF
+  const handleApReturnChange = (checked: boolean) => {
+    setIsApReturn(checked);
+    if (checked) {
+      // ランク → 通常選択肢「立ち上げ」
+      setRank('立ち上げ');
+      // 担当者 → 元の依頼者（call.requester）
+      setAssignee(call.requester);
+      // 依頼者 → チェックを入れたメンバー（currentUserName）
+      if (currentUserName) setRequester(currentUserName);
+    } else {
+      // 元の値に戻す
+      setRank(call.rank);
+      setAssignee(call.assignee);
+      setRequester(call.requester);
+    }
+  };
+
+  // 回線受注 チェック ON/OFF
+  const handleLineOrderChange = (checked: boolean) => {
+    setIsLineOrder(checked);
+    if (checked) {
+      // ランク → 前確選択肢「SB光前確」
+      setRank('SB光前確');
+      // 担当者 → 回線前確
+      setAssignee(PRECHECKER_ASSIGNEE_NAME);
+      // 依頼者 → チェックを入れたメンバー（currentUserName）
+      if (currentUserName) setRequester(currentUserName);
+    } else {
+      // 元の値に戻す
+      setRank(call.rank);
+      setAssignee(call.assignee);
+      setRequester(call.requester);
+    }
+  };
+
+  // AP戻し時は通常ランク選択肢、回線受注時は前確ランク選択肢、それ以外は元のテーマに従う
+  const effectiveIsPrecheckForRank = isLineOrder ? true : isApReturn ? false : isPrecheckTheme;
+
   const timeOptions = isPrecheckTheme ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
   const rankOptionsForEdit = useMemo(() => {
-    const options = isPrecheckTheme ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
-    if (!options.includes(call.rank)) {
-        return [call.rank, ...options];
+    const options = effectiveIsPrecheckForRank ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+    if (!options.includes(rank)) {
+      return [rank, ...options];
     }
     return options;
-  }, [isPrecheckTheme, call.rank]);
+  }, [effectiveIsPrecheckForRank, rank]);
+
+  // AP戻し・回線受注チェック時は担当者選択肢を拡張（回線前確 or 元の依頼者が含まれるよう）
+  const assigneeOptions = useMemo(() => {
+    const base = [...members];
+    if (isApReturn && call.requester && !base.includes(call.requester)) {
+      base.push(call.requester);
+    }
+    if (isLineOrder && !base.includes(PRECHECKER_ASSIGNEE_NAME)) {
+      base.push(PRECHECKER_ASSIGNEE_NAME);
+    }
+    return base;
+  }, [members, isApReturn, isLineOrder, call.requester]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +183,9 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     ? 'bg-[#0f1623] text-slate-300 border border-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition'
     : 'bg-white text-slate-700 border border-slate-300 font-bold py-2 px-4 rounded-lg hover:bg-slate-50 transition';
 
+  // AP戻し・回線受注 チェックボックスのスタイル
+  const specialCheckBg = isDarkMode ? 'bg-[#1a2236] border-slate-600' : 'bg-slate-50 border-slate-200';
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-3 text-sm">
@@ -136,8 +196,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           </div>
           <div>
             <label htmlFor={`edit-assignee-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>担当者</label>
-            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => setAssignee(e.target.value)} required className={selectClass}>
-              {members.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => setAssignee(e.target.value)} required className={selectClass}
+              disabled={isApReturn || isLineOrder}
+            >
+              {assigneeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
           <div className="md:col-span-2">
@@ -210,16 +272,54 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           </div>
           <div>
             <label htmlFor={`edit-requester-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>依頼者</label>
-            <select id={`edit-requester-${call.id}`} value={requester} onChange={(e) => setRequester(e.target.value)} required className={selectClass}>
+            <select id={`edit-requester-${call.id}`} value={requester} onChange={(e) => setRequester(e.target.value)} required className={selectClass}
+              disabled={isApReturn || isLineOrder}
+            >
               {members
                 .filter(opt => {
-                  // ログイン中の本人 または 現在設定されている依頼者のみ選択可
+                  if (isApReturn || isLineOrder) return true; // チェック時は全員表示
                   return opt === currentUserName || opt === call.requester;
                 })
                 .map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
         </div>
+
+        {/* ── AP戻し / 回線受注 ── */}
+        {isPrecheckTheme && (
+          <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
+            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+              <input
+                type="checkbox"
+                checked={isApReturn}
+                onChange={e => handleApReturnChange(e.target.checked)}
+                className="w-4 h-4 accent-[#0193be] cursor-pointer"
+              />
+              <span className={`text-sm font-bold ${isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]'}`}>AP戻し</span>
+              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                — ランク「立ち上げ」・担当者を依頼者へ変更して通常一覧へ戻す
+              </span>
+            </label>
+          </div>
+        )}
+
+        {!isPrecheckTheme && listType === '回線' && (
+          <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
+            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+              <input
+                type="checkbox"
+                checked={isLineOrder}
+                onChange={e => handleLineOrderChange(e.target.checked)}
+                className="w-4 h-4 accent-[#118f82] cursor-pointer"
+              />
+              <span className={`text-sm font-bold text-[#118f82]`}>回線受注</span>
+              <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                — ランク「SB光前確」・担当者を回線前確へ変更して前確一覧へ移す
+              </span>
+            </label>
+          </div>
+        )}
+
         <div>
           <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>備考</label>
           <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`}></textarea>
