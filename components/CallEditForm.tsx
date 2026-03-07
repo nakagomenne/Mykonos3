@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CallRequest, ListType, Rank } from '../types';
 import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS } from '../constants';
 import AlertModal from './AlertModal';
@@ -47,6 +47,20 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const [isDetailedTime, setIsDetailedTime] = useState(call.isDetailedTime ?? false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
+
+  // call prop が外部（インライン編集など）で更新されたとき、フォームの state を同期する
+  useEffect(() => {
+    setCustomerId(call.customerId);
+    setAssignee(call.assignee);
+    setRequester(call.requester);
+    setListType(call.listType);
+    setRank(call.rank);
+    setDate(call.dateTime.split('T')[0]);
+    setTime(call.dateTime.split('T')[1]);
+    setNotes(call.notes);
+    setIsStrict(call.isStrict ?? false);
+    setIsDetailedTime(call.isDetailedTime ?? false);
+  }, [call.id, call.customerId, call.assignee, call.requester, call.listType, call.rank, call.dateTime, call.notes, call.isStrict, call.isDetailedTime]);
 
   const today = useMemo(() => {
     const d = new Date();
