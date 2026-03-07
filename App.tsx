@@ -883,11 +883,31 @@ const App: React.FC = () => {
       // Realtime で自動更新されるが、即時性のためにローカルにも反映
       setCalls(prevCalls => [...prevCalls, newCall]);
 
-      // 自分が作成した or 自分宛に作成した案件を6秒間点滅
-      setRecentlyAddedCallId(newCall.id);
-      setTimeout(() => setRecentlyAddedCallId(null), 6000);
-
       setIsFormVisible(false);
+
+      // 作成した案件が確実に表示されるビューに切り替えてから点滅
+      if (newCall.assignee === currentUser?.name) {
+        // 自分宛 → mine タブに切り替え
+        if (viewMode !== 'mine') {
+          setViewMode('mine');
+          setDisplayViewMode('mine');
+        }
+      } else {
+        // 他メンバー宛 → others タブ + 対象メンバーを選択
+        if (viewMode !== 'others' || selectedMember !== newCall.assignee) {
+          setViewMode('others');
+          setDisplayViewMode('others');
+          setSelectedMember(newCall.assignee);
+          setPreviewMember(null);
+        }
+      }
+
+      // ビュー切り替えを一フレーム待ってから点滅セット（確実にリストに表示された後）
+      setTimeout(() => {
+        setRecentlyAddedCallId(newCall.id);
+        setTimeout(() => setRecentlyAddedCallId(null), 6000);
+      }, 50);
+
     } catch (err: any) {
       console.error('案件の作成に失敗しました:', err);
       alert(`案件の作成に失敗しました: ${err?.message ?? err}`);
