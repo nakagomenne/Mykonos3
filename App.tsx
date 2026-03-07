@@ -4,7 +4,7 @@ import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditCha
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon } from './components/icons';
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -1425,7 +1425,17 @@ const App: React.FC = () => {
       return datePartA.localeCompare(datePartB);
     }
 
-    return getTimePriority(timePartA) - getTimePriority(timePartB);
+    const timePriorityDiff = getTimePriority(timePartA) - getTimePriority(timePartB);
+    if (timePriorityDiff !== 0) {
+      return timePriorityDiff;
+    }
+
+    // 日時が同じ場合はランク順（RANK_OPTIONS の配列順）でソート
+    const rankIndexA = RANK_OPTIONS.indexOf(a.rank as any);
+    const rankIndexB = RANK_OPTIONS.indexOf(b.rank as any);
+    const rA = rankIndexA === -1 ? 999 : rankIndexA;
+    const rB = rankIndexB === -1 ? 999 : rankIndexB;
+    return rA - rB;
   });
 
   // JST今日の日付文字列 "YYYY-MM-DD"
