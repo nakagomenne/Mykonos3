@@ -95,6 +95,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
             </div>
             {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
             <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
+            {isPrecheckTheme && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
             <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
             {!isPrecheckTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
             <div className="w-24 flex-shrink-0 text-center">ランク</div>
