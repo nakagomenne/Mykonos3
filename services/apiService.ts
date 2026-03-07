@@ -448,7 +448,8 @@ export function subscribeToCallRequests(
           if (eventType === 'INSERT' && newRow) {
             const newCall = rowToCallRequest(newRow);
             if (onInsert) onInsert(newCall);
-            callback(prev => [...prev, newCall]);
+            // ローカルで即時追加済みの場合は重複しないようIDチェック
+            callback(prev => prev.some(c => c.id === newCall.id) ? prev : [...prev, newCall]);
           } else if (eventType === 'UPDATE' && newRow) {
             const updatedCall = rowToCallRequest(newRow);
             callback(prev =>
