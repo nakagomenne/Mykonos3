@@ -83,11 +83,19 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       setAssignee(call.requester);
       // 依頼者 → チェックを入れたメンバー（currentUserName）
       if (currentUserName) setRequester(currentUserName);
+      // 日時 → 今日の「このあとOK」
+      setDate(today);
+      setTime('このあとOK');
+      // 備考 → 先頭に2行改行を追加
+      setNotes(prev => '\n\n' + prev);
     } else {
       // 元の値に戻す
       setRank(call.rank);
       setAssignee(call.assignee);
       setRequester(call.requester);
+      setDate(call.dateTime.split('T')[0]);
+      setTime(call.dateTime.split('T')[1]);
+      setNotes(call.notes);
     }
   };
 
@@ -101,11 +109,19 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       setAssignee(PRECHECKER_ASSIGNEE_NAME);
       // 依頼者 → チェックを入れたメンバー（currentUserName）
       if (currentUserName) setRequester(currentUserName);
+      // 日時 → 今日の「このあとOK」
+      setDate(today);
+      setTime('このあとOK');
+      // 備考 → 先頭に2行改行を追加
+      setNotes(prev => '\n\n' + prev);
     } else {
       // 元の値に戻す
       setRank(call.rank);
       setAssignee(call.assignee);
       setRequester(call.requester);
+      setDate(call.dateTime.split('T')[0]);
+      setTime(call.dateTime.split('T')[1]);
+      setNotes(call.notes);
     }
   };
 
