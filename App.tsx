@@ -54,6 +54,7 @@ import {
   addCommentReply,
   deleteRepliesByUserName,
   subscribeToCommentReplies,
+  searchDeletedCallRequests,
 } from './services/apiService';
 
 interface SearchResultItem {
@@ -61,6 +62,7 @@ interface SearchResultItem {
   value: string;
   call?: CallRequest;
   user?: User;
+  isDeleted?: boolean;
 }
 
 interface Alert {
@@ -103,6 +105,7 @@ const App: React.FC = () => {
   const [recentlyUpdatedCallId, setRecentlyUpdatedCallId] = useState<string | null>(null);
   const [recentlyAddedCallId, setRecentlyAddedCallId] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<CallRequest[] | null>(null);
+  const [isSearchDeleted, setIsSearchDeleted] = useState(false);
   const [searchResultsList, setSearchResultsList] = useState<SearchResultItem[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [formResetCounter, setFormResetCounter] = useState(0);
@@ -733,6 +736,24 @@ const App: React.FC = () => {
           return { type: 'user', value: user.name, user, _count: userCallCount } as SearchResultItem & { _count: number };
         });
 
+      // 既にアクティブ案件に含まれていない顧客IDの削除済み案件をサジェストに追加（非同期で後から追加）
+      const activeCustomerIds = new Set(uniqueCustomerIds.map(id => id.toLowerCase()));
+      searchDeletedCallRequests(trimmedQuery).then(deletedCalls => {
+        const uniqueDeletedIds = [...new Set<string>(deletedCalls.map(c => c.customerId))]
+          .filter(cid => !activeCustomerIds.has(cid.toLowerCase()));
+        const deletedResults: SearchResultItem[] = uniqueDeletedIds.slice(0, 3).map(customerId => {
+          const relatedDeleted = deletedCalls.filter(c => c.customerId === customerId);
+          const call = relatedDeleted[0];
+          return { type: 'customer', value: customerId, call, isDeleted: true, _count: relatedDeleted.length, _assignee: call?.assignee, _activeCount: 0, _completedCount: relatedDeleted.length, _allCompleted: true } as SearchResultItem & { _count: number; _assignee: string; _activeCount: number; _completedCount: number; _allCompleted: boolean };
+        });
+        if (deletedResults.length > 0) {
+          setSearchResultsList(prev => {
+            const combined = [...prev, ...deletedResults].slice(0, 12);
+            return combined;
+          });
+        }
+      }).catch(() => {/* 削除済み検索エラーは無視 */});
+
       setSearchResultsList([...customerResults, ...userResults].slice(0, 12));
     } else {
       setSearchResultsList([]);
@@ -1072,15 +1093,17 @@ const App: React.FC = () => {
     const handleSelectCall = (call: CallRequest) => {
     setSelectedCall(call);
     setSearchResults(null);
+    setIsSearchDeleted(false);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     const trimmedQuery = searchQuery.trim().toLowerCase();
     if (!trimmedQuery) return;
 
     const foundCalls = calls.filter(call => call.customerId.toLowerCase().includes(trimmedQuery));
     if (foundCalls.length > 0) {
         setSearchResults(foundCalls);
+        setIsSearchDeleted(false);
         setSelectedCall(null);
         setSearchQuery('');
         setSearchResultsList([]);
@@ -1101,18 +1124,47 @@ const App: React.FC = () => {
         return;
     }
 
+    // アクティブ案件・ユーザーに見つからない場合、削除済み案件を検索
+    try {
+      const deletedCalls = await searchDeletedCallRequests(trimmedQuery);
+      if (deletedCalls.length > 0) {
+        setSearchResults(deletedCalls);
+        setIsSearchDeleted(true);
+        setSelectedCall(null);
+        setSearchQuery('');
+        setSearchResultsList([]);
+        setIsSearchFocused(false);
+        return;
+      }
+    } catch {/* 削除済み検索エラーは無視 */}
+
     alert('指定された顧客IDまたはメンバー名に一致する情報は見つかりませんでした。');
   };
   
-  const handleSearchResultClick = (item: SearchResultItem) => {
+  const handleSearchResultClick = async (item: SearchResultItem) => {
       setSearchQuery('');
       setSearchResultsList([]);
       setIsSearchFocused(false);
 
       if (item.type === 'customer' && item.call) {
-          const matchingCalls = calls.filter(c => c.customerId.toLowerCase() === item.call!.customerId.toLowerCase());
-          setSearchResults(matchingCalls.length > 0 ? matchingCalls : [item.call]);
-          setSelectedCall(null);
+          if (item.isDeleted) {
+            // 削除済み案件：同じ顧客IDの削除済み案件を全件取得して表示
+            try {
+              const deletedCalls = await searchDeletedCallRequests(item.call.customerId);
+              const matchingDeleted = deletedCalls.filter(c => c.customerId.toLowerCase() === item.call!.customerId.toLowerCase());
+              setSearchResults(matchingDeleted.length > 0 ? matchingDeleted : [item.call]);
+              setIsSearchDeleted(true);
+            } catch {
+              setSearchResults([item.call]);
+              setIsSearchDeleted(true);
+            }
+            setSelectedCall(null);
+          } else {
+            const matchingCalls = calls.filter(c => c.customerId.toLowerCase() === item.call!.customerId.toLowerCase());
+            setSearchResults(matchingCalls.length > 0 ? matchingCalls : [item.call]);
+            setIsSearchDeleted(false);
+            setSelectedCall(null);
+          }
       } else if (item.type === 'user' && item.user) {
           if (currentUser && item.user.name === currentUser.name) {
               handleViewModeChange('mine');
@@ -1777,22 +1829,27 @@ const App: React.FC = () => {
                               const ext = item as SearchResultItem & { _count?: number; _assignee?: string; _activeCount?: number; _completedCount?: number; _allCompleted?: boolean };
                               return (
                                 <>
-                                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                                    <MagnifyingGlassIcon className="w-4 h-4 text-[#0193be]" />
+                                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${item.isDeleted ? 'bg-slate-100' : 'bg-blue-50'}`}>
+                                    <MagnifyingGlassIcon className={`w-4 h-4 ${item.isDeleted ? 'text-slate-400' : 'text-[#0193be]'}`} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-[#0193be] truncate">{item.value}</div>
+                                    <div className={`font-medium truncate ${item.isDeleted ? 'text-slate-400 line-through' : 'text-[#0193be]'}`}>{item.value}</div>
                                     <div className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
                                       {ext._assignee && <span>担当: {ext._assignee}</span>}
-                                      {ext._activeCount !== undefined && ext._activeCount > 0 && (
+                                      {!item.isDeleted && ext._activeCount !== undefined && ext._activeCount > 0 && (
                                         <span className="text-blue-500">追客中 {ext._activeCount}件</span>
                                       )}
-                                      {ext._completedCount !== undefined && ext._completedCount > 0 && (
+                                      {!item.isDeleted && ext._completedCount !== undefined && ext._completedCount > 0 && (
                                         <span className="text-green-500">完了 {ext._completedCount}件</span>
+                                      )}
+                                      {item.isDeleted && ext._count !== undefined && ext._count > 0 && (
+                                        <span className="text-slate-400">{ext._count}件</span>
                                       )}
                                     </div>
                                   </div>
-                                  {ext._allCompleted ? (
+                                  {item.isDeleted ? (
+                                    <span className="flex-shrink-0 text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">削除済み</span>
+                                  ) : ext._allCompleted ? (
                                     <span className="flex-shrink-0 text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">完了済み</span>
                                   ) : (
                                     <span className="flex-shrink-0 text-xs bg-blue-50 text-[#0193be] px-2 py-0.5 rounded-full">顧客ID</span>
@@ -2897,11 +2954,13 @@ const App: React.FC = () => {
         onClose={() => {
             setSelectedCall(null);
             setSearchResults(null);
+            setIsSearchDeleted(false);
             handleCancelDuplicateCreation();
         }}
         onJump={handleJumpToCall}
         onReactivate={handleReactivateCall}
-        showJumpButton={!!searchResults}
+        showJumpButton={!!searchResults && !isSearchDeleted}
+        isDeletedSearch={isSearchDeleted}
         isConfirmingDuplicate={!!pendingDuplicate}
         onConfirmDuplicate={handleConfirmDuplicateCreation}
         isPrecheckTheme={isPrecheckTheme}

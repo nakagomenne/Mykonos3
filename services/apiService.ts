@@ -105,11 +105,12 @@ function userToRow(data: Partial<User>): Record<string, any> {
 const CALL_REQUEST_COLUMNS_WITHOUT_HISTORY =
   'id,customer_id,requester,assignee,list_type,rank,date_time,notes,status,absence_count,prechecker,imported,is_strict,is_detailed_time,completed_at,application_number,created_at';
 
-/** 全案件を取得する（history 除外で高速化） */
+/** 全案件を取得する（history 除外で高速化・論理削除済みを除外） */
 export async function fetchCallRequests(): Promise<CallRequest[]> {
   const { data, error } = await supabase
     .from('call_requests')
     .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true });
 
   if (error) throw new Error(`案件の取得に失敗しました: ${error.message}`);
@@ -202,28 +203,43 @@ export async function updateCallRequest(
   return rowToCallRequest(data);
 }
 
-/** 案件を削除する */
+/** 案件を論理削除する（deleted_at を現在時刻にセット） */
 export async function deleteCallRequest(id: string): Promise<void> {
   const { error } = await supabase
     .from('call_requests')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id);
 
   if (error) throw new Error(`案件の削除に失敗しました: ${error.message}`);
 }
 
-/** 期限切れの完了済み案件を一括削除する（昨日以前に完了したもの） */
+/** 期限切れの完了済み案件を論理削除する（昨日以前に完了したもの） */
 export async function deleteExpiredCompletedCalls(): Promise<void> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const { error } = await supabase
     .from('call_requests')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('status', '完了')
-    .lt('completed_at', today.toISOString());
+    .lt('completed_at', today.toISOString())
+    .is('deleted_at', null);
 
   if (error) throw new Error(`期限切れ案件の削除に失敗しました: ${error.message}`);
+}
+
+/** 削除済み案件を顧客IDで検索する（論理削除レコードのみ） */
+export async function searchDeletedCallRequests(customerId: string): Promise<CallRequest[]> {
+  const { data, error } = await supabase
+    .from('call_requests')
+    .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY)
+    .not('deleted_at', 'is', null)
+    .ilike('customer_id', `%${customerId}%`)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) throw new Error(`削除済み案件の検索に失敗しました: ${error.message}`);
+  return (data ?? []).map(rowToCallRequest);
 }
 
 /** 複数の案件を一括作成する（全体タスク用） */

@@ -16,6 +16,7 @@ interface CallDetailModalProps {
   onConfirmDuplicate?: () => void;
   isPrecheckTheme?: boolean;
   showJumpButton?: boolean;
+  isDeletedSearch?: boolean;
   users?: User[];
 }
 
@@ -54,7 +55,7 @@ const formatHistoryValue = (field: string, value: any) => {
 const CallDetailModal: React.FC<CallDetailModalProps> = ({
   calls, duplicateCalls, selectedCallDuplicates, onClose, onJump, onReactivate,
   isConfirmingDuplicate, onConfirmDuplicate,
-  isPrecheckTheme = false, showJumpButton = false, users = []
+  isPrecheckTheme = false, showJumpButton = false, isDeletedSearch = false, users = []
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [detailedCall, setDetailedCall] = useState<CallRequest | null>(null);
@@ -132,6 +133,12 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
 
       return (
       <div className="bg-white p-5 rounded-lg border border-slate-200">
+        {isDeletedSearch && (
+          <div className="mb-3 px-3 py-2 bg-slate-100 border border-slate-300 rounded-md flex items-center gap-2 text-sm text-slate-500">
+            <span className="text-lg">🗑️</span>
+            <span>この案件は削除済みです。参照のみ可能です。</span>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             {/* 顧客ID */}
             <div className="sm:col-span-2">
@@ -301,6 +308,12 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
             </>
           ) : calls && calls.length > 1 ? (
             <div className="bg-white p-5 rounded-lg border border-slate-200">
+                {isDeletedSearch && (
+                  <div className="mb-3 px-3 py-2 bg-slate-100 border border-slate-300 rounded-md flex items-center gap-2 text-sm text-slate-500">
+                    <span className="text-lg">🗑️</span>
+                    <span>これらは削除済みの案件です。参照のみ可能です。</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-baseline mb-3">
                     <strong className={`${mainColorClassLight} block`}>検索結果:</strong>
                     <span className="text-sm text-slate-500">{calls.length}件の案件</span>
