@@ -490,6 +490,14 @@ const App: React.FC = () => {
           handleUpdateUserStatus(user.name, '受付可');
         }
       }
+
+      // 今日が稼働日なのにステータスが当日受付不可 → 受付可に戻す
+      // （当日受付不可は当日限りのため、翌日になったら自動復帰）
+      if (!isNonWorkingDay && user.availabilityStatus === '当日受付不可') {
+        if (user.name === currentUser.name || currentUser.isAdmin) {
+          handleUpdateUserStatus(user.name, '受付可');
+        }
+      }
     });
   }, [currentUser, users, isLoading]);
 
@@ -607,6 +615,13 @@ const App: React.FC = () => {
           await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
         } catch (e) {
           console.error('0時 受付可自動復帰に失敗:', e);
+        }
+      } else if (!isTomorrowNonWorking && user.availabilityStatus === '当日受付不可') {
+        // 当日受付不可は当日限り → 翌日が稼働日なら受付可に戻す
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
+        } catch (e) {
+          console.error('0時 当日受付不可→受付可 自動復帰に失敗:', e);
         }
       }
     }, msUntilCheck);
