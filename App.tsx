@@ -357,28 +357,58 @@ const App: React.FC = () => {
   }, [notificationSettings]);
 
   useEffect(() => {
-    // 回線前確案件と通常案件は別グループとして重複チェックする
-    // 「回線前確同士」で同一顧客ID → 重複
-    // 「通常案件同士」で同一顧客ID → 重複
-    // 「回線前確 vs 通常」は重複扱いしない
-    const normalCounts   = new Map<string, number>();
-    const precheckCounts = new Map<string, number>();
+    // 重複チェック：同一 assignee 内で同一顧客IDが複数ある場合のみ重複とする
+    // ・回線前確案件と通常案件は別グループ
+    // ・全体タスクのように異なる assignee に同じ顧客IDを振っても重複扱いしない
+    // ・assignee ごとに (assignee + customerId) の組み合わせをカウント
+    const normalAssigneeIds   = new Map<string, Set<string>>(); // customerId → assignee Set
+    const precheckAssigneeIds = new Map<string, Set<string>>();
 
     calls.forEach(call => {
-      if (call.status === '完了') return; // 完了案件は重複カウントに含めない
+      if (call.status === '完了') return;
       const trimmedId = call.customerId.trim().toLowerCase();
       if (!trimmedId) return;
       if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
-        precheckCounts.set(trimmedId, (precheckCounts.get(trimmedId) || 0) + 1);
+        if (!precheckAssigneeIds.has(trimmedId)) precheckAssigneeIds.set(trimmedId, new Set());
+        precheckAssigneeIds.get(trimmedId)!.add(call.assignee + ':' + call.id); // 同一案件重複防止
       } else {
-        normalCounts.set(trimmedId, (normalCounts.get(trimmedId) || 0) + 1);
+        if (!normalAssigneeIds.has(trimmedId)) normalAssigneeIds.set(trimmedId, new Set());
+        // 同一 assignee 内での重複チェック用に assignee を key として件数管理
+        const key = call.assignee + '::' + trimmedId;
+        normalAssigneeIds.get(trimmedId)!.add(key);
       }
+    });
+
+    // 通常案件：同一 assignee で同一 customerId が2件以上ある場合を重複とする
+    const normalCountPerAssignee = new Map<string, number>(); // "assignee::customerId" → count
+    calls.forEach(call => {
+      if (call.status === '完了') return;
+      if (call.assignee === PRECHECKER_ASSIGNEE_NAME) return;
+      const trimmedId = call.customerId.trim().toLowerCase();
+      if (!trimmedId) return;
+      const key = call.assignee + '::' + trimmedId;
+      normalCountPerAssignee.set(key, (normalCountPerAssignee.get(key) || 0) + 1);
+    });
+
+    // 回線前確：同一 customerId が2件以上（前確は全員共通の担当者なので従来通り）
+    const precheckCounts = new Map<string, number>();
+    calls.forEach(call => {
+      if (call.status === '完了') return;
+      if (call.assignee !== PRECHECKER_ASSIGNEE_NAME) return;
+      const trimmedId = call.customerId.trim().toLowerCase();
+      if (!trimmedId) return;
+      precheckCounts.set(trimmedId, (precheckCounts.get(trimmedId) || 0) + 1);
     });
 
     const normalDups   = new Set<string>();
     const precheckDups = new Set<string>();
-    for (const [id, count] of normalCounts.entries()) {
-      if (count > 1) normalDups.add(id);
+
+    for (const [key, count] of normalCountPerAssignee.entries()) {
+      if (count > 1) {
+        // key = "assignee::customerId" → customerId だけ取り出す
+        const customerId = key.split('::').slice(1).join('::');
+        normalDups.add(customerId);
+      }
     }
     for (const [id, count] of precheckCounts.entries()) {
       if (count > 1) precheckDups.add(id);
@@ -1462,14 +1492,15 @@ const App: React.FC = () => {
   };
 
   const handleCreateBulkTasks = async (
-    taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId'>,
+    taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee'> & { customerId?: string; isBulkTask?: boolean },
     assignees: string[]
   ) => {
     if (!currentUser) return;
     try {
+      const { isBulkTask: _omit, ...rest } = taskData as any;
       const callsData = assignees.map(assignee => ({
-        ...taskData,
-        customerId: '',
+        ...rest,
+        customerId: taskData.customerId?.trim() ?? '',
         assignee,
         prechecker: null,
         imported: false,

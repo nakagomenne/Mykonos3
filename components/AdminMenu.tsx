@@ -304,6 +304,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
             setLocalUsers(JSON.parse(JSON.stringify(users)));
             setUsersToDelete(new Set());
             setSelectedUsersForTask(new Set());
+            setActivePresets(new Set());
             setActiveTab(alerts.length > 0 ? 'alerts' : 'users');
         } else if (isOpen && wasOpen) {
             // すでに開いている状態で users が Realtime 更新された場合は
@@ -536,6 +537,59 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         }
     };
 
+    const [activePresets, setActivePresets] = useState<Set<string>>(new Set());
+
+    const handleTogglePreset = (preset: string) => {
+        setActivePresets(prev => {
+            const next = new Set(prev);
+            if (next.has(preset)) {
+                next.delete(preset);
+            } else {
+                next.add(preset);
+            }
+            // プリセットに応じてメンバーを絞り込む
+            applyPresets(next);
+            return next;
+        });
+    };
+
+    const applyPresets = (presets: Set<string>) => {
+        if (presets.size === 0) {
+            setSelectedUsersForTask(new Set());
+            return;
+        }
+
+        // 今日の日付文字列
+        const today = new Date();
+        const localDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000);
+        const todayStr = localDate.toISOString().split('T')[0];
+
+        const selected = new Set<string>();
+        localUsers.forEach(user => {
+            let match = true;
+
+            if (presets.has('回線')) {
+                if (!(user.availableProducts || []).includes('回線')) match = false;
+            }
+            if (presets.has('水')) {
+                if (!(user.availableProducts || []).includes('水')) match = false;
+            }
+            if (presets.has('本日稼働')) {
+                const isNonWorking = (user.nonWorkingDays || []).includes(todayStr);
+                const isUnavailable = user.availabilityStatus === '非稼働';
+                if (isNonWorking || isUnavailable) match = false;
+            }
+            if (presets.has('本日非稼働')) {
+                const isNonWorking = (user.nonWorkingDays || []).includes(todayStr);
+                const isUnavailable = user.availabilityStatus === '非稼働';
+                if (!isNonWorking && !isUnavailable) match = false;
+            }
+
+            if (match) selected.add(user.name);
+        });
+        setSelectedUsersForTask(selected);
+    };
+
     const handleToggleUserForTask = (name: string) => {
         setSelectedUsersForTask(prev => {
             const newSet = new Set(prev);
@@ -545,29 +599,22 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         });
     };
 
-    const handleSelectByProduct = (product: '回線' | '水') => {
-        const selected = new Set<string>();
-        localUsers.forEach(user => {
-            if ((user.availableProducts || []).includes(product)) {
-                selected.add(user.name);
-            }
-        });
-        setSelectedUsersForTask(selected);
-    };
-
     const handleSelectAllTasks = () => {
+        setActivePresets(new Set());
         setSelectedUsersForTask(new Set(localUsers.map(u => u.name)));
     };
 
     const handleClearAllTasks = () => {
+        setActivePresets(new Set());
         setSelectedUsersForTask(new Set());
     };
 
-    const handleBulkTaskSubmit = (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId' | 'requester' | 'prechecker' | 'imported' | 'history' | 'absenceCount'>) => {
+    const handleBulkTaskSubmit = (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId' | 'requester' | 'prechecker' | 'imported' | 'history' | 'absenceCount'> & { customerId?: string }) => {
         const fullTaskData = { ...taskData, requester: currentUser.name };
         onCreateTasks(fullTaskData, Array.from(selectedUsersForTask));
         setIsTaskModalOpen(false);
         setSelectedUsersForTask(new Set());
+        setActivePresets(new Set());
     };
 
     const TabButton: React.FC<{tab: AdminTab, label: string, count?: number}> = ({ tab, label, count = 0 }) => (
@@ -868,23 +915,42 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
                             {activeTab === 'tasks' && (
                                 <div role="tabpanel" aria-labelledby="tab-tasks">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => handleSelectByProduct('回線')} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition">回線</button>
-                                            <button onClick={() => handleSelectByProduct('水')} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition">水</button>
-                                            <button onClick={handleSelectAllTasks} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition">すべてにチェック</button>
-                                            <button onClick={handleClearAllTasks} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition">すべてクリア</button>
+                                    <div className="flex flex-wrap justify-between items-start gap-2 mb-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            {/* プリセットボタン（複数選択可） */}
+                                            {(['回線', '水', '本日稼働', '本日非稼働'] as const).map(preset => (
+                                                <button
+                                                    key={preset}
+                                                    onClick={() => handleTogglePreset(preset)}
+                                                    className={`px-3 py-1 text-sm border rounded-md transition font-medium ${
+                                                        activePresets.has(preset)
+                                                            ? 'bg-[#0193be] text-white border-[#0193be]'
+                                                            : 'border-slate-300 text-slate-600 hover:bg-slate-100'
+                                                    }`}
+                                                >
+                                                    {preset}
+                                                </button>
+                                            ))}
+                                            <button onClick={handleSelectAllTasks} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition text-slate-600">すべて</button>
+                                            <button onClick={handleClearAllTasks} className="px-3 py-1 text-sm border border-slate-300 rounded-md hover:bg-slate-100 transition text-slate-600">クリア</button>
                                         </div>
                                         <button 
                                             onClick={() => setIsTaskModalOpen(true)} 
                                             disabled={selectedUsersForTask.size === 0}
-                                            className="bg-[#0193be] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#017a9a] transition disabled:bg-slate-400 disabled:cursor-not-allowed"
+                                            className="bg-[#0193be] text-white font-bold py-2 px-4 rounded-lg hover:bg-[#017a9a] transition disabled:bg-slate-400 disabled:cursor-not-allowed flex-shrink-0"
                                         >
                                             作成 ({selectedUsersForTask.size})
                                         </button>
                                     </div>
                                     <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-2 border border-slate-200 rounded-md p-2">
-                                        {localUsers.map(user => (
+                                        {/* チェック済みが上、未チェックが下 */}
+                                        {[...localUsers]
+                                            .sort((a, b) => {
+                                                const aChecked = selectedUsersForTask.has(a.name) ? 0 : 1;
+                                                const bChecked = selectedUsersForTask.has(b.name) ? 0 : 1;
+                                                return aChecked - bChecked;
+                                            })
+                                            .map(user => (
                                             <li key={user.name}>
                                                 <label className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer transition">
                                                     <input
@@ -903,6 +969,10 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                         )}
                                                     </div>
                                                     <span className="text-[#0193be] text-sm font-medium">{user.name}</span>
+                                                    {/* 稼働ステータス表示 */}
+                                                    {user.availabilityStatus !== '受付可' && (
+                                                        <span className="text-xs text-slate-400 ml-auto">{user.availabilityStatus}</span>
+                                                    )}
                                                 </label>
                                             </li>
                                         ))}

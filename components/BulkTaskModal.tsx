@@ -9,11 +9,12 @@ import AlertModal from './AlertModal';
 interface BulkTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId' | 'requester' | 'prechecker' | 'imported' | 'history' | 'absenceCount'>) => void;
+  onSubmit: (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'requester' | 'prechecker' | 'imported' | 'history' | 'absenceCount'> & { isBulkTask?: boolean }) => void;
   selectedMemberCount: number;
 }
 
 const BulkTaskModal: React.FC<BulkTaskModalProps> = ({ isOpen, onClose, onSubmit, selectedMemberCount }) => {
+  const [customerId, setCustomerId] = useState('');
   const [rank, setRank] = useState<Rank | ''>('共有');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState('このあとOK');
@@ -42,11 +43,16 @@ const BulkTaskModal: React.FC<BulkTaskModalProps> = ({ isOpen, onClose, onSubmit
     }
     
     onSubmit({
+      customerId: customerId.trim(),
       listType: '',
       rank,
       dateTime: `${date}T${time}`,
-      notes
+      notes,
+      isBulkTask: true,
     });
+
+    // フォームリセット
+    setCustomerId('');
   };
   
   if (!isOpen) {
@@ -69,10 +75,27 @@ const BulkTaskModal: React.FC<BulkTaskModalProps> = ({ isOpen, onClose, onSubmit
         <form onSubmit={handleSubmit} className="flex-grow flex flex-col">
           <div className="p-6 overflow-y-auto space-y-4">
              <div className="p-3 bg-sky-50 border border-sky-200 rounded-md text-sm text-sky-800">
-                <strong>{selectedMemberCount}人</strong> のメンバーに一括でタスクを作成します。顧客IDは空欄で作成されます。
+                <strong>{selectedMemberCount}人</strong> のメンバーに一括でタスクを作成します。
+                顧客IDは空欄のままでも作成できます。全体タスクは重複扱いされません。
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* 顧客ID（任意） */}
+              <div className="md:col-span-2">
+                <label htmlFor="bulk-customer-id" className="block text-sm font-medium text-[#0193be]/80 mb-1">
+                  顧客ID <span className="text-slate-400 font-normal text-xs">（任意・全体タスクは重複扱いされません）</span>
+                </label>
+                <input
+                  type="text"
+                  id="bulk-customer-id"
+                  value={customerId}
+                  onChange={(e) => setCustomerId(e.target.value)}
+                  placeholder="空欄でも作成可能"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition text-slate-700"
+                />
+              </div>
+
               <div className="md:col-span-2">
                 <label htmlFor="bulk-rank" className="block text-sm font-medium text-[#0193be]/80 mb-1">ランク <span className="text-red-500">*</span></label>
                 <select 
