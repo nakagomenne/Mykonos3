@@ -102,8 +102,8 @@ const App: React.FC = () => {
   const [selectedCall, setSelectedCall] = useState<CallRequest | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [highlightedCallId, setHighlightedCallId] = useState<string | null>(null);
-  const [recentlyUpdatedCallId, setRecentlyUpdatedCallId] = useState<string | null>(null);
-  const [recentlyAddedCallId, setRecentlyAddedCallId] = useState<string | null>(null);
+  const [recentlyUpdatedCallIds, setRecentlyUpdatedCallIds] = useState<Set<string>>(new Set());
+  const [recentlyAddedCallIds, setRecentlyAddedCallIds] = useState<Set<string>>(new Set());
   const [searchResults, setSearchResults] = useState<CallRequest[] | null>(null);
   const [isSearchDeleted, setIsSearchDeleted] = useState(false);
   const [searchResultsList, setSearchResultsList] = useState<SearchResultItem[]>([]);
@@ -199,10 +199,14 @@ const App: React.FC = () => {
   const notificationSettingsRef = useRef<NotificationSettings>(notificationSettings);
   const currentUserRef = useRef<User | null>(currentUser);
   const usersRef = useRef<User[]>(users);
+  const callsRef = useRef<CallRequest[]>(calls);
+  const lastViewedTimestampsRef = useRef<Record<string, string>>(lastViewedTimestamps);
   const statusCheckedRef = useRef(false); // 起動時の稼働ステータス自動補正を1回だけ実行するフラグ
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { usersRef.current = users; }, [users]);
+  useEffect(() => { callsRef.current = calls; }, [calls]);
+  useEffect(() => { lastViewedTimestampsRef.current = lastViewedTimestamps; }, [lastViewedTimestamps]);
 
   const formatRelativeTime = (isoString?: string): string => {
     if (!isoString) return '';
@@ -305,8 +309,14 @@ const App: React.FC = () => {
         // 他メンバーが自分宛に追加した案件 or 自分が他メンバー宛に作成した案件を点滅
         // （自分が作成した場合は _createCall 側で既にセット済みなので requester チェックで除外）
         if (user && newCall.assignee === user.name && newCall.requester !== user.name) {
-          setRecentlyAddedCallId(newCall.id);
-          setTimeout(() => setRecentlyAddedCallId(null), 6000);
+          setRecentlyAddedCallIds(prev => new Set([...prev, newCall.id]));
+          setTimeout(() => setRecentlyAddedCallIds(prev => { const s = new Set(prev); s.delete(newCall.id); return s; }), 6000);
+        }
+
+        // 前確案件の Realtime INSERT 強調
+        if (user?.isLinePrechecker && newCall.assignee === PRECHECKER_ASSIGNEE_NAME) {
+          setRecentlyAddedCallIds(prev => new Set([...prev, newCall.id]));
+          setTimeout(() => setRecentlyAddedCallIds(prev => { const s = new Set(prev); s.delete(newCall.id); return s; }), 6000);
         }
       }
     );
@@ -462,8 +472,9 @@ const App: React.FC = () => {
   
   // ── 起動時・users更新時：非稼働日とステータスの整合性チェック ──
   // 起動時（初回ロード完了後）に稼働ステータスを自動補正する（1回のみ）
-  // ・今日が非稼働日 かつ ステータスが非稼働でない → 非稼働に修正
-  // ・今日が稼働日  かつ ステータスが非稼働       → 受付可に戻す（0時跨ぎ後の戻し漏れを補正）
+  // ・今日が非稼働日 かつ ステータスが非稼働でない     → 非稼働に修正
+  // ・今日が稼働日  かつ ステータスが非稼働           → 受付可に戻す（0時跨ぎ後の戻し漏れを補正）
+  // ・今日が稼働日  かつ ステータスが当日受付不可       → 受付可に戻す（日付変わり後の戻し漏れを補正）
   useEffect(() => {
     if (!currentUser || users.length === 0 || isLoading) return;
     if (statusCheckedRef.current) return; // 2回目以降はスキップ
@@ -486,6 +497,14 @@ const App: React.FC = () => {
       // 今日が稼働日なのにステータスが非稼働 → 受付可に戻す
       // （前日が非稼働で0時跨ぎ後に戻し損ねたケースを補正）
       if (!isNonWorkingDay && user.availabilityStatus === '非稼働') {
+        if (user.name === currentUser.name || currentUser.isAdmin) {
+          handleUpdateUserStatus(user.name, '受付可');
+        }
+      }
+
+      // 今日が稼働日なのにステータスが当日受付不可 → 受付可に戻す
+      // （前日に当日受付不可に設定し、0時跨ぎ後に戻し損ねたケースを補正）
+      if (!isNonWorkingDay && user.availabilityStatus === '当日受付不可') {
         if (user.name === currentUser.name || currentUser.isAdmin) {
           handleUpdateUserStatus(user.name, '受付可');
         }
@@ -607,6 +626,13 @@ const App: React.FC = () => {
           await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
         } catch (e) {
           console.error('0時 受付可自動復帰に失敗:', e);
+        }
+      } else if (!isTomorrowNonWorking && user.availabilityStatus === '当日受付不可') {
+        // 翌日が稼働日でステータスが当日受付不可 → 受付可に戻す
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
+        } catch (e) {
+          console.error('0時 当日受付不可→受付可自動復帰に失敗:', e);
         }
       }
     }, msUntilCheck);
@@ -852,7 +878,46 @@ const App: React.FC = () => {
       setPreviewMember(null);
       setSelectedMember(memberToSelect || '新規依頼');
     }
-    
+
+    // mine / precheck タブに入る際、未読案件（lastViewedTimestamps より新しいもの）を一括強調
+    if (newMode === 'mine' && currentUser) {
+      const lastViewed = lastViewedTimestampsRef.current[currentUser.name];
+      const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
+      const unreadIds = callsRef.current
+        .filter(c => c.assignee === currentUser.name && c.createdAt && new Date(c.createdAt).getTime() > threshold)
+        .map(c => c.id);
+      if (unreadIds.length > 0) {
+        setTimeout(() => {
+          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
+          setTimeout(() => {
+            setRecentlyAddedCallIds(prev => {
+              const s = new Set(prev);
+              unreadIds.forEach(id => s.delete(id));
+              return s;
+            });
+          }, 6000);
+        }, 250); // フェードイン完了後に発火
+      }
+    } else if (newMode === 'precheck' && currentUser?.isLinePrechecker) {
+      const lastViewed = lastViewedTimestampsRef.current[PRECHECKER_ASSIGNEE_NAME];
+      const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
+      const unreadIds = callsRef.current
+        .filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt).getTime() > threshold)
+        .map(c => c.id);
+      if (unreadIds.length > 0) {
+        setTimeout(() => {
+          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
+          setTimeout(() => {
+            setRecentlyAddedCallIds(prev => {
+              const s = new Set(prev);
+              unreadIds.forEach(id => s.delete(id));
+              return s;
+            });
+          }, 6000);
+        }, 250);
+      }
+    }
+
     setIsFormVisible(false);
     setFormResetCounter(c => c + 1);
 
@@ -925,8 +990,8 @@ const App: React.FC = () => {
 
       // ビュー切り替えを一フレーム待ってから点滅セット（確実にリストに表示された後）
       setTimeout(() => {
-        setRecentlyAddedCallId(newCall.id);
-        setTimeout(() => setRecentlyAddedCallId(null), 6000);
+        setRecentlyAddedCallIds(prev => new Set([...prev, newCall.id]));
+        setTimeout(() => setRecentlyAddedCallIds(prev => { const s = new Set(prev); s.delete(newCall.id); return s; }), 6000);
       }, 50);
 
     } catch (err: any) {
@@ -1045,6 +1110,13 @@ const App: React.FC = () => {
   const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
     const currentCall = calls.find(c => c.id === id);
     if (!currentCall) return;
+
+    // 予定日時 or 留守回数が変更された場合、先に強調表示をセット（API完了を待たずに即時表示）
+    if ('dateTime' in updatedData || 'absenceCount' in updatedData) {
+      setRecentlyUpdatedCallIds(prev => new Set([...prev, id]));
+      setTimeout(() => setRecentlyUpdatedCallIds(prev => { const s = new Set(prev); s.delete(id); return s; }), 6000);
+    }
+
     try {
       const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name, currentCall);
 
@@ -1052,12 +1124,6 @@ const App: React.FC = () => {
       setCalls(prevCalls =>
         prevCalls.map(call => (call.id === id ? updated : call))
       );
-
-      // 予定日時が変更された場合、6秒間点滅ハイライトを表示
-      if ('dateTime' in updatedData) {
-        setRecentlyUpdatedCallId(id);
-        setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
-      }
     } catch (err: any) {
       console.error('案件の更新に失敗しました:', err);
       alert(`案件の更新に失敗しました: ${err?.message ?? err}`);
@@ -1522,7 +1588,12 @@ const App: React.FC = () => {
     const rankIndexB = RANK_OPTIONS.indexOf(b.rank as any);
     const rA = rankIndexA === -1 ? 999 : rankIndexA;
     const rB = rankIndexB === -1 ? 999 : rankIndexB;
-    return rA - rB;
+    if (rA !== rB) return rA - rB;
+
+    // 日時・ランクが同じ場合は作成日時の昇順（古い順）
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return createdA - createdB;
   });
 
   // JST今日の日付文字列 "YYYY-MM-DD"
@@ -2885,9 +2956,8 @@ const App: React.FC = () => {
                               onUpdateCall={handleUpdateCall}
                               onSelectCall={handleSelectCall}
                               highlightedCallId={highlightedCallId}
-                              recentlyUpdatedCallId={recentlyUpdatedCallId}
-                              recentlyAddedCallId={recentlyAddedCallId}
-                              members={assigneesForEditing}
+                              recentlyUpdatedCallIds={recentlyUpdatedCallIds}
+                              recentlyAddedCallIds={recentlyAddedCallIds}                              members={assigneesForEditing}
                               users={users}
                               currentUser={currentUser}
                               normalDuplicateIds={normalDuplicateIds}
@@ -2910,8 +2980,8 @@ const App: React.FC = () => {
                     onUpdateCall={handleUpdateCall}
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}
-                    recentlyUpdatedCallId={recentlyUpdatedCallId}
-                    recentlyAddedCallId={recentlyAddedCallId}
+                    recentlyUpdatedCallIds={recentlyUpdatedCallIds}
+                    recentlyAddedCallIds={recentlyAddedCallIds}
                     members={assigneesForEditing}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}

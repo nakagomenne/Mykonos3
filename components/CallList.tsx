@@ -10,8 +10,8 @@ interface CallListProps {
   onUpdateCall: (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
   onSelectCall: (call: CallRequest) => void;
   highlightedCallId: string | null;
-  recentlyUpdatedCallId?: string | null;
-  recentlyAddedCallId?: string | null;
+  recentlyUpdatedCallIds?: Set<string>;
+  recentlyAddedCallIds?: Set<string>;
   members: string[];
   users: User[];
   isPrecheckTheme?: boolean;
@@ -21,7 +21,7 @@ interface CallListProps {
   isDarkMode?: boolean;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, recentlyUpdatedCallId = null, recentlyAddedCallId = null, members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
+const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, recentlyUpdatedCallIds = new Set(), recentlyAddedCallIds = new Set(), members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
 
   if (calls.length === 0) {
@@ -118,7 +118,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
                     onSelectCall={onSelectCall}
                     selectedMember={selectedMember}
                     isHighlighted={highlightedCallId === call.id}
-                    isRecentlyUpdated={recentlyUpdatedCallId === call.id || recentlyAddedCallId === call.id}
+                    isRecentlyUpdated={recentlyUpdatedCallIds.has(call.id) || recentlyAddedCallIds.has(call.id)}
                     showRequesterColumn={showRequesterColumn}
                     members={members}
                     users={users}
