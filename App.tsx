@@ -520,14 +520,8 @@ const App: React.FC = () => {
           handleUpdateUserStatus(user.name, '受付可');
         }
       }
-
-      // 今日が稼働日なのにステータスが当日受付不可 → 受付可に戻す
-      // （当日受付不可は当日限りのため、翌日になったら自動復帰）
-      if (!isNonWorkingDay && user.availabilityStatus === '当日受付不可') {
-        if (user.name === currentUser.name || currentUser.isAdmin) {
-          handleUpdateUserStatus(user.name, '受付可');
-        }
-      }
+      // 注意: 当日受付不可は当日中の手動設定のため、リロード・再ログインでは変更しない
+      // 日付が変わったタイミング（0時タイマー）でのみ自動復帰する
     });
   }, [currentUser, users, isLoading]);
 
