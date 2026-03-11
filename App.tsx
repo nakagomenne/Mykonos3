@@ -836,15 +836,31 @@ const App: React.FC = () => {
       return;
     }
 
+    const now = new Date().toISOString();
+
+    // 離れるタブの既読タイムスタンプを更新
     if (viewMode === 'mine' && currentUser) {
       setLastViewedTimestamps(prev => ({
         ...prev,
-        [currentUser.name]: new Date().toISOString(),
+        [currentUser.name]: now,
       }));
     } else if (viewMode === 'precheck') {
       setLastViewedTimestamps(prev => ({
         ...prev,
-        [PRECHECKER_ASSIGNEE_NAME]: new Date().toISOString(),
+        [PRECHECKER_ASSIGNEE_NAME]: now,
+      }));
+    }
+
+    // 入るタブの既読タイムスタンプを更新（NEW バッジをクリア）
+    if (newMode === 'mine' && currentUser) {
+      setLastViewedTimestamps(prev => ({
+        ...prev,
+        [currentUser.name]: now,
+      }));
+    } else if (newMode === 'precheck') {
+      setLastViewedTimestamps(prev => ({
+        ...prev,
+        [PRECHECKER_ASSIGNEE_NAME]: now,
       }));
     }
   
@@ -1053,8 +1069,12 @@ const App: React.FC = () => {
         prevCalls.map(call => (call.id === id ? updated : call))
       );
 
-      // 予定日時が変更された場合、6秒間点滅ハイライトを表示
-      if ('dateTime' in updatedData) {
+      // 予定日時が変更された場合、または留守回数が増加した場合に6秒間点滅ハイライトを表示
+      const absenceIncreased =
+        'absenceCount' in updatedData &&
+        typeof updatedData.absenceCount === 'number' &&
+        (currentCall.absenceCount ?? 0) < updatedData.absenceCount;
+      if ('dateTime' in updatedData || absenceIncreased) {
         setRecentlyUpdatedCallId(id);
         setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
       }
@@ -1561,8 +1581,35 @@ const App: React.FC = () => {
       return call.assignee === selectedMember;
     }
   });
+
+  // mine / precheck タブで「未読（新着）」案件の ID セット
+  // lastViewedTimestamps より後に作成された案件を強調表示する
+  const newCallIds = useMemo((): Set<string> => {
+    if (!currentUser) return new Set();
+    if (viewMode === 'mine') {
+      const lastViewed = lastViewedTimestamps[currentUser.name];
+      if (!lastViewed) return new Set(calls.filter(c => c.assignee === currentUser.name).map(c => c.id));
+      const lastViewedDate = new Date(lastViewed);
+      return new Set(
+        calls
+          .filter(c => c.assignee === currentUser.name && c.createdAt && new Date(c.createdAt) > lastViewedDate)
+          .map(c => c.id)
+      );
+    }
+    if (viewMode === 'precheck') {
+      const lastViewed = lastViewedTimestamps[PRECHECKER_ASSIGNEE_NAME];
+      if (!lastViewed) return new Set(calls.filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME).map(c => c.id));
+      const lastViewedDate = new Date(lastViewed);
+      return new Set(
+        calls
+          .filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt) > lastViewedDate)
+          .map(c => c.id)
+      );
+    }
+    return new Set();
+  }, [calls, currentUser, viewMode, lastViewedTimestamps]);
+
   
-  const otherMemberNames = memberNames.filter(m => m !== currentUser?.name);
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
   // タブ順: 新規依頼 → 全体 → 回線前確 → 各メンバー
   // 各メンバー部分: その日稼働（非稼働でない）が先、非稼働が後ろ
@@ -2887,6 +2934,7 @@ const App: React.FC = () => {
                               highlightedCallId={highlightedCallId}
                               recentlyUpdatedCallId={recentlyUpdatedCallId}
                               recentlyAddedCallId={recentlyAddedCallId}
+                              newCallIds={newCallIds}
                               members={assigneesForEditing}
                               users={users}
                               currentUser={currentUser}
@@ -2912,6 +2960,7 @@ const App: React.FC = () => {
                     highlightedCallId={highlightedCallId}
                     recentlyUpdatedCallId={recentlyUpdatedCallId}
                     recentlyAddedCallId={recentlyAddedCallId}
+                    newCallIds={newCallIds}
                     members={assigneesForEditing}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}

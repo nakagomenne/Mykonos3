@@ -12,6 +12,8 @@ interface CallListProps {
   highlightedCallId: string | null;
   recentlyUpdatedCallId?: string | null;
   recentlyAddedCallId?: string | null;
+  /** mine / precheck タブで未確認の新着案件IDセット */
+  newCallIds?: Set<string>;
   members: string[];
   users: User[];
   isPrecheckTheme?: boolean;
@@ -21,7 +23,7 @@ interface CallListProps {
   isDarkMode?: boolean;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, recentlyUpdatedCallId = null, recentlyAddedCallId = null, members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
+const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, recentlyUpdatedCallId = null, recentlyAddedCallId = null, newCallIds, members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
 
   if (calls.length === 0) {
@@ -119,6 +121,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
                     selectedMember={selectedMember}
                     isHighlighted={highlightedCallId === call.id}
                     isRecentlyUpdated={recentlyUpdatedCallId === call.id || recentlyAddedCallId === call.id}
+                    isNewCall={newCallIds ? newCallIds.has(call.id) : false}
                     showRequesterColumn={showRequesterColumn}
                     members={members}
                     users={users}

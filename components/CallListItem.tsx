@@ -14,6 +14,8 @@ interface CallListItemProps {
   selectedMember: string | undefined;
   isHighlighted: boolean;
   isRecentlyUpdated?: boolean;
+  /** mine/precheck タブで自分が未確認の新着案件 */
+  isNewCall?: boolean;
   showRequesterColumn: boolean;
   members: string[];
   users: User[];
@@ -29,7 +31,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isAppNumCopied, setIsAppNumCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
@@ -396,6 +398,32 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     <li ref={liRef} className={liClasses} style={liStyle}>
       {isRecentlyUpdated && (
         <div className="animate-datetime-updated" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
+      )}
+      {isNewCall && (
+        <>
+          {/* 左端の縦帯 */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, bottom: 0, width: 4,
+            background: isPrecheckTheme ? '#118f82' : '#0193be',
+            borderRadius: '8px 0 0 8px',
+            zIndex: 11,
+            pointerEvents: 'none',
+          }} />
+          {/* NEW バッジ */}
+          <div style={{
+            position: 'absolute', top: 4, left: 6,
+            background: isPrecheckTheme ? '#118f82' : '#0193be',
+            color: 'white',
+            fontSize: 9,
+            fontWeight: 700,
+            lineHeight: 1,
+            padding: '2px 4px',
+            borderRadius: 3,
+            zIndex: 12,
+            pointerEvents: 'none',
+            letterSpacing: '0.05em',
+          }}>NEW</div>
+        </>
       )}
       <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
           <div className="w-6 flex-shrink-0 flex justify-center items-center">
