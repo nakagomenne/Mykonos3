@@ -1061,6 +1061,13 @@ const App: React.FC = () => {
   const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
     const currentCall = calls.find(c => c.id === id);
     if (!currentCall) return;
+
+    // 予定日時 or 留守回数が変更された場合、先に強調表示をセット（API完了を待たずに即時表示）
+    if ('dateTime' in updatedData || 'absenceCount' in updatedData) {
+      setRecentlyUpdatedCallId(id);
+      setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
+    }
+
     try {
       const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name, currentCall);
 
@@ -1068,12 +1075,6 @@ const App: React.FC = () => {
       setCalls(prevCalls =>
         prevCalls.map(call => (call.id === id ? updated : call))
       );
-
-      // 予定日時 or 留守回数が変更された場合、6秒間点滅ハイライトを表示
-      if ('dateTime' in updatedData || 'absenceCount' in updatedData) {
-        setRecentlyUpdatedCallId(id);
-        setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
-      }
     } catch (err: any) {
       console.error('案件の更新に失敗しました:', err);
       alert(`案件の更新に失敗しました: ${err?.message ?? err}`);
