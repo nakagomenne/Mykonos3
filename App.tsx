@@ -1538,7 +1538,12 @@ const App: React.FC = () => {
     const rankIndexB = RANK_OPTIONS.indexOf(b.rank as any);
     const rA = rankIndexA === -1 ? 999 : rankIndexA;
     const rB = rankIndexB === -1 ? 999 : rankIndexB;
-    return rA - rB;
+    if (rA !== rB) return rA - rB;
+
+    // 日時・ランクが同じ場合は作成日時の昇順（古い順）
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return createdA - createdB;
   });
 
   // JST今日の日付文字列 "YYYY-MM-DD"
