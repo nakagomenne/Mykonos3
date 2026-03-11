@@ -1069,8 +1069,8 @@ const App: React.FC = () => {
         prevCalls.map(call => (call.id === id ? updated : call))
       );
 
-      // 予定日時が変更された場合、6秒間点滅ハイライトを表示
-      if ('dateTime' in updatedData) {
+      // 予定日時 or 留守回数が変更された場合、6秒間点滅ハイライトを表示
+      if ('dateTime' in updatedData || 'absenceCount' in updatedData) {
         setRecentlyUpdatedCallId(id);
         setTimeout(() => setRecentlyUpdatedCallId(null), 6000);
       }
