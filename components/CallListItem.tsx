@@ -36,6 +36,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const [isEditing, setIsEditing] = useState(false);
   const [isConfirmationModalOpen, setConfirmationModalOpen] = useState(false);
   const liRef = useRef<HTMLLIElement>(null);
+  const animOverlayRef = useRef<HTMLDivElement>(null);
   const [isRankDropdownOpen, setIsRankDropdownOpen] = useState(false);
   const rankButtonRef = useRef<HTMLButtonElement>(null);
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
         liRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [isHighlighted]);
+
+  // isRecentlyUpdated が true になるたびに overlay div のアニメーションを強制リスタート
+  useEffect(() => {
+    if (!isRecentlyUpdated || !animOverlayRef.current) return;
+    const el = animOverlayRef.current;
+    el.style.animation = 'none';
+    // reflow を強制して animation リセットを確定させる
+    void el.offsetWidth;
+    el.style.animation = '';
+  }, [isRecentlyUpdated]);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -394,9 +405,12 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
   return (
     <li ref={liRef} className={liClasses} style={liStyle}>
-      {isRecentlyUpdated && (
-        <div className="animate-datetime-updated" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
-      )}
+      {/* アニメーション overlay: 常にマウントしておき isRecentlyUpdated 時に useEffect でリスタート */}
+      <div
+        ref={animOverlayRef}
+        className={isRecentlyUpdated ? 'animate-datetime-updated' : ''}
+        style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }}
+      />
       <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
           <div className="w-6 flex-shrink-0 flex justify-center items-center">
             <div className="relative h-5 w-5">

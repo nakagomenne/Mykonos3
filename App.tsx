@@ -879,54 +879,52 @@ const App: React.FC = () => {
       setSelectedMember(memberToSelect || '新規依頼');
     }
 
-    // mine / precheck タブに入る際、未読案件（lastViewedTimestamps より新しいもの）を一括強調
-    if (newMode === 'mine' && currentUser) {
-      const lastViewed = lastViewedTimestampsRef.current[currentUser.name];
-      const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
-      const unreadIds = callsRef.current
-        .filter(c => c.assignee === currentUser.name && c.createdAt && new Date(c.createdAt).getTime() > threshold)
-        .map(c => c.id);
-      if (unreadIds.length > 0) {
-        setTimeout(() => {
-          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
-          setTimeout(() => {
-            setRecentlyAddedCallIds(prev => {
-              const s = new Set(prev);
-              unreadIds.forEach(id => s.delete(id));
-              return s;
-            });
-          }, 6000);
-        }, 250); // フェードイン完了後に発火
-      }
-    } else if (newMode === 'precheck' && currentUser?.isLinePrechecker) {
-      const lastViewed = lastViewedTimestampsRef.current[PRECHECKER_ASSIGNEE_NAME];
-      const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
-      const unreadIds = callsRef.current
-        .filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt).getTime() > threshold)
-        .map(c => c.id);
-      if (unreadIds.length > 0) {
-        setTimeout(() => {
-          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
-          setTimeout(() => {
-            setRecentlyAddedCallIds(prev => {
-              const s = new Set(prev);
-              unreadIds.forEach(id => s.delete(id));
-              return s;
-            });
-          }, 6000);
-        }, 250);
-      }
-    }
-
     setIsFormVisible(false);
     setFormResetCounter(c => c + 1);
 
-    // フェードアウト → モード切替 → フェードイン
+    // フェードアウト → モード切替 → フェードイン → 強調発火
     setIsTabTransitioning(true);
     setTimeout(() => {
       setViewMode(newMode);
       setDisplayViewMode(newMode);
       setIsTabTransitioning(false);
+
+      // mine / precheck タブへ入った直後、未読案件（lastViewedTimestamps より新しいもの）を強調
+      // setViewMode と同じ setTimeout 内で実行することで確実に描画後に発火させる
+      if (newMode === 'mine' && currentUserRef.current) {
+        const user = currentUserRef.current;
+        const lastViewed = lastViewedTimestampsRef.current[user.name];
+        const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
+        const unreadIds = callsRef.current
+          .filter(c => c.assignee === user.name && c.createdAt && new Date(c.createdAt).getTime() > threshold)
+          .map(c => c.id);
+        if (unreadIds.length > 0) {
+          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
+          setTimeout(() => {
+            setRecentlyAddedCallIds(prev => {
+              const s = new Set(prev);
+              unreadIds.forEach(id => s.delete(id));
+              return s;
+            });
+          }, 6000);
+        }
+      } else if (newMode === 'precheck' && currentUserRef.current?.isLinePrechecker) {
+        const lastViewed = lastViewedTimestampsRef.current[PRECHECKER_ASSIGNEE_NAME];
+        const threshold = lastViewed ? new Date(lastViewed).getTime() : 0;
+        const unreadIds = callsRef.current
+          .filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt).getTime() > threshold)
+          .map(c => c.id);
+        if (unreadIds.length > 0) {
+          setRecentlyAddedCallIds(prev => new Set([...prev, ...unreadIds]));
+          setTimeout(() => {
+            setRecentlyAddedCallIds(prev => {
+              const s = new Set(prev);
+              unreadIds.forEach(id => s.delete(id));
+              return s;
+            });
+          }, 6000);
+        }
+      }
     }, 200);
   };
 
