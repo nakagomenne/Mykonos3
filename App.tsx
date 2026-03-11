@@ -462,8 +462,9 @@ const App: React.FC = () => {
   
   // ── 起動時・users更新時：非稼働日とステータスの整合性チェック ──
   // 起動時（初回ロード完了後）に稼働ステータスを自動補正する（1回のみ）
-  // ・今日が非稼働日 かつ ステータスが非稼働でない → 非稼働に修正
-  // ・今日が稼働日  かつ ステータスが非稼働       → 受付可に戻す（0時跨ぎ後の戻し漏れを補正）
+  // ・今日が非稼働日 かつ ステータスが非稼働でない     → 非稼働に修正
+  // ・今日が稼働日  かつ ステータスが非稼働           → 受付可に戻す（0時跨ぎ後の戻し漏れを補正）
+  // ・今日が稼働日  かつ ステータスが当日受付不可       → 受付可に戻す（日付変わり後の戻し漏れを補正）
   useEffect(() => {
     if (!currentUser || users.length === 0 || isLoading) return;
     if (statusCheckedRef.current) return; // 2回目以降はスキップ
@@ -486,6 +487,14 @@ const App: React.FC = () => {
       // 今日が稼働日なのにステータスが非稼働 → 受付可に戻す
       // （前日が非稼働で0時跨ぎ後に戻し損ねたケースを補正）
       if (!isNonWorkingDay && user.availabilityStatus === '非稼働') {
+        if (user.name === currentUser.name || currentUser.isAdmin) {
+          handleUpdateUserStatus(user.name, '受付可');
+        }
+      }
+
+      // 今日が稼働日なのにステータスが当日受付不可 → 受付可に戻す
+      // （前日に当日受付不可に設定し、0時跨ぎ後に戻し損ねたケースを補正）
+      if (!isNonWorkingDay && user.availabilityStatus === '当日受付不可') {
         if (user.name === currentUser.name || currentUser.isAdmin) {
           handleUpdateUserStatus(user.name, '受付可');
         }
@@ -607,6 +616,13 @@ const App: React.FC = () => {
           await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
         } catch (e) {
           console.error('0時 受付可自動復帰に失敗:', e);
+        }
+      } else if (!isTomorrowNonWorking && user.availabilityStatus === '当日受付不可') {
+        // 翌日が稼働日でステータスが当日受付不可 → 受付可に戻す
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '受付可');
+        } catch (e) {
+          console.error('0時 当日受付不可→受付可自動復帰に失敗:', e);
         }
       }
     }, msUntilCheck);
