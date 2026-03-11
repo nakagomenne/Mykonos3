@@ -1609,7 +1609,7 @@ const App: React.FC = () => {
     return new Set();
   }, [calls, currentUser, viewMode, lastViewedTimestamps]);
 
-  
+  const otherMemberNames = memberNames.filter(m => m !== currentUser?.name);
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
   // タブ順: 新規依頼 → 全体 → 回線前確 → 各メンバー
   // 各メンバー部分: その日稼働（非稼働でない）が先、非稼働が後ろ
