@@ -144,7 +144,6 @@ const App: React.FC = () => {
   const [pendingUnavailableTodayConfirmation, setPendingUnavailableTodayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [pendingUnavailableConfirmation, setPendingUnavailableConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [previewMember, setPreviewMember] = useState<string | null>(null);
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [profilePopupUser, setProfilePopupUser] = useState<User | null>(null);
   const [prefilledRequestDate, setPrefilledRequestDate] = useState<string | null>(null);
   const [lastViewedTimestamps, setLastViewedTimestamps] = useState<Record<string, string>>(() => {
@@ -192,7 +191,6 @@ const App: React.FC = () => {
 
 
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const statusDropdownRef = useRef<HTMLDivElement>(null);
   const announcementMarqueeRef = useRef<HTMLDivElement>(null);
   const [marqueeRepeat, setMarqueeRepeat] = useState(4); // 初期値は適当な数（後でJS計算で上書き）
   const searchRef = useRef<HTMLDivElement>(null);
@@ -479,9 +477,6 @@ const App: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
-      }
-      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
-        setIsStatusDropdownOpen(false);
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setIsSearchFocused(false);
@@ -2682,47 +2677,20 @@ const App: React.FC = () => {
                       >
                       <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-4">
-                              <div className="relative" ref={statusDropdownRef}>
-                                  <button
-                                      onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-                                      className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
-                                      style={{ boxShadow: mineRingBoxShadow }}
-                                      aria-haspopup="true"
-                                      aria-expanded={isStatusDropdownOpen}
-                                      title="稼働ステータスを変更"
-                                  >
-                                      {currentUserWithData?.profilePicture ? (
-                                          <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-32 h-32 rounded-full object-cover" />
-                                      ) : (
-                                          <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                            <UserIcon className="w-16 h-16 text-[#0193be]/80" />
-                                          </div>
-                                      )}
-                                  </button>
-                                  {isStatusDropdownOpen && (
-                                      <div className={`absolute top-full mt-2 left-0 w-48 origin-top-left rounded-md ${isDarkMode ? 'bg-[#1e2535] ring-white/10' : 'bg-white ring-black ring-opacity-5'} shadow-lg ring-1 focus:outline-none z-[200] animate-wipe-in-down`}>
-                                          <div className="py-1" role="menu" aria-orientation="vertical">
-                                              {AVAILABILITY_STATUS_OPTIONS.map(status => {
-                                                  const statusStyles = AVAILABILITY_STATUS_STYLES[status];
-                                                  return (
-                                                      <button
-                                                          key={status}
-                                                          onClick={() => {
-                                                              handleUpdateUserStatus(currentUser.name, status);
-                                                              setIsStatusDropdownOpen(false);
-                                                          }}
-                                                          className={`flex items-center gap-3 w-full px-4 py-2 text-sm ${isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'} transition-colors`}
-                                                          role="menuitem"
-                                                      >
-                                                          <span className={`h-3 w-3 rounded-full ${statusStyles.bg}`}></span>
-                                                          <span>{status}</span>
-                                                      </button>
-                                                  );
-                                              })}
-                                          </div>
+                              <button
+                                  onClick={() => currentUserWithData && setProfilePopupUser(currentUserWithData)}
+                                  className="relative w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-105"
+                                  style={{ boxShadow: mineRingBoxShadow }}
+                                  title="プロフィールを表示"
+                              >
+                                  {currentUserWithData?.profilePicture ? (
+                                      <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-32 h-32 rounded-full object-cover" />
+                                  ) : (
+                                      <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                        <UserIcon className="w-16 h-16 text-[#0193be]/80" />
                                       </div>
                                   )}
-                              </div>
+                              </button>
                               <div className="flex items-center">
                                 {currentUserWithData?.comment ? (
                                     <>
@@ -3403,6 +3371,7 @@ const App: React.FC = () => {
             {/* 拡大画像 */}
             {(() => {
               const pu = profilePopupUser;
+              const isSelf = pu.name === currentUser.name;
               const ringHex: Record<string, string> = {
                 '受付可': '#0193be',
                 '一時受付不可': '#eab308',
@@ -3413,14 +3382,14 @@ const App: React.FC = () => {
               return (
                 <>
                   <div
-                    className="w-48 h-48 rounded-full shadow-2xl overflow-hidden flex-shrink-0"
+                    className="w-[346px] h-[346px] rounded-full shadow-2xl overflow-hidden flex-shrink-0"
                     style={{ outline: `5px solid ${color}`, outlineOffset: '4px' }}
                   >
                     {pu.profilePicture ? (
                       <img src={pu.profilePicture} alt={pu.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                        <UserIcon className="w-28 h-28 text-slate-400" />
+                        <UserIcon className="w-48 h-48 text-slate-400" />
                       </div>
                     )}
                   </div>
@@ -3447,6 +3416,34 @@ const App: React.FC = () => {
                       {pu.commentUpdatedAt && (
                         <p className="text-white/70 text-xs mt-1">{formatRelativeTime(pu.commentUpdatedAt)}</p>
                       )}
+                    </div>
+                  )}
+
+                  {/* 自分の場合：ステータス変更ボタン群 */}
+                  {isSelf && (
+                    <div className="flex flex-wrap justify-center gap-2 mt-1">
+                      {AVAILABILITY_STATUS_OPTIONS.map(status => {
+                        const statusStyles = AVAILABILITY_STATUS_STYLES[status];
+                        const isActive = pu.availabilityStatus === status;
+                        return (
+                          <button
+                            key={status}
+                            onClick={() => {
+                              handleUpdateUserStatus(currentUser.name, status);
+                              setProfilePopupUser(prev => prev ? { ...prev, availabilityStatus: status as typeof pu.availabilityStatus } : null);
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold shadow transition-all ${
+                              isActive
+                                ? 'ring-2 ring-white ring-offset-2 ring-offset-transparent scale-105 text-white'
+                                : 'opacity-70 hover:opacity-100 text-white'
+                            }`}
+                            style={{ backgroundColor: isActive ? color : '#ffffff30' }}
+                          >
+                            <span className={`h-2.5 w-2.5 rounded-full ${statusStyles.bg}`} />
+                            {status}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </>
