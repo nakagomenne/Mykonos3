@@ -1378,8 +1378,12 @@ const App: React.FC = () => {
       }
 
       // 最新の全ユーザーをfetchして確実に同期
+      // fetchUsers() は profile_picture を取得しないため、既存のプロフィール画像を保持する
       const latestUsers = await fetchUsers();
-      setUsers(latestUsers);
+      setUsers(prev => {
+        const picMap = new Map(prev.map(u => [u.name, u.profilePicture ?? null]));
+        return latestUsers.map(u => ({ ...u, profilePicture: picMap.get(u.name) ?? null }));
+      });
 
       if (deletedUserNames.length > 0) {
         // 削除されたユーザーが担当の案件を「(削除済み)」に

@@ -303,18 +303,17 @@ export async function fetchUserProfilePictures(): Promise<Record<string, string 
 }
 
 /** ユーザーを更新する（name をキーとして使用） */
-export async function updateUser(name: string, updatedData: Partial<User>): Promise<User> {
+export async function updateUser(name: string, updatedData: Partial<User>): Promise<void> {
   const row = userToRow(updatedData);
 
-  const { data, error } = await supabase
+  // .select() を付けないことで profile_picture を含む大きなペイロードを
+  // Realtimeに乗せず、ペイロードサイズ超過によるアイコン消失を防ぐ
+  const { error } = await supabase
     .from('users')
     .update(row)
-    .eq('name', name)
-    .select()
-    .single();
+    .eq('name', name);
 
   if (error) throw new Error(`ユーザーの更新に失敗しました: ${error.message}`);
-  return rowToUser(data);
 }
 
 /** 複数ユーザーを一括 upsert する（AdminMenu の保存用） */
@@ -563,10 +562,13 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
                   isLinePrechecker:   pick(newRow.is_line_prechecker,     u.isLinePrechecker),
                   isSuperAdmin:       pick(newRow.is_super_admin,         u.isSuperAdmin),
                   password:           pick(newRow.password,               u.password),
-                  // profile_picture はペイロードサイズ超過で欠落しやすいため null でも保持
-                  profilePicture:     newRow.profile_picture !== undefined
-                                        ? (newRow.profile_picture ?? null)
-                                        : u.profilePicture,
+                  // profile_picture はペイロードサイズ超過で null になりやすいため、
+                  // 既存の画像がある場合は null で上書きしない（null→null は許容）
+                  profilePicture:     newRow.profile_picture !== undefined && newRow.profile_picture !== null
+                                        ? newRow.profile_picture
+                                        : (newRow.profile_picture === null && u.profilePicture === null)
+                                          ? null
+                                          : u.profilePicture,
                   availabilityStatus: pick(newRow.availability_status,   u.availabilityStatus) || u.availabilityStatus,
                   nonWorkingDays:     pick(newRow.non_working_days,       u.nonWorkingDays),
                   availableProducts:  pick(newRow.available_products,     u.availableProducts),
