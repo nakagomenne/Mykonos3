@@ -2762,6 +2762,11 @@ const App: React.FC = () => {
                                                 対応可能商材：{currentUserWithData.availableProducts.join('・')}
                                               </p>
                                             )}
+                                            {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
+                                              <p className={`text-sm font-medium transition-colors duration-500 ${mineTextColor} opacity-60`}>
+                                                稼働時間：{currentUserWithData.workStart ?? '11:00'}〜{currentUserWithData.workEnd ?? '20:00'}
+                                              </p>
+                                            )}
                                         </div>
                                     </>
                                 ) : (
@@ -2787,6 +2792,11 @@ const App: React.FC = () => {
                                         {(currentUserWithData?.availableProducts && currentUserWithData.availableProducts.length > 0) && (
                                           <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
                                             対応可能商材：{currentUserWithData.availableProducts.join('・')}
+                                          </p>
+                                        )}
+                                        {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
+                                          <p className={`text-sm font-medium transition-colors duration-500 ${mineTextColor} opacity-60`}>
+                                            稼働時間：{currentUserWithData.workStart ?? '11:00'}〜{currentUserWithData.workEnd ?? '20:00'}
                                           </p>
                                         )}
                                     </div>
