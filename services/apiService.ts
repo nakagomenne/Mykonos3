@@ -544,29 +544,39 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
             const newUser = rowToUser(newRow);
             callback(prev => [...prev, newUser]);
           } else if (eventType === 'UPDATE' && newRow) {
-            const updatedUser = rowToUser(newRow);
+            // Realtimeペイロードは profile_picture など大きいカラムが欠落する場合がある。
+            // また REPLICA IDENTITY が FULL でない場合、変更カラムのみが含まれることもある。
+            // すべてのフィールドで既存値をフォールバックとして使い、不完全なペイロードに対応する。
+            const name = newRow.name;
+            if (!name) return; // name が取れない場合は無視
             callback(prev =>
               prev.map(u => {
-                if (u.name !== updatedUser.name) return u;
-                // null/undefined フィールドは既存値を保持（部分的 payload 対策）
+                if (u.name !== name) return u;
+                // newRow の各カラムが存在する（undefined でない）場合のみ上書き、
+                // それ以外は既存値を保持する（null は明示的な値として扱う）
+                const pick = <T>(newVal: T | undefined, oldVal: T): T =>
+                  newVal !== undefined ? newVal : oldVal;
                 return {
-                  name:               updatedUser.name,
-                  furigana:           updatedUser.furigana           ?? u.furigana,
-                  isAdmin:            updatedUser.isAdmin,
-                  isLinePrechecker:   updatedUser.isLinePrechecker,
-                  isSuperAdmin:       updatedUser.isSuperAdmin,
-                  password:           updatedUser.password           || u.password,
-                  profilePicture:     updatedUser.profilePicture     ?? u.profilePicture,
-                  availabilityStatus: updatedUser.availabilityStatus || u.availabilityStatus,
-                  nonWorkingDays:     updatedUser.nonWorkingDays     ?? u.nonWorkingDays,
-                  availableProducts:  updatedUser.availableProducts  ?? u.availableProducts,
-                  comment:               updatedUser.comment            ?? u.comment,
-                  commentUpdatedAt:      updatedUser.commentUpdatedAt   ?? u.commentUpdatedAt,
-                  statusRevertAt:        updatedUser.statusRevertAt     !== undefined ? updatedUser.statusRevertAt : u.statusRevertAt,
-                  workStart:             updatedUser.workStart          ?? u.workStart,
-                  workEnd:               updatedUser.workEnd            ?? u.workEnd,
-                  autoUnavailableOffset: updatedUser.autoUnavailableOffset !== undefined ? updatedUser.autoUnavailableOffset : u.autoUnavailableOffset,
-                  createdAt:             updatedUser.createdAt          || u.createdAt,
+                  name:               u.name,
+                  furigana:           pick(newRow.furigana,               u.furigana),
+                  isAdmin:            pick(newRow.is_admin,               u.isAdmin),
+                  isLinePrechecker:   pick(newRow.is_line_prechecker,     u.isLinePrechecker),
+                  isSuperAdmin:       pick(newRow.is_super_admin,         u.isSuperAdmin),
+                  password:           pick(newRow.password,               u.password),
+                  // profile_picture はペイロードサイズ超過で欠落しやすいため null でも保持
+                  profilePicture:     newRow.profile_picture !== undefined
+                                        ? (newRow.profile_picture ?? null)
+                                        : u.profilePicture,
+                  availabilityStatus: pick(newRow.availability_status,   u.availabilityStatus) || u.availabilityStatus,
+                  nonWorkingDays:     pick(newRow.non_working_days,       u.nonWorkingDays),
+                  availableProducts:  pick(newRow.available_products,     u.availableProducts),
+                  comment:            pick(newRow.comment,                u.comment),
+                  commentUpdatedAt:   pick(newRow.comment_updated_at,     u.commentUpdatedAt),
+                  statusRevertAt:     pick(newRow.status_revert_at,       u.statusRevertAt),
+                  workStart:          pick(newRow.work_start,             u.workStart),
+                  workEnd:            pick(newRow.work_end,               u.workEnd),
+                  autoUnavailableOffset: pick(newRow.auto_unavailable_offset, u.autoUnavailableOffset),
+                  createdAt:          u.createdAt,
                 };
               })
             );
