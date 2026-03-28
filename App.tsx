@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -15,6 +15,7 @@ import ConfirmationModal from './components/ConfirmationModal';
 import ShiftCalendar from './components/ShiftCalendar';
 import CommentModal from './components/CommentModal';
 import PasswordSettingsModal from './components/PasswordSettingsModal';
+import WorkHoursModal from './components/WorkHoursModal';
 import { resizeImageToBase64 } from './utils/imageUtils';
 import NotificationSettingsModal, {
   NotificationSettings,
@@ -136,6 +137,7 @@ const App: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [isWorkHoursModalOpen, setIsWorkHoursModalOpen] = useState(false);
   const [scheduleViewingUser, setScheduleViewingUser] = useState<User | null>(null);
   const [isScheduleViewReadOnly, setIsScheduleViewReadOnly] = useState(false);
   const [pendingNonWorkingDayConfirmation, setPendingNonWorkingDayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
@@ -203,6 +205,13 @@ const App: React.FC = () => {
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { usersRef.current = users; }, [users]);
+
+  /** "HH:MM" → "H時MM分" 形式（MM=00 の場合は "H時"）*/
+  const formatWorkTime = (hhmm?: string): string => {
+    if (!hhmm) return '';
+    const [h, m] = hhmm.split(':');
+    return m === '00' ? `${parseInt(h)}時` : `${parseInt(h)}時${m}分`;
+  };
 
   const formatRelativeTime = (isoString?: string): string => {
     if (!isoString) return '';
@@ -659,6 +668,73 @@ const App: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [currentUser]); // usersRef経由で最新値を参照するためusersはdepsに不要
+
+  // ── 退勤時刻での自動「当日受付不可」切り替えタイマー ──────────────
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const scheduleAutoUnavailable = () => {
+      const user = usersRef.current.find(u => u.name === currentUser.name);
+      if (!user || user.autoUnavailableOffset == null) return null;
+
+      const workEnd = user.workEnd ?? '20:00';
+      const [endH, endM] = workEnd.split(':').map(Number);
+      const offsetMins = user.autoUnavailableOffset;
+
+      // 切り替え時刻 = 退勤時刻 - オフセット分
+      const triggerH = endH;
+      const triggerM = endM - offsetMins;
+      const triggerTotalMins = triggerH * 60 + triggerM;
+
+      const now = new Date();
+      const todayStr = (() => {
+        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        return local.toISOString().split('T')[0];
+      })();
+
+      // 今日が非稼働日なら設定しない
+      if ((user.nonWorkingDays || []).includes(todayStr)) return null;
+      // 既に当日受付不可 or 非稼働なら設定しない
+      if (user.availabilityStatus === '当日受付不可' || user.availabilityStatus === '非稼働') return null;
+
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      const msUntilTrigger = (triggerTotalMins - nowMins) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+
+      if (msUntilTrigger <= 0) return null; // 既に過ぎている
+
+      return setTimeout(async () => {
+        const latestUser = usersRef.current.find(u => u.name === currentUser.name);
+        if (!latestUser) return;
+        // 再チェック：非稼働日・既に受付不可でないか
+        const todayStrCheck = (() => {
+          const n = new Date();
+          const local = new Date(n.getTime() - n.getTimezoneOffset() * 60000);
+          return local.toISOString().split('T')[0];
+        })();
+        if ((latestUser.nonWorkingDays || []).includes(todayStrCheck)) return;
+        if (latestUser.availabilityStatus === '当日受付不可' || latestUser.availabilityStatus === '非稼働') return;
+        try {
+          await updateUserAvailabilityStatusWithRevert(currentUser.name, '当日受付不可');
+          setUsers(prev => prev.map(u => {
+            if (u.name !== currentUser.name) return u;
+            const nowInner = new Date();
+            const jstNow = new Date(nowInner.getTime() + 9 * 60 * 60 * 1000);
+            const jstMidnight = new Date(
+              Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate() + 1, 0, 0, 0, 0)
+              - 9 * 60 * 60 * 1000
+            );
+            return { ...u, availabilityStatus: '当日受付不可', statusRevertAt: jstMidnight.toISOString() };
+          }));
+        } catch (e) {
+          console.error('自動当日受付不可の設定に失敗:', e);
+        }
+      }, msUntilTrigger);
+    };
+
+    const timer = scheduleAutoUnavailable();
+    return () => { if (timer) clearTimeout(timer); };
+  // workEnd/autoUnavailableOffset/availabilityStatus が変わったら再スケジュール
+  }, [currentUser, users.map(u => `${u.name}:${u.workEnd}:${u.autoUnavailableOffset}:${u.availabilityStatus}`).join(',')]);
 
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
@@ -1417,6 +1493,24 @@ const App: React.FC = () => {
     }
   };
   
+  const handleSaveWorkHours = async (
+    workStart: string,
+    workEnd: string,
+    autoUnavailableOffset: number | null,
+    targetName?: string
+  ) => {
+    const name = targetName ?? currentUser?.name;
+    if (!name) return;
+    try {
+      await updateUser(name, { workStart, workEnd, autoUnavailableOffset });
+      setUsers(prev =>
+        prev.map(u => u.name === name ? { ...u, workStart, workEnd, autoUnavailableOffset } : u)
+      );
+    } catch (err: any) {
+      alert(`稼働時間の更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
   const handleShowUserSchedule = (userName: string) => {
     const userToShow = users.find(u => u.name === userName);
     if (userToShow) {
@@ -2253,6 +2347,17 @@ const App: React.FC = () => {
                           </button>
                           <button
                             onClick={() => {
+                              setIsWorkHoursModalOpen(true);
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                            role="menuitem"
+                          >
+                            <ClockIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                            <span>稼働時間設定</span>
+                          </button>
+                          <button
+                            onClick={() => {
                               setIsPasswordModalOpen(true);
                               setIsUserMenuOpen(false);
                             }}
@@ -2776,6 +2881,11 @@ const App: React.FC = () => {
                                               対応可能商材：{selectedUserDetails.availableProducts.join('・')}
                                             </p>
                                           )}
+                                          {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                            <p className={`mt-1 text-sm font-medium transition-colors duration-500 ${statusTextColor} opacity-70`}>
+                                              稼働時間：{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}
+                                            </p>
+                                          )}
                                       </div>
                                   </div>
                               </div>
@@ -2978,6 +3088,11 @@ const App: React.FC = () => {
                                         対応可能商材：{selectedUserDetails.availableProducts.join('・')}
                                       </p>
                                     )}
+                                    {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                      <p className="mt-1 text-sm font-medium text-[#0193be]/70">
+                                        稼働時間：{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -3143,6 +3258,9 @@ const App: React.FC = () => {
             onJumpToMember={handleJumpToMember}
             calls={calls}
             onOpenSchedule={(user) => { setIsAdminMenuOpen(false); setScheduleOpenedFromAdmin(true); setIsScheduleViewReadOnly(false); setScheduleViewingUser(user); }}
+            onUpdateWorkHours={(userName, workStart, workEnd, autoUnavailableOffset) =>
+              handleSaveWorkHours(workStart, workEnd, autoUnavailableOffset, userName)
+            }
             feedbackReports={feedbackReports}
             onDeleteFeedback={async (id) => {
               await apiDeleteFeedbackReport(id);
@@ -3197,6 +3315,18 @@ const App: React.FC = () => {
           onClose={() => setIsCommentModalOpen(false)}
           onSave={handleSaveComment}
           initialComment={currentUserWithData.comment || ''}
+        />
+      )}
+
+      {/* 稼働時間設定モーダル */}
+      {currentUserWithData && (
+        <WorkHoursModal
+          isOpen={isWorkHoursModalOpen}
+          onClose={() => setIsWorkHoursModalOpen(false)}
+          user={currentUserWithData}
+          onSave={(workStart, workEnd, autoUnavailableOffset) =>
+            handleSaveWorkHours(workStart, workEnd, autoUnavailableOffset)
+          }
         />
       )}
 

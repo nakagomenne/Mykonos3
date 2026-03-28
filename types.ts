@@ -81,6 +81,12 @@ export interface User {
   password?: string;
   commentUpdatedAt?: string;
   statusRevertAt?: string | null;
+  /** 出勤時刻 "HH:MM" 形式, デフォルト "11:00" */
+  workStart?: string;
+  /** 退勤時刻 "HH:MM" 形式, デフォルト "20:00" */
+  workEnd?: string;
+  /** 当日受付不可に切り替えるオフセット分（0=退勤ちょうど, 15=15分前, 30=30分前）, null=自動切替なし */
+  autoUnavailableOffset?: number | null;
 }
 
 export type FeedbackType = 'bug' | 'request' | 'other';

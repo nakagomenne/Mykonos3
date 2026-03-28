@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { CallRequest, User, FeedbackReport } from '../types';
-import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon, CalendarIcon } from './icons';
+import { TrashIcon, ShieldCheckIcon, StarIcon, CameraIcon, UserIcon, CloudArrowUpIcon, XMarkIcon, BellIcon, ChevronRightIcon, KeyIcon, CalendarIcon, ClockIcon } from './icons';
+import WorkHoursModal from './WorkHoursModal';
 import BulkTaskModal from './BulkTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import { ADMIN_USER_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from '../constants';
@@ -31,6 +32,7 @@ interface AdminMenuProps {
     onJumpToMember: (userName: string) => void;
     calls?: CallRequest[];
     onOpenSchedule: (user: User) => void;
+    onUpdateWorkHours?: (userName: string, workStart: string, workEnd: string, autoUnavailableOffset: number | null) => void;
     feedbackReports?: FeedbackReport[];
     onDeleteFeedback?: (id: string) => Promise<void>;
     onMarkFeedbackRead?: (id: string) => Promise<void>;
@@ -255,10 +257,12 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     onJumpToMember,
     calls = [],
     onOpenSchedule,
+    onUpdateWorkHours,
     feedbackReports = [],
     onDeleteFeedback,
     onMarkFeedbackRead,
-}) => {
+}) => {    const [workHoursEditUser, setWorkHoursEditUser] = useState<User | null>(null);
+
     const [activeTab, setActiveTab] = useState<AdminTab>('users');
     const [exportTarget, setExportTarget] = useState<ExportTarget>('all');
     // 名前・フリガナ編集中のユーザー名
@@ -639,7 +643,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         return null;
     }
 
-    return createPortal(
+    return [createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300 animate-fade-in" onClick={onClose}>
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col transform transition-all duration-600 scale-95 animate-fade-in-up" onClick={e => e.stopPropagation()}>
                 <input
@@ -871,6 +875,13 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                                 title="スケジュールを編集"
                                                             >
                                                                 <CalendarIcon className="w-5 h-5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setWorkHoursEditUser(user)}
+                                                                className="p-1.5 rounded-full text-slate-500 hover:bg-slate-200 hover:text-[#0193be] transition"
+                                                                title="稼働時間を編集"
+                                                            >
+                                                                <ClockIcon className="w-5 h-5" />
                                                             </button>
                                                             {isSuperAdmin && (
                                                                 <button
@@ -1199,7 +1210,22 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
             `}</style>
         </div>,
         document.body
-    );
+    ),
+    workHoursEditUser && (
+      <WorkHoursModal
+        key={workHoursEditUser.name}
+        isOpen={true}
+        onClose={() => setWorkHoursEditUser(null)}
+        user={workHoursEditUser}
+        onSave={(workStart, workEnd, autoUnavailableOffset) => {
+          if (onUpdateWorkHours) {
+            onUpdateWorkHours(workHoursEditUser.name, workStart, workEnd, autoUnavailableOffset);
+          }
+          setWorkHoursEditUser(null);
+        }}
+      />
+    ),
+  ];
 };
 
 export default AdminMenu;

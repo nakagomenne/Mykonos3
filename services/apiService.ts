@@ -61,20 +61,23 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
 // DB行 → User
 function rowToUser(row: any): User {
   return {
-    name:               row.name,
-    furigana:           row.furigana ?? undefined,
-    isAdmin:            row.is_admin,
-    isLinePrechecker:   row.is_line_prechecker,
-    isSuperAdmin:       row.is_super_admin,
-    password:           row.password,
-    profilePicture:     row.profile_picture ?? null,
-    availabilityStatus: row.availability_status as AvailabilityStatus,
-    nonWorkingDays:     row.non_working_days ?? [],
-    availableProducts:  row.available_products ?? [],
-    comment:            row.comment ?? '',
-    commentUpdatedAt:   row.comment_updated_at ?? undefined,
-    statusRevertAt:     row.status_revert_at ?? null,
-    createdAt:          row.created_at,
+    name:                  row.name,
+    furigana:              row.furigana ?? undefined,
+    isAdmin:               row.is_admin,
+    isLinePrechecker:      row.is_line_prechecker,
+    isSuperAdmin:          row.is_super_admin,
+    password:              row.password,
+    profilePicture:        row.profile_picture ?? null,
+    availabilityStatus:    row.availability_status as AvailabilityStatus,
+    nonWorkingDays:        row.non_working_days ?? [],
+    availableProducts:     row.available_products ?? [],
+    comment:               row.comment ?? '',
+    commentUpdatedAt:      row.comment_updated_at ?? undefined,
+    statusRevertAt:        row.status_revert_at ?? null,
+    workStart:             row.work_start ?? '11:00',
+    workEnd:               row.work_end ?? '20:00',
+    autoUnavailableOffset: row.auto_unavailable_offset ?? null,
+    createdAt:             row.created_at,
   };
 }
 
@@ -91,9 +94,12 @@ function userToRow(data: Partial<User>): Record<string, any> {
   if (data.availabilityStatus !== undefined) row.availability_status = data.availabilityStatus;
   if (data.nonWorkingDays     !== undefined) row.non_working_days    = data.nonWorkingDays;
   if (data.availableProducts  !== undefined) row.available_products  = data.availableProducts;
-  if (data.comment            !== undefined) row.comment             = data.comment;
-  if (data.commentUpdatedAt   !== undefined) row.comment_updated_at  = data.commentUpdatedAt;
-  if (data.statusRevertAt     !== undefined) row.status_revert_at   = data.statusRevertAt;
+  if (data.comment                !== undefined) row.comment                  = data.comment;
+  if (data.commentUpdatedAt       !== undefined) row.comment_updated_at       = data.commentUpdatedAt;
+  if (data.statusRevertAt         !== undefined) row.status_revert_at         = data.statusRevertAt;
+  if (data.workStart              !== undefined) row.work_start               = data.workStart;
+  if (data.workEnd                !== undefined) row.work_end                 = data.workEnd;
+  if (data.autoUnavailableOffset  !== undefined) row.auto_unavailable_offset  = data.autoUnavailableOffset;
   return row;
 }
 
