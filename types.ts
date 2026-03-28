@@ -31,7 +31,7 @@ export type CallStatus = '追客中' | '完了';
 
 export type AvailabilityStatus = '受付可' | '一時受付不可' | '当日受付不可' | '非稼働';
 
-export type CallRequestUpdatableFields = 'customerId' | 'requester' | 'assignee' | 'listType' | 'rank' | 'dateTime' | 'notes' | 'status' | 'absenceCount' | 'prechecker' | 'imported' | 'applicationNumber';
+export type CallRequestUpdatableFields = 'customerId' | 'requester' | 'assignee' | 'listType' | 'rank' | 'dateTime' | 'notes' | 'status' | 'absenceCount' | 'prechecker' | 'imported' | 'applicationNumber' | 'emoji';
 
 export interface EditChange {
   field: CallRequestUpdatableFields;
@@ -63,6 +63,7 @@ export interface CallRequest {
   isStrict?: boolean;
   isDetailedTime?: boolean;
   applicationNumber?: string;
+  emoji?: string;
 }
 
 export interface User {

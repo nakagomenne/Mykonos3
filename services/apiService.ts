@@ -32,6 +32,7 @@ function rowToCallRequest(row: any): CallRequest {
     history:        row.history ?? [],
     completedAt:      row.completed_at ?? undefined,
     applicationNumber: row.application_number ?? '',
+    emoji:             row.emoji ?? '',
     createdAt:         row.created_at,
   };
 }
@@ -55,6 +56,7 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
   if (data.history        !== undefined) row.history          = data.history;
   if (data.completedAt        !== undefined) row.completed_at       = data.completedAt;
   if (data.applicationNumber  !== undefined) row.application_number = data.applicationNumber;
+  if (data.emoji              !== undefined) row.emoji               = data.emoji;
   return row;
 }
 
@@ -109,7 +111,7 @@ function userToRow(data: Partial<User>): Record<string, any> {
 
 // history を除いたカラム一覧（初期ロード高速化）
 const CALL_REQUEST_COLUMNS_WITHOUT_HISTORY =
-  'id,customer_id,requester,assignee,list_type,rank,date_time,notes,status,absence_count,prechecker,imported,is_strict,is_detailed_time,completed_at,application_number,created_at';
+  'id,customer_id,requester,assignee,list_type,rank,date_time,notes,status,absence_count,prechecker,imported,is_strict,is_detailed_time,completed_at,application_number,emoji,created_at';
 
 /** 全案件を取得する（history 除外で高速化・論理削除済みを除外） */
 export async function fetchCallRequests(): Promise<CallRequest[]> {
@@ -507,6 +509,7 @@ export function subscribeToCallRequests(
                   isDetailedTime: updatedCall.isDetailedTime ?? c.isDetailedTime,
                   completedAt:      updatedCall.completedAt      !== undefined ? updatedCall.completedAt : c.completedAt,
                   applicationNumber: updatedCall.applicationNumber !== undefined ? updatedCall.applicationNumber : c.applicationNumber,
+                  emoji:             updatedCall.emoji             !== undefined ? updatedCall.emoji : c.emoji,
                   createdAt:         updatedCall.createdAt         || c.createdAt,
                   // history は payload に含まれない場合もあるので既存値を優先
                   history:        updatedCall.history?.length ? updatedCall.history : c.history,

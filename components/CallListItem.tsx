@@ -5,6 +5,7 @@ import { CheckIcon, ClipboardDocumentIcon, PencilIcon, PhoneMissedIcon } from '.
 import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
+import EmojiPicker from './EmojiPicker';
 import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS } from '../constants';
 
 interface CallListItemProps {
@@ -46,6 +47,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const absenceButtonRef = useRef<HTMLButtonElement>(null);
   const absenceDropdownRef = useRef<HTMLDivElement>(null);
   const [absenceDropdownPosition, setAbsenceDropdownPosition] = useState<{top: number; left: number} | null>(null);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [emojiAnchorRect, setEmojiAnchorRect] = useState<DOMRect | null>(null);
 
 
   useEffect(() => {
@@ -699,8 +702,42 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             </div>
           )}
 
+          {/* 絵文字列（非前確のみ） */}
           {!isPrecheckTheme && (
-            <div className={`flex-1 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
+            <div className="w-8 flex-shrink-0 flex items-center justify-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isFieldDisabled) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setEmojiAnchorRect(rect);
+                  setIsEmojiPickerOpen(prev => !prev);
+                }}
+                disabled={isFieldDisabled}
+                className={`w-full h-full flex items-center justify-center text-base leading-none rounded transition ${
+                  isFieldDisabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-slate-200/60 cursor-pointer'
+                }`}
+                title={call.emoji ? `絵文字: ${call.emoji}` : '絵文字を設定'}
+              >
+                {call.emoji || <span className="text-xs text-slate-300">★</span>}
+              </button>
+              {isEmojiPickerOpen && emojiAnchorRect && (
+                <EmojiPicker
+                  value={call.emoji ?? ''}
+                  onChange={(em) => {
+                    onUpdateCall(call.id, { emoji: em });
+                    setIsEmojiPickerOpen(false);
+                  }}
+                  onClose={() => setIsEmojiPickerOpen(false)}
+                  anchorRect={emojiAnchorRect}
+                  isDarkMode={isDarkMode}
+                />
+              )}
+            </div>
+          )}
+
+          {!isPrecheckTheme && (
+            <div className={`flex-1 min-w-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
               <button 
                 onClick={(e) => {
                     e.stopPropagation();

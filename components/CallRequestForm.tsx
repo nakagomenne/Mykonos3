@@ -5,6 +5,7 @@ import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS,
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
+import EmojiPicker from './EmojiPicker';
 
 interface CallRequestFormProps {
   onAddCall: (call: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => boolean;
@@ -111,7 +112,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
   const [notes, setNotes] = useState('');
-  
+  const [emoji, setEmoji] = useState('');
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const [emojiAnchorRect, setEmojiAnchorRect] = useState<DOMRect | null>(null);
+
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const assigneeDropdownRef = useRef<HTMLDivElement>(null);
   
@@ -295,6 +300,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     setCustomerId('');
     setRank('');
     setNotes('');
+    setEmoji('');
+    setIsEmojiPickerOpen(false);
     setIsStrict(false);
     setIsDetailedTime(false);
 
@@ -392,6 +399,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       rank,
       dateTime: `${date}T${time}`,
       notes,
+      emoji,
       isStrict,
       isDetailedTime,
     });
@@ -674,6 +682,45 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
           </select>
         </div>
         <div className="md:col-span-2">
+          {/* 絵文字ピッカー */}
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              ref={emojiButtonRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setEmojiAnchorRect(rect);
+                setIsEmojiPickerOpen(prev => !prev);
+              }}
+              className={`text-sm px-3 py-1 rounded border font-medium transition flex items-center gap-1.5 ${
+                isDarkMode
+                  ? 'border-slate-500 bg-slate-700 hover:bg-slate-600 text-white'
+                  : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-600'
+              }`}
+            >
+              <span>★</span>
+              {emoji ? <span className="text-base leading-none">{emoji}</span> : <span className="text-slate-400">未選択</span>}
+            </button>
+            {emoji && (
+              <button
+                type="button"
+                onClick={() => setEmoji('')}
+                className="text-xs text-slate-400 hover:text-slate-600 transition"
+              >
+                クリア
+              </button>
+            )}
+          </div>
+          {isEmojiPickerOpen && emojiAnchorRect && (
+            <EmojiPicker
+              value={emoji}
+              onChange={(em) => setEmoji(em)}
+              onClose={() => setIsEmojiPickerOpen(false)}
+              anchorRect={emojiAnchorRect}
+              isDarkMode={isDarkMode}
+            />
+          )}
           <label htmlFor="notes" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>備考</label>
           <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}></textarea>
         </div>

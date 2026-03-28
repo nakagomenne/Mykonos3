@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { CallRequest, ListType, Rank } from '../types';
 import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
+import EmojiPicker from './EmojiPicker';
 
 interface CallEditFormProps {
   call: CallRequest;
@@ -43,6 +44,9 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const [date, setDate] = useState(call.dateTime.split('T')[0]);
   const [time, setTime] = useState(call.dateTime.split('T')[1]);
   const [notes, setNotes] = useState(call.notes);
+  const [emoji, setEmoji] = useState(call.emoji ?? '');
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [emojiAnchorRect, setEmojiAnchorRect] = useState<DOMRect | null>(null);
   const [isStrict, setIsStrict] = useState(call.isStrict ?? false);
   const [isDetailedTime, setIsDetailedTime] = useState(call.isDetailedTime ?? false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -62,11 +66,12 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     setDate(call.dateTime.split('T')[0]);
     setTime(call.dateTime.split('T')[1]);
     setNotes(call.notes);
+    setEmoji(call.emoji ?? '');
     setIsStrict(call.isStrict ?? false);
     setIsDetailedTime(call.isDetailedTime ?? false);
     setIsApReturn(false);
     setIsLineOrder(false);
-  }, [call.id, call.customerId, call.assignee, call.requester, call.listType, call.rank, call.dateTime, call.notes, call.isStrict, call.isDetailedTime]);
+  }, [call.id, call.customerId, call.assignee, call.requester, call.listType, call.rank, call.dateTime, call.notes, call.emoji, call.isStrict, call.isDetailedTime]);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -173,6 +178,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       rank,
       dateTime: `${date}T${time}`,
       notes,
+      emoji,
       isStrict,
       isDetailedTime,
     });
@@ -331,6 +337,44 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         )}
 
         <div>
+          {/* 絵文字ピッカー */}
+          <div className="mb-1.5 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setEmojiAnchorRect(rect);
+                setIsEmojiPickerOpen(prev => !prev);
+              }}
+              className={`text-xs px-2 py-0.5 rounded border font-medium transition flex items-center gap-1 ${
+                isDarkMode
+                  ? 'border-slate-500 bg-slate-700 hover:bg-slate-600 text-white'
+                  : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-600'
+              }`}
+            >
+              <span>★</span>
+              {emoji ? <span className="text-base leading-none">{emoji}</span> : <span className="text-slate-400 text-xs">未選択</span>}
+            </button>
+            {emoji && (
+              <button
+                type="button"
+                onClick={() => setEmoji('')}
+                className="text-xs text-slate-400 hover:text-slate-600 transition"
+              >
+                クリア
+              </button>
+            )}
+          </div>
+          {isEmojiPickerOpen && emojiAnchorRect && (
+            <EmojiPicker
+              value={emoji}
+              onChange={(em) => setEmoji(em)}
+              onClose={() => setIsEmojiPickerOpen(false)}
+              anchorRect={emojiAnchorRect}
+              isDarkMode={isDarkMode}
+            />
+          )}
           <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>備考</label>
           <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`}></textarea>
         </div>
