@@ -359,14 +359,24 @@ export async function updateUserAvailabilityStatus(
   if (error) throw new Error(`ステータスの更新に失敗しました: ${error.message}`);
 }
 
-/** 稼働ステータスを更新し、'一時受付不可'の場合は90分後の復帰時刻を保存する */
+/** 稼働ステータスを更新し、'一時受付不可'の場合は90分後・'当日受付不可'の場合は翌日JST0:00を復帰時刻として保存する */
 export async function updateUserAvailabilityStatusWithRevert(
   name: string,
   status: AvailabilityStatus
 ): Promise<void> {
-  const revertAt = status === '一時受付不可'
-    ? new Date(Date.now() + 90 * 60 * 1000).toISOString()
-    : null;
+  let revertAt: string | null = null;
+  if (status === '一時受付不可') {
+    revertAt = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+  } else if (status === '当日受付不可') {
+    // 翌日のJST 0:00（= UTC 15:00）を復帰時刻として設定
+    const now = new Date();
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const jstMidnight = new Date(
+      Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate() + 1, 0, 0, 0, 0)
+      - 9 * 60 * 60 * 1000
+    );
+    revertAt = jstMidnight.toISOString();
+  }
   const { error } = await supabase
     .from('users')
     .update({ availability_status: status, status_revert_at: revertAt })

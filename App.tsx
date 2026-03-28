@@ -520,8 +520,15 @@ const App: React.FC = () => {
           handleUpdateUserStatus(user.name, '受付可');
         }
       }
-      // 注意: 当日受付不可は当日中の手動設定のため、リロード・再ログインでは変更しない
-      // 日付が変わったタイミング（0時タイマー）でのみ自動復帰する
+      // 当日受付不可：statusRevertAt（翌日JST0:00）が過去なら日付をまたいだと判断し受付可に戻す
+      if (!isNonWorkingDay && user.availabilityStatus === '当日受付不可') {
+        const revertAt = user.statusRevertAt ? new Date(user.statusRevertAt).getTime() : null;
+        if (revertAt !== null && revertAt <= Date.now()) {
+          if (user.name === currentUser.name || currentUser.isAdmin) {
+            handleUpdateUserStatus(user.name, '受付可');
+          }
+        }
+      }
     });
   }, [currentUser, users, isLoading]);
 
@@ -1390,9 +1397,18 @@ const App: React.FC = () => {
   const handleUpdateUserStatus = async (name: string, status: AvailabilityStatus) => {
     try {
       await updateUserAvailabilityStatusWithRevert(name, status);
-      const revertAt = status === '一時受付不可'
-        ? new Date(Date.now() + 90 * 60 * 1000).toISOString()
-        : null;
+      let revertAt: string | null = null;
+      if (status === '一時受付不可') {
+        revertAt = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+      } else if (status === '当日受付不可') {
+        const now = new Date();
+        const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+        const jstMidnight = new Date(
+          Date.UTC(jstNow.getUTCFullYear(), jstNow.getUTCMonth(), jstNow.getUTCDate() + 1, 0, 0, 0, 0)
+          - 9 * 60 * 60 * 1000
+        );
+        revertAt = jstMidnight.toISOString();
+      }
       setUsers(prevUsers =>
         prevUsers.map(u => (u.name === name ? { ...u, availabilityStatus: status, statusRevertAt: revertAt } : u))
       );
