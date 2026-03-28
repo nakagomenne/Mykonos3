@@ -176,12 +176,13 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     if (prefilledDate) {
         isPrefillActiveRef.current = true;
         setDate(prefilledDate);
-        setTime('このあとOK');
+        // 翌日以降なら 11:00、今日なら このあとOK
+        setTime(prefilledDate > today ? '11:00' : 'このあとOK');
         if (onPrefillConsumed) {
             onPrefillConsumed();
         }
     }
-  }, [prefilledDate, onPrefillConsumed]);
+  }, [prefilledDate, onPrefillConsumed, today]);
 
   const filteredUsers = useMemo(() => {
     if (isPrecheckMode) {
