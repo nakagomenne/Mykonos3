@@ -320,6 +320,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
 
   const handleSaveInline = (updatedData: Partial<Omit<CallRequest, 'id'>>) => {
+      // 担当者が変更された場合、依頼者を自分の名前に自動更新
+      if (updatedData.assignee !== undefined && updatedData.assignee !== call.assignee) {
+          updatedData = { ...updatedData, requester: currentUser.name };
+      }
       onUpdateCall(call.id, updatedData);
       setEditingState(null);
   };

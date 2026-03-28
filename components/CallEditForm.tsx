@@ -218,7 +218,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           </div>
           <div>
             <label htmlFor={`edit-assignee-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>担当者</label>
-            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => setAssignee(e.target.value)} required className={selectClass}
+            <select id={`edit-assignee-${call.id}`} value={assignee} onChange={(e) => { setAssignee(e.target.value); if (currentUserName) setRequester(currentUserName); }} required className={selectClass}
               disabled={isApReturn || isLineOrder}
             >
               {assigneeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
