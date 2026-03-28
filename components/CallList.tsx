@@ -70,7 +70,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
   return (
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
-        <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+        <div className={`px-4 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
           isPrecheckTheme
             ? `${isDarkMode ? 'bg-[#0d7a6f]/20 border-[#118f82]/30' : 'bg-gradient-to-r from-[#0d7a6f]/10 to-[#118f82]/5 border-[#118f82]/20'} text-[#118f82]/70`
             : `${isDarkMode ? 'bg-[#0193be]/15 border-[#0193be]/25' : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20'} text-[#0193be]/70`
