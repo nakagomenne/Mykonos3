@@ -429,7 +429,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
         </>
       )}
       <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
-          <div className="w-6 flex-shrink-0 flex justify-center items-center">
+          <div className="w-7 flex-shrink-0 flex justify-center items-center">
             <div className="relative h-5 w-5">
               <input
                   type="checkbox"

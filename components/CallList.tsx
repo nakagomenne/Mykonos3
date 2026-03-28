@@ -75,7 +75,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
             ? `${isDarkMode ? 'bg-[#0d7a6f]/20 border-[#118f82]/30' : 'bg-gradient-to-r from-[#0d7a6f]/10 to-[#118f82]/5 border-[#118f82]/20'} text-[#118f82]/70`
             : `${isDarkMode ? 'bg-[#0193be]/15 border-[#0193be]/25' : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20'} text-[#0193be]/70`
         }`}>
-            <div className="w-6 flex-shrink-0 flex justify-center">
+            <div className="w-7 flex-shrink-0 flex justify-center">
               {hasCompletedCalls && (
                 <button
                   onClick={() => setHideCompleted(prev => !prev)}
