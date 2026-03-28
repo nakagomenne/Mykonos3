@@ -338,6 +338,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   useEffect(() => {
     if (formResetCounter > 0) {
+      // カレンダーから prefill された直後は resetForm をスキップ
+      if (isPrefillActiveRef.current) return;
       resetForm();
     }
   }, [formResetCounter, resetForm]);
