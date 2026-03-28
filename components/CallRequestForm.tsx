@@ -74,6 +74,10 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const usersRef = useRef(users);
   useEffect(() => { usersRef.current = users; }, [users]);
 
+  // カレンダーから日付が prefill されたことを追跡するフラグ
+  // これが true の間は assignee の変化で日付を上書きしない
+  const isPrefillActiveRef = useRef(false);
+
   const [customerId, setCustomerId] = useState('');
   const [assignee, setAssignee] = useState(defaultAssignee || '');
   const [listType, setListType] = useState<ListType | ''>(isPrecheckMode ? '回線' : '');
@@ -170,8 +174,9 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   useEffect(() => {
     if (prefilledDate) {
+        isPrefillActiveRef.current = true;
         setDate(prefilledDate);
-        setTime('11:00');
+        setTime('このあとOK');
         if (onPrefillConsumed) {
             onPrefillConsumed();
         }
@@ -285,6 +290,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   }, [isCalendarOpen]);
 
   const resetForm = useCallback(() => {
+    isPrefillActiveRef.current = false;
     setCustomerId('');
     setRank('');
     setNotes('');
@@ -343,6 +349,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   useEffect(() => {
     if (enableProductFiltering && !prefilledDate && !isPrecheckMode) {
+        // カレンダーから prefill された直後は日付を上書きしない
+        if (isPrefillActiveRef.current) {
+            isPrefillActiveRef.current = false;
+            return;
+        }
         const assigneeUser = users.find(u => u.name === assignee);
         if (assigneeUser && assigneeUser.availabilityStatus === '受付可') {
             setDate(new Date().toISOString().split('T')[0]);
