@@ -278,7 +278,7 @@ export async function createBulkCallRequests(
 /** 全ユーザーを取得する */
 // profile_picture を除いたカラム一覧（初期ロード高速化）
 const USER_COLUMNS_WITHOUT_PICTURE =
-  'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,created_at';
+  'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
 
 /** ユーザー一覧を取得する（profile_picture 除外で高速化） */
 export async function fetchUsers(): Promise<User[]> {
@@ -560,10 +560,13 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
                   availabilityStatus: updatedUser.availabilityStatus || u.availabilityStatus,
                   nonWorkingDays:     updatedUser.nonWorkingDays     ?? u.nonWorkingDays,
                   availableProducts:  updatedUser.availableProducts  ?? u.availableProducts,
-                  comment:            updatedUser.comment            ?? u.comment,
-                  commentUpdatedAt:   updatedUser.commentUpdatedAt   ?? u.commentUpdatedAt,
-                  statusRevertAt:     updatedUser.statusRevertAt     !== undefined ? updatedUser.statusRevertAt : u.statusRevertAt,
-                  createdAt:          updatedUser.createdAt          || u.createdAt,
+                  comment:               updatedUser.comment            ?? u.comment,
+                  commentUpdatedAt:      updatedUser.commentUpdatedAt   ?? u.commentUpdatedAt,
+                  statusRevertAt:        updatedUser.statusRevertAt     !== undefined ? updatedUser.statusRevertAt : u.statusRevertAt,
+                  workStart:             updatedUser.workStart          ?? u.workStart,
+                  workEnd:               updatedUser.workEnd            ?? u.workEnd,
+                  autoUnavailableOffset: updatedUser.autoUnavailableOffset !== undefined ? updatedUser.autoUnavailableOffset : u.autoUnavailableOffset,
+                  createdAt:             updatedUser.createdAt          || u.createdAt,
                 };
               })
             );
