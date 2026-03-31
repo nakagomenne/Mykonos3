@@ -819,10 +819,6 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                                     const newProducts = isChecked
                                                                         ? currentProducts.filter(p => p !== product)
                                                                         : [...currentProducts, product];
-                                                                    if (newProducts.length === 0) {
-                                                                        alert('案内可能商材を少なくとも1つ選択する必要があります。');
-                                                                        return;
-                                                                    }
                                                                     handleUpdateAvailableProducts(user.name, newProducts);
                                                                 };
                                                                 return (
