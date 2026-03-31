@@ -197,13 +197,12 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     // 商材フィルター（リスト種別→対応商材を持つメンバーに絞る）
     let base = users;
     if (enableProductFiltering && listType) {
-      // 対応商材が空のユーザーは制限なしとみなして常に含める
       if (listType === '回線') {
-        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('回線'));
+        base = users.filter(u => (u.availableProducts ?? []).includes('回線'));
       } else if (['MF', 'OK', 'NG'].includes(listType)) {
-        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('水'));
+        base = users.filter(u => (u.availableProducts ?? []).includes('水'));
       } else if (listType === '保険') {
-        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('保険'));
+        base = users.filter(u => (u.availableProducts ?? []).includes('保険'));
       }
     }
 
@@ -251,9 +250,9 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       return LIST_TYPE_OPTIONS;
     }
     const selectedUser = users.find(user => user.name === assignee);
-    // 商材なし（空配列）のユーザーは全種別を表示
+    // 商材なし（空配列）のユーザーは選択肢なし
     if (!selectedUser || !(selectedUser.availableProducts ?? []).length) {
-      return LIST_TYPE_OPTIONS;
+      return [];
     }
     
     const options: ListType[] = [];
