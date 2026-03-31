@@ -194,13 +194,16 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         return users; // App.tsx will already have filtered to pre-checkers
     }
 
-    // 商材フィルター
+    // 商材フィルター（リスト種別→対応商材を持つメンバーに絞る）
     let base = users;
     if (enableProductFiltering && listType) {
+      // 対応商材が空のユーザーは制限なしとみなして常に含める
       if (listType === '回線') {
-        base = users.filter(user => (user.availableProducts || []).includes('回線'));
+        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('回線'));
       } else if (['MF', 'OK', 'NG'].includes(listType)) {
-        base = users.filter(user => (user.availableProducts || []).includes('水'));
+        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('水'));
+      } else if (listType === '保険') {
+        base = users.filter(u => !(u.availableProducts ?? []).length || (u.availableProducts ?? []).includes('保険'));
       }
     }
 
@@ -248,16 +251,20 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       return LIST_TYPE_OPTIONS;
     }
     const selectedUser = users.find(user => user.name === assignee);
-    if (!selectedUser || !selectedUser.availableProducts || selectedUser.availableProducts.length === 0) {
-      return [];
+    // 商材なし（空配列）のユーザーは全種別を表示
+    if (!selectedUser || !(selectedUser.availableProducts ?? []).length) {
+      return LIST_TYPE_OPTIONS;
     }
     
     const options: ListType[] = [];
-    if (selectedUser.availableProducts.includes('回線')) {
+    if (selectedUser.availableProducts!.includes('回線')) {
       options.push('回線');
     }
-    if (selectedUser.availableProducts.includes('水')) {
+    if (selectedUser.availableProducts!.includes('水')) {
       options.push('MF', 'OK', 'NG');
+    }
+    if (selectedUser.availableProducts!.includes('保険')) {
+      options.push('保険');
     }
     return options;
   }, [assignee, users, enableProductFiltering, isPrecheckMode]);
