@@ -289,9 +289,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           const isPast = dayDateObj < localToday;
           const isDisabled = isNonWorking || isPast;
           let cls = isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-sky-100';
-          if (isNonWorking) {
-            cls = isDarkMode ? 'bg-red-900/60 text-red-300 cursor-not-allowed' : 'bg-red-100 text-red-400 cursor-not-allowed';
-          } else if (isPast) {
+          if (isNonWorking || isPast) {
             cls = isDarkMode ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-200 text-slate-400 cursor-not-allowed';
           } else if (isSelected) {
             cls = `${mainBgClass} text-white font-bold ${mainHoverBgClass}`;
@@ -315,7 +313,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       </div>
       {assigneeNonWorkingDays.size > 0 && (
         <div className={`mt-2 pt-2 border-t ${isDarkMode ? 'border-slate-600' : 'border-slate-200'} flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-          <span className="inline-block w-3 h-3 rounded-sm bg-red-100 border border-red-300 flex-shrink-0" />
+          <span className="inline-block w-3 h-3 rounded-sm bg-slate-200 border border-slate-400 flex-shrink-0" />
           非稼働日
         </div>
       )}
