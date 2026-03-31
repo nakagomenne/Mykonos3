@@ -102,10 +102,6 @@ const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: bool
             alert('ユーザー名を入力してください。');
             return;
         }
-        if (availableProducts.length === 0) {
-            alert('案内可能商材を少なくとも1つ選択してください。');
-            return;
-        }
         onAddUser({ name: name.trim(), furigana: furigana.trim() || undefined, profilePicture, availableProducts, isAdmin, isSuperAdmin, isLinePrechecker });
     };
 
@@ -289,7 +285,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isSuperAdmin = currentUser.isSuperAdmin;
-    const AVAILABLE_PRODUCTS = ['回線', '水'];
+    const AVAILABLE_PRODUCTS = ['回線', '水', '保険'];
 
     useEffect(() => {
         setAnnouncementText(announcement);

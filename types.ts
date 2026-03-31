@@ -1,5 +1,5 @@
 
-export type ListType = '回線' | 'MF' | 'OK' | 'NG';
+export type ListType = '回線' | 'MF' | 'OK' | 'NG' | '保険';
 
 export type Rank = 
   | '留守入電' 

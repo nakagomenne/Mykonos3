@@ -1,6 +1,6 @@
 import { ListType, Rank, CallStatus, User, AvailabilityStatus } from './types';
 
-export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG'];
+export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG', '保険'];
 
 export const PRECHECK_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち'];
 

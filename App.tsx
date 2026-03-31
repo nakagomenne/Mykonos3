@@ -1895,6 +1895,13 @@ const App: React.FC = () => {
   
   const currentUserWithData = users.find(u => u.name === currentUser.name);
 
+  // ユーザーの対応可能商材ラベルを生成（回線前確権限があれば末尾に追加）
+  const getProductsLabel = (user: User): string => {
+    const products = [...(user.availableProducts ?? [])];
+    if (user.isLinePrechecker) products.push('回線前確');
+    return products.join('・');
+  };
+
   // ヘッダー・フッターのテーマは displayViewMode ベース
   // （コンテンツのフェードと同期させるため）
   const isPrecheckModeActive = displayViewMode === 'precheck';
@@ -2731,9 +2738,9 @@ const App: React.FC = () => {
                                                   <CalendarIcon className="w-6 h-6" />
                                               </button>
                                             </div>
-                                            {(currentUserWithData?.availableProducts && currentUserWithData.availableProducts.length > 0) && (
+                                            {(currentUserWithData && (( currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
                                               <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
-                                                対応可能商材：{currentUserWithData.availableProducts.join('・')}
+                                                対応可能商材：{getProductsLabel(currentUserWithData)}
                                               </p>
                                             )}
                                             {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
@@ -2763,9 +2770,9 @@ const App: React.FC = () => {
                                               <CalendarIcon className="w-6 h-6" />
                                           </button>
                                         </div>
-                                        {(currentUserWithData?.availableProducts && currentUserWithData.availableProducts.length > 0) && (
+                                        {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
                                           <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
-                                            対応可能商材：{currentUserWithData.availableProducts.join('・')}
+                                            対応可能商材：{getProductsLabel(currentUserWithData)}
                                           </p>
                                         )}
                                         {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
@@ -2864,9 +2871,9 @@ const App: React.FC = () => {
                                                 <CalendarIcon className="w-6 h-6" />
                                             </button>
                                           </div>
-                                          {(selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) && (
+                                          {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
                                             <p className={`mt-2 text-lg font-bold transition-colors duration-500 ${statusTextColor} opacity-80`}>
-                                              対応可能商材：{selectedUserDetails.availableProducts.join('・')}
+                                              対応可能商材：{getProductsLabel(selectedUserDetails)}
                                             </p>
                                           )}
                                           {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
@@ -3071,9 +3078,9 @@ const App: React.FC = () => {
                                           <CalendarIcon className="w-6 h-6" />
                                       </button>
                                     </div>
-                                    {(selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) && (
+                                    {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
                                       <p className="mt-2 text-lg font-bold text-[#0193be]/80">
-                                        対応可能商材：{selectedUserDetails.availableProducts.join('・')}
+                                        対応可能商材：{getProductsLabel(selectedUserDetails)}
                                       </p>
                                     )}
                                     {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
