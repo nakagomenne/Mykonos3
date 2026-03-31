@@ -206,17 +206,48 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     return options;
   }, [effectiveIsPrecheckForRank, rank]);
 
+  // listType に対応する商材キーを返す
+  const requiredProduct = useMemo((): string | null => {
+    if (!listType) return null;
+    if (listType === '回線') return '回線';
+    if (['MF', 'OK', 'NG'].includes(listType)) return '水';
+    if (listType === '保険') return '保険';
+    return null;
+  }, [listType]);
+
   // AP戻し・回線受注チェック時は担当者選択肢を拡張（回線前確 or 元の依頼者が含まれるよう）
+  // 通常時はリスト種別の商材でフィルタリング
   const assigneeOptions = useMemo(() => {
-    const base = [...members];
-    if (isApReturn && call.requester && !base.includes(call.requester)) {
-      base.push(call.requester);
+    if (isApReturn || isLineOrder) {
+      const base = [...members];
+      if (isApReturn && call.requester && !base.includes(call.requester)) {
+        base.push(call.requester);
+      }
+      if (isLineOrder && !base.includes(PRECHECKER_ASSIGNEE_NAME)) {
+        base.push(PRECHECKER_ASSIGNEE_NAME);
+      }
+      return base;
     }
-    if (isLineOrder && !base.includes(PRECHECKER_ASSIGNEE_NAME)) {
-      base.push(PRECHECKER_ASSIGNEE_NAME);
+    // 商材フィルタリング
+    if (requiredProduct && users.length > 0) {
+      return members.filter(name => {
+        const user = users.find(u => u.name === name);
+        if (!user) return false;
+        const products = user.availableProducts ?? [];
+        if (products.length === 0) return false;
+        return products.includes(requiredProduct);
+      });
     }
-    return base;
-  }, [members, isApReturn, isLineOrder, call.requester]);
+    return [...members];
+  }, [members, users, isApReturn, isLineOrder, call.requester, requiredProduct]);
+
+  // listType が変わったとき、現在の担当者がフィルタ後リストにいなければ先頭に切り替え
+  useEffect(() => {
+    if (isApReturn || isLineOrder) return;
+    if (assigneeOptions.length > 0 && !assigneeOptions.includes(assignee)) {
+      setAssignee(assigneeOptions[0]);
+    }
+  }, [assigneeOptions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
