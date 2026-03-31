@@ -1666,6 +1666,9 @@ const App: React.FC = () => {
     return 99998; // Fallback for robustness
   };
 
+  // 回線前確コンテキストかどうか（ソートに使用するため早期定義）
+  const isPrecheckContextForSort = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
+
   const sortedCalls = [...calls].sort((a, b) => {
     const orderA = statusOrder[a.status] ?? 99;
     const orderB = statusOrder[b.status] ?? 99;
@@ -1686,7 +1689,10 @@ const App: React.FC = () => {
       return timePriorityDiff;
     }
 
-    // 日時が同じ場合はランク順（RANK_OPTIONS の配列順）でソート
+    // 日時が同じ場合：回線前確は作成日時が古い順、それ以外はランク順
+    if (isPrecheckContextForSort) {
+      return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+    }
     const rankIndexA = RANK_OPTIONS.indexOf(a.rank as any);
     const rankIndexB = RANK_OPTIONS.indexOf(b.rank as any);
     const rA = rankIndexA === -1 ? 999 : rankIndexA;
