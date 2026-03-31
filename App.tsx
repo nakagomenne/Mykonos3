@@ -1691,7 +1691,9 @@ const App: React.FC = () => {
 
     // 日時が同じ場合：回線前確は作成日時が古い順、それ以外はランク順
     if (isPrecheckContextForSort) {
-      return (a.createdAt ?? '').localeCompare(b.createdAt ?? '');
+      const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tA - tB;
     }
     const rankIndexA = RANK_OPTIONS.indexOf(a.rank as any);
     const rankIndexB = RANK_OPTIONS.indexOf(b.rank as any);
