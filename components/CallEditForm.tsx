@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { CallRequest, ListType, Rank } from '../types';
+import { createPortal } from 'react-dom';
+import { CallRequest, ListType, Rank, User } from '../types';
 import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
+import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
 import EmojiPicker from './EmojiPicker';
@@ -10,6 +12,7 @@ interface CallEditFormProps {
   onSave: (updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
   onCancel: () => void;
   members: string[];
+  users?: User[];
   isPrecheckTheme?: boolean;
   currentUserName?: string;
   isDarkMode?: boolean;
@@ -35,7 +38,7 @@ const roundTo15 = (t: string): string => {
 
 const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
-const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, isPrecheckTheme = false, currentUserName, isDarkMode = false }) => {
+const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, users = [], isPrecheckTheme = false, currentUserName, isDarkMode = false }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
   const [requester, setRequester] = useState(call.requester);
@@ -77,6 +80,66 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
+
+  // カレンダーポップアップ
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [calendarDisplayDate, setCalendarDisplayDate] = useState(() => new Date());
+  const dateInputRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [calendarPosition, setCalendarPosition] = useState<{ top: number; left: number } | null>(null);
+
+  // 担当者の非稼働日セット
+  const assigneeNonWorkingDays = useMemo(() => {
+    const user = users.find(u => u.name === assignee);
+    return new Set(user?.nonWorkingDays || []);
+  }, [assignee, users]);
+
+  // カレンダーグリッド生成
+  const calendarGrid = useMemo(() => {
+    const safeDate = (calendarDisplayDate instanceof Date && !isNaN(calendarDisplayDate.getTime()))
+      ? calendarDisplayDate : new Date();
+    const year = safeDate.getFullYear();
+    const month = safeDate.getMonth();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const grid: (Date | null)[][] = [];
+    let day = 1;
+    for (let i = 0; i < 6; i++) {
+      const week: (Date | null)[] = [];
+      for (let j = 0; j < 7; j++) {
+        if (i === 0 && j < firstDayOfMonth) week.push(null);
+        else if (day > daysInMonth) week.push(null);
+        else { week.push(new Date(year, month, day)); day++; }
+      }
+      grid.push(week);
+      if (day > daysInMonth) break;
+    }
+    return grid;
+  }, [calendarDisplayDate]);
+
+  const safeCalendarDisplayDate = (calendarDisplayDate instanceof Date && !isNaN(calendarDisplayDate.getTime()))
+    ? calendarDisplayDate : new Date();
+
+  // カレンダー外クリックで閉じる
+  useEffect(() => {
+    if (!isCalendarOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        calendarRef.current && !calendarRef.current.contains(e.target as Node) &&
+        dateInputRef.current && !dateInputRef.current.contains(e.target as Node)
+      ) setIsCalendarOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isCalendarOpen]);
+
+  // date が変わったらカレンダー表示月を同期
+  useEffect(() => {
+    if (date) {
+      const d = new Date(date + 'T00:00:00');
+      if (!isNaN(d.getTime())) setCalendarDisplayDate(d);
+    }
+  }, [date]);
 
   // AP戻し チェック ON/OFF
   const handleApReturnChange = (checked: boolean) => {
@@ -192,6 +255,74 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
   const checkboxColor = isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
 
+  // カレンダーポップアップ JSX
+  const CalendarPopup = isCalendarOpen && calendarPosition ? createPortal(
+    <div
+      ref={calendarRef}
+      className={`fixed z-[9999] rounded-lg shadow-xl border p-3 w-72 ${isDarkMode ? 'bg-[#0f1623] border-slate-600' : 'bg-white border-slate-200'}`}
+      style={{ top: calendarPosition.top, left: calendarPosition.left }}
+      onClick={e => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={() => setCalendarDisplayDate(d => { const s = (d instanceof Date && !isNaN(d.getTime())) ? d : new Date(); return new Date(s.getFullYear(), s.getMonth() - 1, 1); })} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+          <ChevronLeftIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
+        </button>
+        <div className={`font-semibold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+          {safeCalendarDisplayDate.getFullYear()}年 {safeCalendarDisplayDate.getMonth() + 1}月
+        </div>
+        <button type="button" onClick={() => setCalendarDisplayDate(d => { const s = (d instanceof Date && !isNaN(d.getTime())) ? d : new Date(); return new Date(s.getFullYear(), s.getMonth() + 1, 1); })} className={`p-1 rounded-full transition ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}>
+          <ChevronRightIcon className={`w-5 h-5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs">
+        {['日', '月', '火', '水', '木', '金', '土'].map(day => (
+          <div key={day} className={`font-medium py-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{day}</div>
+        ))}
+        {calendarGrid.flat().map((dayDate, index) => {
+          if (!dayDate) return <div key={`empty-${index}`} />;
+          const dateStr = `${dayDate.getFullYear()}-${(dayDate.getMonth() + 1).toString().padStart(2, '0')}-${dayDate.getDate().toString().padStart(2, '0')}`;
+          const isNonWorking = assigneeNonWorkingDays.has(dateStr);
+          const isSelected = dateStr === date;
+          const localToday = new Date(); localToday.setHours(0,0,0,0);
+          const dayDateObj = new Date(dayDate); dayDateObj.setHours(0,0,0,0);
+          const isTodayDate = dayDateObj.getTime() === localToday.getTime();
+          const isPast = dayDateObj < localToday;
+          const isDisabled = isNonWorking || isPast;
+          let cls = isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-sky-100';
+          if (isNonWorking) {
+            cls = isDarkMode ? 'bg-red-900/60 text-red-300 cursor-not-allowed' : 'bg-red-100 text-red-400 cursor-not-allowed';
+          } else if (isPast) {
+            cls = isDarkMode ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-slate-200 text-slate-400 cursor-not-allowed';
+          } else if (isSelected) {
+            cls = `${mainBgClass} text-white font-bold ${mainHoverBgClass}`;
+          } else if (isTodayDate) {
+            cls = `${mainBgClass} text-white font-bold ${mainHoverBgClass}`;
+          }
+          return (
+            <div key={dateStr} className="py-1 flex justify-center items-center">
+              <button
+                type="button"
+                onClick={() => { setDate(dateStr); setIsCalendarOpen(false); }}
+                className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-200 text-sm focus:outline-none focus:ring-2 focus:ring-offset-1 ${mainRingClass} ${cls}`}
+                disabled={isDisabled}
+                title={isNonWorking ? '非稼働日' : undefined}
+              >
+                {dayDate.getDate()}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {assigneeNonWorkingDays.size > 0 && (
+        <div className={`mt-2 pt-2 border-t ${isDarkMode ? 'border-slate-600' : 'border-slate-200'} flex items-center gap-1.5 text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          <span className="inline-block w-3 h-3 rounded-sm bg-red-100 border border-red-300 flex-shrink-0" />
+          非稼働日
+        </div>
+      )}
+    </div>,
+    document.body
+  ) : null;
+
   // ダークモード対応フィールドクラス
   const fieldBg      = isDarkMode ? 'bg-[#0f1623]'    : 'bg-white';
   const fieldBorder  = isDarkMode ? 'border-slate-600' : 'border-slate-300';
@@ -199,7 +330,6 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
 
   const inputClass   = `w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`;
   const selectClass  = `w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${fieldBg} ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`;
-  const dateInputClass = `w-1/2 px-2 py-1.5 border-0 rounded-l-md focus:ring-0 ${fieldBg} ${mainColorClass}`;
   const timeSelectClass = `w-1/2 px-2 py-1.5 border-0 border-l ${fieldDivider} rounded-r-md ${fieldBg} focus:ring-0 transition ${mainColorClass}`;
   const cancelBtnClass = isDarkMode
     ? 'bg-[#0f1623] text-slate-300 border border-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition'
@@ -210,6 +340,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
 
   return (
     <>
+      {CalendarPopup}
       <form onSubmit={handleSubmit} className="space-y-3 text-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -227,7 +358,25 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           <div className="md:col-span-2">
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
             <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={dateInputClass} />
+              <div ref={dateInputRef} className="relative w-1/2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rect = dateInputRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      let top = rect.bottom + 4;
+                      let left = rect.left;
+                      if (top + 320 > window.innerHeight - 8) top = rect.top - 324;
+                      if (left + 288 > window.innerWidth - 8) left = window.innerWidth - 296;
+                      setCalendarPosition({ top, left });
+                    }
+                    setIsCalendarOpen(prev => !prev);
+                  }}
+                  className={`w-full px-2 py-1.5 rounded-l-md text-left ${fieldBg} ${mainColorClass} focus:outline-none`}
+                >
+                  {date || '日付を選択'}
+                </button>
+              </div>
               {/* isDetailedTime ON: 1分単位 select / OFF: 通常 select */}
               {isDetailedTime && !isSpecialTime(time) ? (
                 <select
