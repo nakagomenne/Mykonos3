@@ -57,6 +57,7 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
   if (data.completedAt        !== undefined) row.completed_at       = data.completedAt;
   if (data.applicationNumber  !== undefined) row.application_number = data.applicationNumber;
   if (data.emoji              !== undefined) row.emoji               = data.emoji;
+  if (data.createdAt          !== undefined) row.created_at          = data.createdAt;
   return row;
 }
 

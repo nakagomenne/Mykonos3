@@ -182,6 +182,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       setTime('このあとOK');
       // 備考 → 先頭に2行改行を追加
       setNotes(prev => '\n\n' + prev);
+      // ★ クリア
+      setEmoji('');
     } else {
       // 元の値に戻す
       setRank(call.rank);
@@ -275,6 +277,11 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       emoji,
       isStrict,
       isDetailedTime,
+      // 回線受注チェック時：留守回数リセット・★クリア・作成日時を現在時刻に更新
+      ...(isLineOrder ? {
+        absenceCount: 0,
+        createdAt: new Date().toISOString(),
+      } : {}),
     });
   };
   
