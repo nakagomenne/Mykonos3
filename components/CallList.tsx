@@ -104,8 +104,8 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
             {!isPrecheckTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
             <div className="w-24 flex-shrink-0 text-center">ランク</div>
             <div className="w-16 flex-shrink-0 text-center">留守</div>
-            {isPrecheckTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
             <div className="w-8 flex-shrink-0 text-center">★</div>
+            {isPrecheckTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
             {!isPrecheckTheme && <div className="flex-1">備考</div>}
             {isPrecheckTheme && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
             {showRequesterColumn && <div className="w-20 flex-shrink-0 text-center">依頼者</div>}

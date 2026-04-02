@@ -676,36 +676,6 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             )}
           </div>
 
-          {isPrecheckTheme && (
-            <div className="w-14 flex-shrink-0 flex items-center justify-center">
-              {call.imported ? (
-                <button
-                  onClick={handleImportClick}
-                  disabled={!hasPrecheckPermission || isCompleted}
-                  className={`px-2 py-1 text-xs font-medium rounded transition ${
-                    !hasPrecheckPermission || isCompleted
-                      ? 'cursor-not-allowed bg-slate-100 text-slate-500'
-                      : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
-                  }`}
-                  title={hasPrecheckPermission ? "クリックして解除" : ""}
-                >
-                  完了
-                </button>
-              ) : (
-                <div className="relative h-5 w-5">
-                  <button
-                    className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                      isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={!hasPrecheckPermission || isCompleted}
-                    onClick={handleImportClick}
-                    aria-label={`Mark import for call ${call.customerId}`}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
           {/* 絵文字列（前確・通常共通） */}
           <div className="w-8 flex-shrink-0 flex items-center justify-center">
               <button
@@ -737,6 +707,36 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 />
               )}
             </div>
+
+          {isPrecheckTheme && (
+            <div className="w-14 flex-shrink-0 flex items-center justify-center">
+              {call.imported ? (
+                <button
+                  onClick={handleImportClick}
+                  disabled={!hasPrecheckPermission || isCompleted}
+                  className={`px-2 py-1 text-xs font-medium rounded transition ${
+                    !hasPrecheckPermission || isCompleted
+                      ? 'cursor-not-allowed bg-slate-100 text-slate-500'
+                      : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
+                  }`}
+                  title={hasPrecheckPermission ? "クリックして解除" : ""}
+                >
+                  完了
+                </button>
+              ) : (
+                <div className="relative h-5 w-5">
+                  <button
+                    className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    disabled={!hasPrecheckPermission || isCompleted}
+                    onClick={handleImportClick}
+                    aria-label={`Mark import for call ${call.customerId}`}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {!isPrecheckTheme && (
             <div className={`flex-1 min-w-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
