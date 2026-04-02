@@ -706,9 +706,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             </div>
           )}
 
-          {/* 絵文字列（非前確のみ） */}
-          {!isPrecheckTheme && (
-            <div className="w-8 flex-shrink-0 flex items-center justify-center">
+          {/* 絵文字列（前確・通常共通） */}
+          <div className="w-8 flex-shrink-0 flex items-center justify-center">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -738,7 +737,6 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 />
               )}
             </div>
-          )}
 
           {!isPrecheckTheme && (
             <div className={`flex-1 min-w-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
