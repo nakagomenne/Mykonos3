@@ -230,6 +230,11 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       }
       return base;
     }
+    // 担当者が回線前確の場合は回線前確を選択肢の先頭に固定（商材フィルタを適用しない）
+    if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
+      const base = members.filter(name => name !== PRECHECKER_ASSIGNEE_NAME);
+      return [PRECHECKER_ASSIGNEE_NAME, ...base];
+    }
     // 商材フィルタリング
     if (requiredProduct && users.length > 0) {
       return members.filter(name => {
@@ -241,11 +246,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       });
     }
     return [...members];
-  }, [members, users, isApReturn, isLineOrder, call.requester, requiredProduct]);
+  }, [members, users, isApReturn, isLineOrder, call.assignee, call.requester, requiredProduct]);
 
   // listType が変わったとき、現在の担当者がフィルタ後リストにいなければ先頭に切り替え
+  // ただし担当者が回線前確の場合は自動切り替えしない（AP戻しチェック時のみ切り替わる）
   useEffect(() => {
     if (isApReturn || isLineOrder) return;
+    if (assignee === PRECHECKER_ASSIGNEE_NAME) return;
     if (assigneeOptions.length > 0 && !assigneeOptions.includes(assignee)) {
       setAssignee(assigneeOptions[0]);
     }
