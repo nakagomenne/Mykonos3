@@ -494,7 +494,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
               {members
                 .filter(opt => {
                   if (isApReturn || isLineOrder) return true; // チェック時は全員表示
-                  return opt === currentUserName || opt === call.requester;
+                  return opt === currentUserName || opt === call.requester || opt === assignee;
                 })
                 .map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
