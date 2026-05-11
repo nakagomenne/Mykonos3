@@ -241,6 +241,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         const user = users.find(u => u.name === name);
         if (!user) return false;
         const products = user.availableProducts ?? [];
+        // 回線の場合は回線前確権限のあるメンバーも含める
+        if (requiredProduct === '回線' && user.isLinePrechecker) return true;
         if (products.length === 0) return false;
         return products.includes(requiredProduct);
       });

@@ -198,7 +198,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     let base = users;
     if (enableProductFiltering && listType) {
       if (listType === '回線') {
-        base = users.filter(u => (u.availableProducts ?? []).includes('回線'));
+        base = users.filter(u => (u.availableProducts ?? []).includes('回線') || u.isLinePrechecker);
       } else if (['MF', 'OK', 'NG'].includes(listType)) {
         base = users.filter(u => (u.availableProducts ?? []).includes('水'));
       } else if (listType === '保険') {
