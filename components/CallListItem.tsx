@@ -6,7 +6,7 @@ import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
 import EmojiPicker from './EmojiPicker';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
@@ -320,8 +320,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
 
   const handleSaveInline = (updatedData: Partial<Omit<CallRequest, 'id'>>) => {
-      // 担当者が変更された場合、依頼者を自分の名前に自動更新
-      if (updatedData.assignee !== undefined && updatedData.assignee !== call.assignee) {
+      // 担当者が自分・回線前確以外の場合、依頼者を編集者の名前に自動更新
+      const effectiveAssignee = updatedData.assignee !== undefined ? updatedData.assignee : call.assignee;
+      if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME) {
           updatedData = { ...updatedData, requester: currentUser.name };
       }
       onUpdateCall(call.id, updatedData);
@@ -333,6 +334,11 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
 
   const handleSaveFull = (updatedData: Partial<Omit<CallRequest, 'id'>>) => {
+    // 担当者が自分・回線前確以外の場合、依頼者を編集者の名前に自動更新
+    const effectiveAssignee = updatedData.assignee !== undefined ? updatedData.assignee : call.assignee;
+    if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME) {
+      updatedData = { ...updatedData, requester: currentUser.name };
+    }
     onUpdateCall(call.id, updatedData);
     setIsEditing(false);
   };
