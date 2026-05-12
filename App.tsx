@@ -1205,9 +1205,26 @@ const App: React.FC = () => {
   const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUser) return;
+    // ファイルサイズ上限チェック（GIFは大きくなりがちなため3MB）
+    if (file.size > 3 * 1024 * 1024) {
+      alert('ファイルサイズは3MB以下にしてください。');
+      e.target.value = '';
+      return;
+    }
     try {
-      // Canvas でリサイズ・圧縮（256×256 / JPEG 80%）してからDBに送る
-      const base64 = await resizeImageToBase64(file);
+      let base64: string;
+      if (file.type === 'image/gif') {
+        // GIF はアニメーションを維持するためリサイズせずそのまま base64 化
+        base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+          reader.readAsDataURL(file);
+        });
+      } else {
+        // GIF 以外は従来通り Canvas でリサイズ・圧縮（256×256 / JPEG 80%）
+        base64 = await resizeImageToBase64(file);
+      }
       await updateUserProfilePicture(currentUser.name, base64);
       setUsers(prev => prev.map(u => u.name === currentUser.name ? { ...u, profilePicture: base64 } : u));
     } catch (err: any) {
