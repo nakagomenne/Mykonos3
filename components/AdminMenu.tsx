@@ -8,7 +8,7 @@ import WorkHoursModal from './WorkHoursModal';
 import BulkTaskModal from './BulkTaskModal';
 import ConfirmationModal from './ConfirmationModal';
 import { ADMIN_USER_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD } from '../constants';
-import { resizeImageToBase64 } from '../utils/imageUtils';
+import { processProfileImage } from '../utils/imageUtils';
 
 interface Alert {
   type: 'schedule' | 'overdue';
@@ -481,7 +481,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         const file = e.target.files?.[0];
         if (file && userToUpdatePicture) {
             try {
-                const resized = await resizeImageToBase64(file);
+                const resized = await processProfileImage(file);
                 handleSetProfilePicture(userToUpdatePicture, resized);
                 setUserToUpdatePicture(null);
             } catch {
@@ -527,7 +527,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         const file = e.dataTransfer.files?.[0];
         if (file && file.type.startsWith('image/')) {
             try {
-                const resized = await resizeImageToBase64(file);
+                const resized = await processProfileImage(file);
                 handleSetProfilePicture(userName, resized);
             } catch {
                 alert('画像の処理に失敗しました。');

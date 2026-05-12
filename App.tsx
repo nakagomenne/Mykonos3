@@ -16,7 +16,7 @@ import ShiftCalendar from './components/ShiftCalendar';
 import CommentModal from './components/CommentModal';
 import PasswordSettingsModal from './components/PasswordSettingsModal';
 import WorkHoursModal from './components/WorkHoursModal';
-import { resizeImageToBase64 } from './utils/imageUtils';
+import { processProfileImage } from './utils/imageUtils';
 import NotificationSettingsModal, {
   NotificationSettings,
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -1212,19 +1212,8 @@ const App: React.FC = () => {
       return;
     }
     try {
-      let base64: string;
-      if (file.type === 'image/gif') {
-        // GIF はアニメーションを維持するためリサイズせずそのまま base64 化
-        base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
-          reader.readAsDataURL(file);
-        });
-      } else {
-        // GIF 以外は従来通り Canvas でリサイズ・圧縮（256×256 / JPEG 80%）
-        base64 = await resizeImageToBase64(file);
-      }
+      // GIF はアニメーション維持のためそのまま base64 化、それ以外はリサイズ・JPEG圧縮
+      const base64 = await processProfileImage(file);
       await updateUserProfilePicture(currentUser.name, base64);
       setUsers(prev => prev.map(u => u.name === currentUser.name ? { ...u, profilePicture: base64 } : u));
     } catch (err: any) {

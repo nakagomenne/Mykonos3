@@ -1,4 +1,20 @@
 /**
+ * GIF はアニメーションを維持するためそのまま base64 化、
+ * それ以外はリサイズ・JPEG圧縮する共通ヘルパー
+ */
+export async function processProfileImage(file: File): Promise<string> {
+  if (file.type === 'image/gif') {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+      reader.readAsDataURL(file);
+    });
+  }
+  return resizeImageToBase64(file);
+}
+
+/**
  * プロフィール画像をリサイズ・圧縮してbase64文字列に変換する
  * @param file         入力画像ファイル
  * @param maxSize      最大幅/高さ（px）。デフォルト 256
