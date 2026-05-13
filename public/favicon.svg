@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@700&amp;display=swap');
+    </style>
+    <clipPath id="circle-clip">
+      <circle cx="32" cy="32" r="30"/>
+    </clipPath>
+  </defs>
+  <!-- 白い円形背景 -->
+  <circle cx="32" cy="32" r="30" fill="white" stroke="#0193be" stroke-width="2.5"/>
+  <!-- 大文字 M（左上寄り） -->
+  <text
+    x="10"
+    y="36"
+    font-family="Inconsolata, monospace"
+    font-weight="700"
+    font-size="30"
+    fill="#0193be"
+    clip-path="url(#circle-clip)"
+  >M</text>
+  <!-- 小文字 y（右下寄り・斜め配置） -->
+  <text
+    x="33"
+    y="52"
+    font-family="Inconsolata, monospace"
+    font-weight="700"
+    font-size="26"
+    fill="#0193be"
+    clip-path="url(#circle-clip)"
+  >y</text>
+</svg>
