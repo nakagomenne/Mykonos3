@@ -28,6 +28,8 @@ import {
   createCallRequest,
   updateCallRequest as apiUpdateCallRequest,
   deleteExpiredCompletedCalls,
+  purgeOldDeletedRecords,
+  purgeOldFeedbackReports,
   createBulkCallRequests,
   fetchUsers,
   fetchUserProfilePictures,
@@ -245,6 +247,9 @@ const App: React.FC = () => {
         deleteExpiredCompletedCalls().catch(cleanupErr => {
           console.warn('期限切れ案件の削除をスキップしました:', cleanupErr);
         });
+        // 古い論理削除済みレコードとフィードバックの物理削除（90日以上削除済み・既読済み）
+        purgeOldDeletedRecords().catch(() => {});
+        purgeOldFeedbackReports().catch(() => {});
 
         // 表示に必要なデータのみ並列取得
         const [fetchedUsers, fetchedCalls, settings] = await Promise.all([

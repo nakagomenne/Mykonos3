@@ -110,7 +110,7 @@ function userToRow(data: Partial<User>): Record<string, any> {
 // CallRequest CRUD
 // ────────────────────────────────────────────────────────────
 
-// history を除いたカラム一覧（初期ロード高速化）
+// history を除いたカラム一覧（初期ロード高速化・INSERT/UPDATE レスポンス用）
 const CALL_REQUEST_COLUMNS_WITHOUT_HISTORY =
   'id,customer_id,requester,assignee,list_type,rank,date_time,notes,status,absence_count,prechecker,imported,is_strict,is_detailed_time,completed_at,application_number,emoji,created_at';
 
@@ -152,7 +152,7 @@ export async function createCallRequest(
   const { data, error } = await supabase
     .from('call_requests')
     .insert([row])
-    .select()
+    .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY)
     .single();
 
   if (error) throw new Error(`案件の作成に失敗しました: ${error.message}`);
@@ -205,11 +205,12 @@ export async function updateCallRequest(
     .from('call_requests')
     .update(row)
     .eq('id', id)
-    .select()
+    .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY)
     .single();
 
   if (error) throw new Error(`案件の更新に失敗しました: ${error.message}`);
-  return rowToCallRequest(data);
+  // history は currentCall の newHistory を使って手動でマージ（SELECT * 廃止によるデータ節約）
+  return { ...rowToCallRequest(data), history: newHistory };
 }
 
 /** 案件を論理削除する（deleted_at を現在時刻にセット） */
@@ -235,6 +236,41 @@ export async function deleteExpiredCompletedCalls(): Promise<void> {
     .is('deleted_at', null);
 
   if (error) throw new Error(`期限切れ案件の削除に失敗しました: ${error.message}`);
+}
+
+/**
+ * 古い論理削除済みレコードを物理削除してDBサイズを削減する。
+ * - deleted_at が 90日以上前のレコードを対象とする（検索履歴として90日は十分）
+ * - 起動時にバックグラウンドで実行（ローディングをブロックしない）
+ */
+export async function purgeOldDeletedRecords(): Promise<void> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+
+  const { error } = await supabase
+    .from('call_requests')
+    .delete()
+    .not('deleted_at', 'is', null)
+    .lt('deleted_at', cutoff.toISOString());
+
+  if (error) throw new Error(`古いレコードの物理削除に失敗しました: ${error.message}`);
+}
+
+/**
+ * 古い feedback_reports を物理削除してDBサイズを削減する。
+ * - 既読（is_read=true）かつ 90日以上前のものを対象とする
+ */
+export async function purgeOldFeedbackReports(): Promise<void> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+
+  const { error } = await supabase
+    .from('feedback_reports')
+    .delete()
+    .eq('is_read', true)
+    .lt('created_at', cutoff.toISOString());
+
+  if (error) throw new Error(`古いフィードバックの削除に失敗しました: ${error.message}`);
 }
 
 /** 削除済み案件を顧客IDで検索する（論理削除レコードのみ） */
@@ -268,7 +304,7 @@ export async function createBulkCallRequests(
   const { data, error } = await supabase
     .from('call_requests')
     .insert(rows)
-    .select();
+    .select(CALL_REQUEST_COLUMNS_WITHOUT_HISTORY);
 
   if (error) throw new Error(`一括案件の作成に失敗しました: ${error.message}`);
   return (data ?? []).map(rowToCallRequest);
@@ -326,7 +362,7 @@ export async function upsertUsers(users: User[]): Promise<User[]> {
   const { data, error } = await supabase
     .from('users')
     .upsert(rows, { onConflict: 'name' })
-    .select();
+    .select(USER_COLUMNS_WITHOUT_PICTURE);
 
   if (error) throw new Error(`ユーザーの一括更新に失敗しました: ${error.message}`);
   return (data ?? []).map(rowToUser);
@@ -348,7 +384,7 @@ export async function insertUser(user: User): Promise<User> {
   const { data, error } = await supabase
     .from('users')
     .insert([row])
-    .select()
+    .select(USER_COLUMNS_WITHOUT_PICTURE)
     .single();
   if (error) throw new Error(`ユーザーの作成に失敗しました: ${error.message}`);
   return rowToUser(data);
@@ -519,7 +555,7 @@ export async function saveProfilePicture(
 export async function fetchAppSettings(): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from('app_settings')
-    .select('*');
+    .select('key,value');
 
   if (error) throw new Error(`アプリ設定の取得に失敗しました: ${error.message}`);
 
@@ -758,12 +794,16 @@ function rowToFeedback(row: any): FeedbackReport {
   };
 }
 
-/** フィードバック一覧を取得（SA用） */
+// feedback_reports の必要カラム（id,type,title,body,reporter,created_at,is_read）
+const FEEDBACK_COLUMNS = 'id,type,title,body,reporter,created_at,is_read';
+
+/** フィードバック一覧を取得（SA用・最新200件） */
 export async function fetchFeedbackReports(): Promise<FeedbackReport[]> {
   const { data, error } = await supabase
     .from('feedback_reports')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select(FEEDBACK_COLUMNS)
+    .order('created_at', { ascending: false })
+    .limit(200);
   if (error) throw new Error(`フィードバックの取得に失敗しました: ${error.message}`);
   return (data ?? []).map(rowToFeedback);
 }
@@ -822,12 +862,16 @@ function rowToReply(row: any): CommentReply {
   };
 }
 
-/** 全リプライを取得 */
+// comment_replies の必要カラム（id,user_name,author,body,created_at）
+const REPLY_COLUMNS = 'id,user_name,author,body,created_at';
+
+/** 全リプライを取得（最新500件・古いものは自動クリーンアップ対象） */
 export async function fetchCommentReplies(): Promise<CommentReply[]> {
   const { data, error } = await supabase
     .from('comment_replies')
-    .select('*')
-    .order('created_at', { ascending: true });
+    .select(REPLY_COLUMNS)
+    .order('created_at', { ascending: true })
+    .limit(500);
   // テーブルが未作成の場合は空配列を返す（graceful fallback）
   if (error) {
     if (error.message?.includes('schema cache') || error.code === 'PGRST205') return [];
@@ -843,7 +887,7 @@ export async function addCommentReply(
   const { data, error } = await supabase
     .from('comment_replies')
     .insert({ user_name: params.userName, author: params.author, body: params.body })
-    .select()
+    .select(REPLY_COLUMNS)
     .single();
   if (error) throw new Error(`リプライの投稿に失敗しました: ${error.message}`);
   return rowToReply(data);
