@@ -738,7 +738,17 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
       }
     )
 
-    .subscribe();
+    .subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') {
+        console.info('[Realtime] チャンネル接続成功 ✅');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[Realtime] チャンネルエラー ❌', err);
+      } else if (status === 'TIMED_OUT') {
+        console.warn('[Realtime] 接続タイムアウト ⚠️');
+      } else if (status === 'CLOSED') {
+        console.warn('[Realtime] チャンネルクローズ 🔒');
+      }
+    });
 
   return () => {
     supabase.removeChannel(channel);

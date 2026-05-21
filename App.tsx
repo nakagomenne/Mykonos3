@@ -335,9 +335,33 @@ const App: React.FC = () => {
       onRepliesChange: (r) => { if (isMounted) setCommentReplies(r); },
     });
 
+    // ──────────────────────────────────────────────
+    // フォールバックポーリング（60秒）
+    // Realtimeが切断・未接続の場合でもデータを同期する保険
+    // ──────────────────────────────────────────────
+    const pollInterval = setInterval(async () => {
+      if (!isMounted) return;
+      try {
+        const [latestCalls, latestUsers] = await Promise.all([
+          fetchCallRequests(),
+          fetchUsers(),
+        ]);
+        if (!isMounted) return;
+        setCalls(latestCalls);
+        setUsers(prev => {
+          // profile_picture は遅延ロード済みの値を保持する
+          const picMap = new Map(prev.map(u => [u.name, u.profilePicture ?? null]));
+          return latestUsers.map(u => ({ ...u, profilePicture: picMap.get(u.name) ?? null }));
+        });
+      } catch {
+        // ポーリング失敗は無視（Realtimeが生きていれば問題なし）
+      }
+    }, 60000); // 60秒ごと
+
     return () => {
       isMounted = false;
       unsubAll();
+      clearInterval(pollInterval);
     };
   }, []);
 
