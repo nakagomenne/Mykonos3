@@ -437,6 +437,81 @@ export async function updateUserProfilePicture(name: string, profilePicture: str
 }
 
 // ────────────────────────────────────────────────────────────
+// Storage: プロフィール画像アップロード（Base64 → Storage URL）
+// ────────────────────────────────────────────────────────────
+
+const STORAGE_BUCKET = 'profile-pictures';
+
+/**
+ * Base64データURLをStorageにアップロードしてpublic URLを返す。
+ * GIFはアニメーションを維持するためそのまま保存する。
+ */
+export async function uploadProfilePictureToStorage(
+  userName: string,
+  base64DataUrl: string
+): Promise<string> {
+  // "data:image/gif;base64,XXXX" → MIMEタイプとバイナリに分解
+  const match = base64DataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error('不正な画像データです');
+  const mimeType = match[1];
+  const base64Data = match[2];
+
+  // base64 → Uint8Array
+  const binary = atob(base64Data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  // 拡張子を決定
+  const ext = mimeType === 'image/gif' ? 'gif'
+    : mimeType === 'image/png' ? 'png'
+    : mimeType === 'image/webp' ? 'webp'
+    : 'jpg';
+
+  const filePath = `${userName}/avatar.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(filePath, bytes, {
+      contentType: mimeType,
+      upsert: true, // 同名ファイルを上書き
+    });
+
+  if (error) throw new Error(`画像のアップロードに失敗しました: ${error.message}`);
+
+  // public URL を取得（キャッシュバスターを付与して即時反映）
+  const { data } = supabase.storage
+    .from(STORAGE_BUCKET)
+    .getPublicUrl(filePath);
+
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
+/**
+ * プロフィール画像を保存する。
+ * Storage が使えれば Storage → DB に URL を保存。
+ * フォールバックとして Base64 直接保存も残す。
+ */
+export async function saveProfilePicture(
+  userName: string,
+  base64DataUrl: string | null
+): Promise<void> {
+  if (base64DataUrl === null) {
+    // 削除：DBをnullに
+    await updateUserProfilePicture(userName, null);
+    return;
+  }
+  try {
+    const publicUrl = await uploadProfilePictureToStorage(userName, base64DataUrl);
+    // DBにはStorage URLを保存（Base64ではなくURL文字列）
+    await updateUserProfilePicture(userName, publicUrl);
+  } catch (storageErr) {
+    console.warn('Storage アップロード失敗、Base64フォールバック:', storageErr);
+    // Storage が使えない場合（バケット未作成など）はBase64で保存
+    await updateUserProfilePicture(userName, base64DataUrl);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
 // AppSettings CRUD
 // ────────────────────────────────────────────────────────────
 
@@ -466,15 +541,24 @@ export async function updateAppSetting(key: string, value: string): Promise<void
 
 // ────────────────────────────────────────────────────────────
 // Realtime Subscriptions
+// すべてのテーブル変更を1本のチャンネルで購読（接続数削減）
 // ────────────────────────────────────────────────────────────
 
-/** call_requests テーブルの変更をリアルタイムで購読する（差分更新） */
-export function subscribeToCallRequests(
-  callback: (updater: (prev: CallRequest[]) => CallRequest[]) => void,
-  onInsert?: (newCall: CallRequest) => void
-) {
+export interface RealtimeCallbacks {
+  onCallsChange: (updater: (prev: CallRequest[]) => CallRequest[]) => void;
+  onCallInsert?: (newCall: CallRequest) => void;
+  onUsersChange: (updater: (prev: User[]) => User[]) => void;
+  onSettingsChange: (settings: Record<string, string>) => void;
+  onFeedbackChange: (reports: FeedbackReport[]) => void;
+  onRepliesChange: (replies: CommentReply[]) => void;
+}
+
+/** 全テーブルの変更を1本のチャンネルで購読する */
+export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
   const channel = supabase
-    .channel('call_requests_changes')
+    .channel('mykonos_all_changes')
+
+    // ── call_requests ──────────────────────────────────────
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'call_requests' },
@@ -483,60 +567,48 @@ export function subscribeToCallRequests(
         try {
           if (eventType === 'INSERT' && newRow) {
             const newCall = rowToCallRequest(newRow);
-            if (onInsert) onInsert(newCall);
-            // ローカルで即時追加済みの場合は重複しないようIDチェック
-            callback(prev => prev.some(c => c.id === newCall.id) ? prev : [...prev, newCall]);
+            if (callbacks.onCallInsert) callbacks.onCallInsert(newCall);
+            callbacks.onCallsChange(prev =>
+              prev.some(c => c.id === newCall.id) ? prev : [...prev, newCall]
+            );
           } else if (eventType === 'UPDATE' && newRow) {
             const updatedCall = rowToCallRequest(newRow);
-            callback(prev =>
+            callbacks.onCallsChange(prev =>
               prev.map(c => {
                 if (c.id !== updatedCall.id) return c;
-                // payload.new が部分的な場合（REPLICA IDENTITY DEFAULT）も
-                // 既存値を保持しつつ更新されたフィールドだけ上書き
-                const merged: typeof c = {
-                  id:             c.id,
-                  customerId:     updatedCall.customerId     || c.customerId,
-                  requester:      updatedCall.requester      || c.requester,
-                  assignee:       updatedCall.assignee       || c.assignee,
-                  listType:       updatedCall.listType       || c.listType,
-                  rank:           updatedCall.rank           || c.rank,
-                  dateTime:       updatedCall.dateTime       || c.dateTime,
-                  notes:          updatedCall.notes          !== undefined ? updatedCall.notes : c.notes,
-                  status:         updatedCall.status         || c.status,
-                  absenceCount:   updatedCall.absenceCount   ?? c.absenceCount,
-                  prechecker:     updatedCall.prechecker     !== undefined ? updatedCall.prechecker : c.prechecker,
-                  imported:       updatedCall.imported       ?? c.imported,
-                  isStrict:       updatedCall.isStrict       ?? c.isStrict,
-                  isDetailedTime: updatedCall.isDetailedTime ?? c.isDetailedTime,
-                  completedAt:      updatedCall.completedAt      !== undefined ? updatedCall.completedAt : c.completedAt,
+                return {
+                  id:                c.id,
+                  customerId:        updatedCall.customerId        || c.customerId,
+                  requester:         updatedCall.requester         || c.requester,
+                  assignee:          updatedCall.assignee          || c.assignee,
+                  listType:          updatedCall.listType          || c.listType,
+                  rank:              updatedCall.rank              || c.rank,
+                  dateTime:          updatedCall.dateTime          || c.dateTime,
+                  notes:             updatedCall.notes             !== undefined ? updatedCall.notes : c.notes,
+                  status:            updatedCall.status            || c.status,
+                  absenceCount:      updatedCall.absenceCount      ?? c.absenceCount,
+                  prechecker:        updatedCall.prechecker        !== undefined ? updatedCall.prechecker : c.prechecker,
+                  imported:          updatedCall.imported          ?? c.imported,
+                  isStrict:          updatedCall.isStrict          ?? c.isStrict,
+                  isDetailedTime:    updatedCall.isDetailedTime    ?? c.isDetailedTime,
+                  completedAt:       updatedCall.completedAt       !== undefined ? updatedCall.completedAt : c.completedAt,
                   applicationNumber: updatedCall.applicationNumber !== undefined ? updatedCall.applicationNumber : c.applicationNumber,
                   emoji:             updatedCall.emoji             !== undefined ? updatedCall.emoji : c.emoji,
                   createdAt:         updatedCall.createdAt         || c.createdAt,
-                  // history は payload に含まれない場合もあるので既存値を優先
-                  history:        updatedCall.history?.length ? updatedCall.history : c.history,
+                  history:           updatedCall.history?.length   ? updatedCall.history : c.history,
                 };
-                return merged;
               })
             );
           } else if (eventType === 'DELETE' && oldRow?.id) {
-            callback(prev => prev.filter(c => c.id !== oldRow.id));
+            callbacks.onCallsChange(prev => prev.filter(c => c.id !== oldRow.id));
           }
         } catch (e) {
-          console.error('Realtime コールバック中にエラー:', e);
+          console.error('[Realtime] call_requests エラー:', e);
         }
       }
     )
-    .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}
-
-/** users テーブルの変更をリアルタイムで購読する（差分更新） */
-export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) => void) {
-  const channel = supabase
-    .channel('users_changes')
+    // ── users ───────────────────────────────────────────────
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'users' },
@@ -544,56 +616,92 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
         const { eventType, new: newRow, old: oldRow } = payload;
         try {
           if (eventType === 'INSERT' && newRow) {
-            const newUser = rowToUser(newRow);
-            callback(prev => [...prev, newUser]);
+            callbacks.onUsersChange(prev => [...prev, rowToUser(newRow)]);
           } else if (eventType === 'UPDATE' && newRow) {
-            // Realtimeペイロードは profile_picture など大きいカラムが欠落する場合がある。
-            // また REPLICA IDENTITY が FULL でない場合、変更カラムのみが含まれることもある。
-            // すべてのフィールドで既存値をフォールバックとして使い、不完全なペイロードに対応する。
             const name = newRow.name;
-            if (!name) return; // name が取れない場合は無視
-            callback(prev =>
+            if (!name) return;
+            callbacks.onUsersChange(prev =>
               prev.map(u => {
                 if (u.name !== name) return u;
-                // newRow の各カラムが存在する（undefined でない）場合のみ上書き、
-                // それ以外は既存値を保持する（null は明示的な値として扱う）
                 const pick = <T>(newVal: T | undefined, oldVal: T): T =>
                   newVal !== undefined ? newVal : oldVal;
                 return {
-                  name:               u.name,
-                  furigana:           pick(newRow.furigana,               u.furigana),
-                  isAdmin:            pick(newRow.is_admin,               u.isAdmin),
-                  isLinePrechecker:   pick(newRow.is_line_prechecker,     u.isLinePrechecker),
-                  isSuperAdmin:       pick(newRow.is_super_admin,         u.isSuperAdmin),
-                  password:           pick(newRow.password,               u.password),
-                  // profile_picture はペイロードサイズ超過で null になりやすいため、
-                  // 既存の画像がある場合は null で上書きしない（null→null は許容）
-                  profilePicture:     newRow.profile_picture !== undefined && newRow.profile_picture !== null
-                                        ? newRow.profile_picture
-                                        : (newRow.profile_picture === null && u.profilePicture === null)
-                                          ? null
-                                          : u.profilePicture,
-                  availabilityStatus: pick(newRow.availability_status,   u.availabilityStatus) || u.availabilityStatus,
-                  nonWorkingDays:     pick(newRow.non_working_days,       u.nonWorkingDays),
-                  availableProducts:  pick(newRow.available_products,     u.availableProducts),
-                  comment:            pick(newRow.comment,                u.comment),
-                  commentUpdatedAt:   pick(newRow.comment_updated_at,     u.commentUpdatedAt),
-                  statusRevertAt:     pick(newRow.status_revert_at,       u.statusRevertAt),
-                  workStart:          pick(newRow.work_start,             u.workStart),
-                  workEnd:            pick(newRow.work_end,               u.workEnd),
+                  name:                 u.name,
+                  furigana:             pick(newRow.furigana,                u.furigana),
+                  isAdmin:              pick(newRow.is_admin,                u.isAdmin),
+                  isLinePrechecker:     pick(newRow.is_line_prechecker,      u.isLinePrechecker),
+                  isSuperAdmin:         pick(newRow.is_super_admin,          u.isSuperAdmin),
+                  password:             pick(newRow.password,                u.password),
+                  // profile_picture はペイロードサイズ超過で欠落しやすいため既存値を優先
+                  profilePicture:       newRow.profile_picture !== undefined && newRow.profile_picture !== null
+                                          ? newRow.profile_picture
+                                          : (newRow.profile_picture === null && u.profilePicture === null)
+                                            ? null
+                                            : u.profilePicture,
+                  availabilityStatus:   pick(newRow.availability_status,    u.availabilityStatus) || u.availabilityStatus,
+                  nonWorkingDays:       pick(newRow.non_working_days,        u.nonWorkingDays),
+                  availableProducts:    pick(newRow.available_products,      u.availableProducts),
+                  comment:              pick(newRow.comment,                 u.comment),
+                  commentUpdatedAt:     pick(newRow.comment_updated_at,      u.commentUpdatedAt),
+                  statusRevertAt:       pick(newRow.status_revert_at,        u.statusRevertAt),
+                  workStart:            pick(newRow.work_start,              u.workStart),
+                  workEnd:              pick(newRow.work_end,                u.workEnd),
                   autoUnavailableOffset: pick(newRow.auto_unavailable_offset, u.autoUnavailableOffset),
-                  createdAt:          u.createdAt,
+                  createdAt:            u.createdAt,
                 };
               })
             );
           } else if (eventType === 'DELETE' && oldRow?.name) {
-            callback(prev => prev.filter(u => u.name !== oldRow.name));
+            callbacks.onUsersChange(prev => prev.filter(u => u.name !== oldRow.name));
           }
         } catch (e) {
-          console.error('Realtime コールバック中にエラー:', e);
+          console.error('[Realtime] users エラー:', e);
         }
       }
     )
+
+    // ── app_settings ────────────────────────────────────────
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'app_settings' },
+      async () => {
+        try {
+          const settings = await fetchAppSettings();
+          callbacks.onSettingsChange(settings);
+        } catch (e) {
+          console.error('[Realtime] app_settings エラー:', e);
+        }
+      }
+    )
+
+    // ── feedback_reports ────────────────────────────────────
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'feedback_reports' },
+      async () => {
+        try {
+          const reports = await fetchFeedbackReports();
+          callbacks.onFeedbackChange(reports);
+        } catch (e) {
+          console.error('[Realtime] feedback_reports エラー:', e);
+        }
+      }
+    )
+
+    // ── comment_replies ─────────────────────────────────────
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'comment_replies' },
+      async () => {
+        try {
+          const replies = await fetchCommentReplies();
+          callbacks.onRepliesChange(replies);
+        } catch (e) {
+          console.error('[Realtime] comment_replies エラー:', e);
+        }
+      }
+    )
+
     .subscribe();
 
   return () => {
@@ -601,27 +709,37 @@ export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) =
   };
 }
 
-/** app_settings テーブルの変更をリアルタイムで購読する */
+// 後方互換ラッパー（既存の個別購読関数を呼んでいる箇所がある場合のフォールバック）
+export function subscribeToCallRequests(
+  callback: (updater: (prev: CallRequest[]) => CallRequest[]) => void,
+  onInsert?: (newCall: CallRequest) => void
+) {
+  return subscribeToAll({
+    onCallsChange:    callback,
+    onCallInsert:     onInsert,
+    onUsersChange:    () => {},
+    onSettingsChange: () => {},
+    onFeedbackChange: () => {},
+    onRepliesChange:  () => {},
+  });
+}
+export function subscribeToUsers(callback: (updater: (prev: User[]) => User[]) => void) {
+  return subscribeToAll({
+    onCallsChange:    () => {},
+    onUsersChange:    callback,
+    onSettingsChange: () => {},
+    onFeedbackChange: () => {},
+    onRepliesChange:  () => {},
+  });
+}
 export function subscribeToAppSettings(callback: (settings: Record<string, string>) => void) {
-  const channel = supabase
-    .channel('app_settings_changes')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'app_settings' },
-      async () => {
-        try {
-          const settings = await fetchAppSettings();
-          callback(settings);
-        } catch (e) {
-          console.error('Realtime コールバック中にエラー:', e);
-        }
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
+  return subscribeToAll({
+    onCallsChange:    () => {},
+    onUsersChange:    () => {},
+    onSettingsChange: callback,
+    onFeedbackChange: () => {},
+    onRepliesChange:  () => {},
+  });
 }
 
 // ────────────────────────────────────────────────────────────
@@ -679,20 +797,15 @@ export async function deleteFeedbackReport(id: string): Promise<void> {
   if (error) throw new Error(`フィードバックの削除に失敗しました: ${error.message}`);
 }
 
-/** フィードバックのリアルタイム購読 */
+/** フィードバックのリアルタイム購読（subscribeToAll に統合済み・後方互換ラッパー） */
 export function subscribeToFeedbackReports(callback: (reports: FeedbackReport[]) => void): () => void {
-  const channel = supabase
-    .channel('feedback_reports_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback_reports' }, async () => {
-      try {
-        const reports = await fetchFeedbackReports();
-        callback(reports);
-      } catch (e) {
-        console.error('Feedback realtime error:', e);
-      }
-    })
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
+  return subscribeToAll({
+    onCallsChange:    () => {},
+    onUsersChange:    () => {},
+    onSettingsChange: () => {},
+    onFeedbackChange: callback,
+    onRepliesChange:  () => {},
+  });
 }
 
 // ============================================================
@@ -745,18 +858,13 @@ export async function deleteRepliesByUserName(userName: string): Promise<void> {
   if (error) throw new Error(`リプライの削除に失敗しました: ${error.message}`);
 }
 
-/** リプライのリアルタイム購読 */
+/** リプライのリアルタイム購読（subscribeToAll に統合済み・後方互換ラッパー） */
 export function subscribeToCommentReplies(callback: (replies: CommentReply[]) => void): () => void {
-  const channel = supabase
-    .channel('comment_replies_changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_replies' }, async () => {
-      try {
-        const replies = await fetchCommentReplies();
-        callback(replies);
-      } catch (e) {
-        console.error('CommentReply realtime error:', e);
-      }
-    })
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
+  return subscribeToAll({
+    onCallsChange:    () => {},
+    onUsersChange:    () => {},
+    onSettingsChange: () => {},
+    onFeedbackChange: () => {},
+    onRepliesChange:  callback,
+  });
 }

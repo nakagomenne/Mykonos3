@@ -41,20 +41,17 @@ import {
   updateUserNonWorkingDays,
   updateUserComment,
   updateUserProfilePicture,
+  saveProfilePicture,
   fetchAppSettings,
   updateAppSetting,
-  subscribeToCallRequests,
-  subscribeToUsers,
-  subscribeToAppSettings,
+  subscribeToAll,
   submitFeedbackReport,
   fetchFeedbackReports,
   deleteFeedbackReport as apiDeleteFeedbackReport,
   markFeedbackRead as apiMarkFeedbackRead,
-  subscribeToFeedbackReports,
   fetchCommentReplies,
   addCommentReply,
   deleteRepliesByUserName,
-  subscribeToCommentReplies,
   searchDeletedCallRequests,
 } from './services/apiService';
 
@@ -286,12 +283,13 @@ const App: React.FC = () => {
     loadInitialData();
 
     // ──────────────────────────────────────────────
-    // Realtime 購読
     // ──────────────────────────────────────────────
-    const unsubCalls = subscribeToCallRequests(
-      setCalls,
-      // 案件がINSERTされたとき
-      (newCall) => {
+    // Realtime 購読（全テーブルを1本のチャンネルで購読）
+    // ──────────────────────────────────────────────
+    const unsubAll = subscribeToAll({
+      // ── call_requests ──
+      onCallsChange: setCalls,
+      onCallInsert: (newCall) => {
         const settings = notificationSettingsRef.current;
         const user = currentUserRef.current;
 
@@ -305,35 +303,36 @@ const App: React.FC = () => {
           new Notification('🔔 回線前確 新規案件', {
             body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
             tag: `precheck_insert_${newCall.id}`,
-            icon: '/vite.svg',
+            icon: '/favicon.ico',
           });
         }
 
-        // 他メンバーが自分宛に追加した案件 or 自分が他メンバー宛に作成した案件を点滅
-        // （自分が作成した場合は _createCall 側で既にセット済みなので requester チェックで除外）
+        // 他メンバーが自分宛に追加した案件を点滅
         if (user && newCall.assignee === user.name && newCall.requester !== user.name) {
           setRecentlyAddedCallId(newCall.id);
           setTimeout(() => setRecentlyAddedCallId(null), 6000);
         }
-      }
-    );
-    const unsubUsers    = subscribeToUsers(setUsers);
-    const unsubSettings = subscribeToAppSettings(settings => {
-      if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
-      if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+      },
+
+      // ── users ──
+      onUsersChange: setUsers,
+
+      // ── app_settings ──
+      onSettingsChange: (settings) => {
+        if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
+        if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+      },
+
+      // ── feedback_reports ──
+      onFeedbackChange: setFeedbackReports,
+
+      // ── comment_replies ──
+      onRepliesChange: (r) => { if (isMounted) setCommentReplies(r); },
     });
-    // フィードバックのリアルタイム購読（SA用）※初期取得は loadInitialData で実施済み
-    const unsubFeedback = subscribeToFeedbackReports(setFeedbackReports);
-    // コメントリプライのリアルタイム購読
-    const unsubReplies = subscribeToCommentReplies(r => { if (isMounted) setCommentReplies(r); });
 
     return () => {
       isMounted = false;
-      unsubCalls();
-      unsubUsers();
-      unsubSettings();
-      unsubFeedback();
-      unsubReplies();
+      unsubAll();
     };
   }, []);
 
@@ -787,7 +786,7 @@ const App: React.FC = () => {
                 new Notification('架電時間のお知らせ', {
                   body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
                   tag: `${call.id}_${timing}`,
-                  icon: '/vite.svg',
+                  icon: '/favicon.ico',
                 });
                 sessionStorage.setItem(sessionKey, 'true');
               }
@@ -799,12 +798,10 @@ const App: React.FC = () => {
       });
     };
 
+    // calls が更新されたタイミングで1回チェック（DBポーリング廃止・負荷削減）
     checkCalls();
-    const intervalId = setInterval(checkCalls, 15000); // 15秒ごとにチェック
 
-    return () => {
-      clearInterval(intervalId);
-    };
+    return () => {};
   }, [notificationSettings, calls, currentUser]);
 
   const [searchSuggestIndex, setSearchSuggestIndex] = useState(-1);
@@ -1214,7 +1211,9 @@ const App: React.FC = () => {
     try {
       // GIF はアニメーション維持のためそのまま base64 化、それ以外はリサイズ・JPEG圧縮
       const base64 = await processProfileImage(file);
-      await updateUserProfilePicture(currentUser.name, base64);
+      // Storage にアップロード（失敗時はBase64フォールバック）
+      await saveProfilePicture(currentUser.name, base64);
+      // ローカル state はBase64で即時反映（Storage URLは次回ロード時に反映）
       setUsers(prev => prev.map(u => u.name === currentUser.name ? { ...u, profilePicture: base64 } : u));
     } catch (err: any) {
       alert(`アイコンの更新に失敗しました: ${err?.message ?? err}`);
@@ -1356,9 +1355,9 @@ const App: React.FC = () => {
         if (existingNames.has(u.name)) {
           const original = users.find(orig => orig.name === u.name);
 
-          // プロフィール画像の変更を先に単独送信（base64は大きいので別リクエストで）
+          // プロフィール画像の変更を先に単独送信（Storage優先、フォールバックでBase64）
           if (original?.profilePicture !== u.profilePicture) {
-            await updateUserProfilePicture(u.name, u.profilePicture ?? null);
+            await saveProfilePicture(u.name, u.profilePicture ?? null);
           }
 
           // 画像以外の変更を比較して updateUser
@@ -1369,11 +1368,11 @@ const App: React.FC = () => {
             await updateUser(u.name, dataWithoutPic);
           }
         } else {
-          // 新規ユーザー: 画像ありの場合は2段階で（insert→画像更新）
+          // 新規ユーザー: 画像ありの場合は2段階で（insert→Storage保存）
           const { profilePicture, ...dataWithoutPic } = u;
           const inserted = await apiInsertUser({ ...dataWithoutPic, profilePicture: null } as User);
           if (profilePicture) {
-            await updateUserProfilePicture(inserted.name, profilePicture);
+            await saveProfilePicture(inserted.name, profilePicture);
           }
         }
       }
@@ -1476,6 +1475,9 @@ const App: React.FC = () => {
   };
 
   const handleUpdateUserStatus = async (name: string, status: AvailabilityStatus) => {
+    // 既に同じステータスの場合はDB書き込みをスキップ（不要な書き込み連鎖を防止）
+    const currentStatus = users.find(u => u.name === name)?.availabilityStatus;
+    if (currentStatus === status) return;
     try {
       await updateUserAvailabilityStatusWithRevert(name, status);
       let revertAt: string | null = null;
