@@ -591,8 +591,10 @@ export interface RealtimeCallbacks {
 
 /** 全テーブルの変更を1本のチャンネルで購読する */
 export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
+  // チャンネル名にタイムスタンプを付与して複数インスタンスの競合を防止
+  const channelName = `mykonos_all_changes_${Date.now()}`;
   const channel = supabase
-    .channel('mykonos_all_changes')
+    .channel(channelName)
 
     // ── call_requests ──────────────────────────────────────
     .on(
