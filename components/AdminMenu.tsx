@@ -484,8 +484,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                 const resized = await processProfileImage(file);
                 handleSetProfilePicture(userToUpdatePicture, resized);
                 setUserToUpdatePicture(null);
-            } catch {
-                alert('画像の処理に失敗しました。');
+            } catch (err: any) {
+                alert(err?.message ?? '画像の処理に失敗しました。');
             }
         }
         if(e.target) {
@@ -529,8 +529,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
             try {
                 const resized = await processProfileImage(file);
                 handleSetProfilePicture(userName, resized);
-            } catch {
-                alert('画像の処理に失敗しました。');
+            } catch (err: any) {
+                alert(err?.message ?? '画像の処理に失敗しました。');
             }
         } else {
             alert('画像ファイルのみアップロードできます。');

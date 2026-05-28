@@ -1233,7 +1233,7 @@ const App: React.FC = () => {
     if (!file || !currentUser) return;
     // ファイルサイズ上限チェック（GIFは大きくなりがちなため3MB）
     if (file.size > 3 * 1024 * 1024) {
-      alert('ファイルサイズは3MB以下にしてください。');
+      alert('ファイルサイズは3MB以下にしてください。\n※GIFの場合は0.5MB以下が必要です。');
       e.target.value = '';
       return;
     }

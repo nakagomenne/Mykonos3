@@ -33,12 +33,22 @@ async function isGif(file: File): Promise<boolean> {
   return false;
 }
 
+/** GIF の最大ファイルサイズ（0.5 MB） */
+const GIF_MAX_BYTES = 0.5 * 1024 * 1024;
+
 /**
  * GIF はアニメーションを維持するためそのまま base64 化、
  * それ以外はリサイズ・JPEG圧縮する共通ヘルパー
  */
 export async function processProfileImage(file: File): Promise<string> {
   if (await isGif(file)) {
+    if (file.size > GIF_MAX_BYTES) {
+      throw new Error(
+        `GIFファイルのサイズが上限を超えています。\n` +
+        `アップロード可能なサイズ：0.5 MB 以内\n` +
+        `選択したファイル：${(file.size / 1024 / 1024).toFixed(2)} MB`
+      );
+    }
     return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
