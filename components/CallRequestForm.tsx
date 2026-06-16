@@ -21,6 +21,8 @@ interface CallRequestFormProps {
   isPrecheckMode?: boolean;
   isPrecheckTheme?: boolean;
   prefilledDate?: string | null;
+  prefilledAssignee?: string | null;
+  prefilledRequester?: string | null;
   onPrefillConsumed?: () => void;
   isDarkMode?: boolean;
 }
@@ -69,7 +71,7 @@ const getListTypeForAssignee = (
 };
 
 
-const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, calls = [], formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
+const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, calls = [], formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, prefilledAssignee = null, prefilledRequester = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
   // users を ref でも保持することで resetForm の useCallback 依存から外し、
   // Realtime更新による users 参照変化がフォームリセットを引き起こさないようにする
   const usersRef = useRef(users);
@@ -80,7 +82,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const isPrefillActiveRef = useRef(false);
 
   const [customerId, setCustomerId] = useState('');
-  const [assignee, setAssignee] = useState(defaultAssignee || '');
+  const [assignee, setAssignee] = useState(prefilledAssignee || defaultAssignee || '');
+  const [requesterOverride, setRequesterOverride] = useState<string | null>(prefilledRequester || null);
   const [listType, setListType] = useState<ListType | ''>(isPrecheckMode ? '回線' : '');
   const [rank, setRank] = useState<Rank | ''>('');
   
@@ -181,8 +184,15 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     if (prefilledDate) {
         isPrefillActiveRef.current = true;
         setDate(prefilledDate);
-        // 翌日以降なら 11:00、今日なら このあとOK
         setTime(prefilledDate > today ? '11:00' : 'このあとOK');
+    }
+    if (prefilledAssignee) {
+        setAssignee(prefilledAssignee);
+    }
+    if (prefilledRequester) {
+        setRequesterOverride(prefilledRequester);
+    }
+    if (prefilledDate || prefilledAssignee || prefilledRequester) {
         if (onPrefillConsumed) {
             onPrefillConsumed();
         }
@@ -399,7 +409,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       
     const success = onAddCall({
       customerId,
-      requester: currentUser,
+      requester: requesterOverride || currentUser,
       assignee,
       listType,
       rank,

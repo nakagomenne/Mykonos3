@@ -145,6 +145,8 @@ const App: React.FC = () => {
   const [previewMember, setPreviewMember] = useState<string | null>(null);
   const [profilePopupUser, setProfilePopupUser] = useState<User | null>(null);
   const [prefilledRequestDate, setPrefilledRequestDate] = useState<string | null>(null);
+  const [prefilledAssignee, setPrefilledAssignee] = useState<string | null>(null);
+  const [prefilledRequester, setPrefilledRequester] = useState<string | null>(null);
   const [lastViewedTimestamps, setLastViewedTimestamps] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('mykonosLastViewedTimestamps');
     try {
@@ -1047,6 +1049,8 @@ const App: React.FC = () => {
 
   const handlePrefillConsumed = () => {
     setPrefilledRequestDate(null);
+    setPrefilledAssignee(null);
+    setPrefilledRequester(null);
   };
 
   const _createCall = async (callData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => {
@@ -1552,6 +1556,23 @@ const App: React.FC = () => {
     if (userToShow) {
       setIsScheduleViewReadOnly(true);
       setScheduleViewingUser(userToShow);
+    }
+  };
+
+  /**
+   * 他メンバーのスケジュールカレンダーで日付をタップ
+   * → モーダルを閉じ・新規作成フォームを該当日付・担当者・依頼者プリセットで開く
+   */
+  const handleScheduleDateSelect = (dateStr: string) => {
+    if (!scheduleViewingUser || !currentUser) return;
+    setPrefilledRequestDate(dateStr);
+    setPrefilledAssignee(scheduleViewingUser.name);
+    setPrefilledRequester(currentUser.name);
+    setScheduleViewingUser(null); // モーダルを閉じる
+    setIsFormVisible(true);       // 新規作成フォームを開く
+    // 対象メンバーのタブに切り替え
+    if (viewMode !== 'others' || selectedMember !== scheduleViewingUser.name) {
+      handleViewModeChange('others', scheduleViewingUser.name);
     }
   };
 
@@ -2969,6 +2990,8 @@ const App: React.FC = () => {
                             isPrecheckMode={isPrecheckContext}
                             isPrecheckTheme={isPrecheckTheme}
                             prefilledDate={prefilledRequestDate}
+                            prefilledAssignee={prefilledAssignee}
+                            prefilledRequester={prefilledRequester}
                             onPrefillConsumed={handlePrefillConsumed}
                             isDarkMode={isDarkMode}
                           />
@@ -3052,6 +3075,8 @@ const App: React.FC = () => {
                               enableProductFiltering={true}
                               isPrecheckTheme={isPrecheckTheme}
                               prefilledDate={prefilledRequestDate}
+                              prefilledAssignee={prefilledAssignee}
+                              prefilledRequester={prefilledRequester}
                               onPrefillConsumed={handlePrefillConsumed}
                               isDarkMode={isDarkMode}
                             />
@@ -3331,6 +3356,12 @@ const App: React.FC = () => {
           user={scheduleViewingUser}
           onSave={isScheduleViewReadOnly ? undefined : handleUpdateNonWorkingDays}
           readOnly={isScheduleViewReadOnly}
+          onDateSelect={
+            // 自分以外のメンバーを readOnly 表示している場合のみ新規作成連携を有効にする
+            isScheduleViewReadOnly && scheduleViewingUser.name !== currentUser?.name
+              ? handleScheduleDateSelect
+              : undefined
+          }
         />
       )}
 

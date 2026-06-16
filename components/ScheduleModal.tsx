@@ -9,9 +9,11 @@ interface ScheduleModalProps {
   user: User;
   onSave?: (userName: string, dates: string[]) => void;
   readOnly?: boolean;
+  /** readOnly モードで日付をクリックしたときのコールバック（新規作成フォームへの連携用） */
+  onDateSelect?: (dateStr: string) => void;
 }
 
-const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, onSave, readOnly = false }) => {
+const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, onSave, readOnly = false, onDateSelect }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
@@ -56,8 +58,12 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, on
   }, [currentDate]);
 
   const handleDayClick = (date: Date) => {
-    if (readOnly) return;
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    if (readOnly) {
+      // readOnly モード: 日付選択で新規作成フォームへ連携
+      if (onDateSelect) onDateSelect(dateStr);
+      return;
+    }
     setSelectedDates(prev => {
       const newSet = new Set(prev);
       if (newSet.has(dateStr)) {
@@ -124,15 +130,19 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, on
               const isSelected = selectedDates.has(dateStr);
               const isToday = date.getTime() === today.getTime();
 
-              let dayClasses = `text-slate-700 ${!readOnly ? 'hover:bg-slate-100' : ''}`;
+              // readOnly + onDateSelect あり → クリック可能（新規作成用）
+              const isClickable = !readOnly || !!onDateSelect;
+              let dayClasses = `text-slate-700 ${isClickable ? 'hover:bg-slate-100' : ''}`;
               if (isSelected) {
-                dayClasses = `bg-slate-400 text-white ${!readOnly ? 'hover:bg-slate-500' : ''}`;
+                dayClasses = `bg-slate-400 text-white ${isClickable ? 'hover:bg-slate-500' : ''}`;
               } else if (isToday) {
-                dayClasses = 'bg-[#0193be] text-white font-bold';
+                dayClasses = `bg-[#0193be] text-white font-bold${isClickable ? ' hover:bg-[#017a9a]' : ''}`;
               }
-
-              if(readOnly) {
+              if (!isClickable) {
                 dayClasses += ' cursor-default';
+              } else if (readOnly && onDateSelect) {
+                // readOnly だがクリック可能（新規作成連携）
+                dayClasses += ' cursor-pointer';
               }
 
               const buttonClasses = [
@@ -142,7 +152,12 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, on
 
               return (
                 <div key={dateStr} className="py-1 flex justify-center items-center">
-                  <button onClick={() => handleDayClick(date)} className={buttonClasses} disabled={readOnly}>
+                  <button
+                    onClick={() => handleDayClick(date)}
+                    className={buttonClasses}
+                    disabled={!isClickable}
+                    title={readOnly && onDateSelect ? `${dateStr} で新規作成` : undefined}
+                  >
                     {date.getDate()}
                   </button>
                 </div>
@@ -151,14 +166,21 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, on
           </div>
         </div>
         
-        <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end items-center gap-3">
+        <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-between items-center gap-3">
             {readOnly ? (
-                 <button 
-                  onClick={onClose} 
+              <div className="flex w-full items-center justify-between">
+                {onDateSelect ? (
+                  <p className="text-xs text-slate-500">📅 日付をタップして新規作成</p>
+                ) : (
+                  <span />
+                )}
+                <button
+                  onClick={onClose}
                   className="bg-[#0193be] text-white font-bold py-2 px-5 rounded-lg hover:bg-[#017a9a] transition"
                 >
                   閉じる
                 </button>
+              </div>
             ) : (
                 <>
                     <button 
