@@ -2853,7 +2853,7 @@ const App: React.FC = () => {
                           style={mineGradientStyle}
                       >
                           {/* 上部：プロフィール + 基本情報 */}
-                          <div className="flex items-center gap-4 px-5 pt-4 pb-3">
+                          <div className="flex items-center gap-4 px-5 pt-3 pb-2">
                               <button
                                   onClick={() => currentUserWithData && setProfilePopupUser(currentUserWithData)}
                                   className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-105"
@@ -2933,21 +2933,21 @@ const App: React.FC = () => {
                           {/* 区切り線 */}
                           <div className={`mx-5 border-t ${mineDivider}`} />
                           {/* 下部：カウンターゾーン */}
-                          <div className="grid grid-cols-3 gap-3 px-5 py-3">
+                          <div className="grid grid-cols-3 gap-2 px-5 py-2">
                               {/* 見込 */}
-                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineCounterCardBase}`}>
-                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiCount}</span>
-                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込</span>
+                              <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineCounterCardBase}`}>
+                                  <span className={`text-xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiCount}</span>
+                                  <span className={`text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込</span>
                               </div>
                               {/* 見込留守 */}
-                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineCounterCardBase}`}>
-                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiRusuCount}</span>
-                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込留守</span>
+                              <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineCounterCardBase}`}>
+                                  <span className={`text-xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiRusuCount}</span>
+                                  <span className={`text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込留守</span>
                               </div>
                               {/* 長期見込（アラート連動） */}
-                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineChokiAccent ? `${mineChokiAccent.bg} ${mineChokiAccent.border} border` : mineCounterCardBase}`}>
-                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineChokiAccent ? mineChokiAccent.num : mineCounterNum}`}>{mineChokiCount}</span>
-                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineChokiAccent ? mineChokiAccent.text : mineCounterLabel}`}>長期見込</span>
+                              <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineChokiAccent ? `${mineChokiAccent.bg} ${mineChokiAccent.border} border` : mineCounterCardBase}`}>
+                                  <span className={`text-xl font-black tabular-nums leading-none ${mineChokiAccent ? mineChokiAccent.num : mineCounterNum}`}>{mineChokiCount}</span>
+                                  <span className={`text-xs font-bold tracking-wide ${mineChokiAccent ? mineChokiAccent.text : mineCounterLabel}`}>長期見込</span>
                               </div>
                           </div>
                       </div>
@@ -3027,7 +3027,7 @@ const App: React.FC = () => {
                                   style={gradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
-                                  <div className="flex items-center gap-4 px-5 pt-4 pb-3">
+                                  <div className="flex items-center gap-4 px-5 pt-3 pb-2">
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
@@ -3095,21 +3095,21 @@ const App: React.FC = () => {
                                   {/* 区切り線 */}
                                   <div className={`mx-5 border-t ${dividerColor}`} />
                                   {/* 下部：カウンターゾーン */}
-                                  <div className="grid grid-cols-3 gap-3 px-5 py-3">
+                                  <div className="grid grid-cols-3 gap-2 px-5 py-2">
                                       {/* 見込 */}
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${counterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${counterLabelColor}`}>見込</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${counterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${counterLabelColor}`}>見込</span>
                                       </div>
                                       {/* 見込留守 */}
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${counterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiRusuCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${counterLabelColor}`}>見込留守</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${counterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiRusuCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${counterLabelColor}`}>見込留守</span>
                                       </div>
                                       {/* 長期見込（アラート連動） */}
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${chokiAccentColor ? `${chokiAccentColor.bg} ${chokiAccentColor.border} border` : counterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${chokiAccentColor ? chokiAccentColor.num : counterNumColor}`}>{chokiCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${chokiAccentColor ? chokiAccentColor.text : counterLabelColor}`}>長期見込</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${chokiAccentColor ? `${chokiAccentColor.bg} ${chokiAccentColor.border} border` : counterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${chokiAccentColor ? chokiAccentColor.num : counterNumColor}`}>{chokiCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${chokiAccentColor ? chokiAccentColor.text : counterLabelColor}`}>長期見込</span>
                                       </div>
                                   </div>
                               </div>
@@ -3312,7 +3312,7 @@ const App: React.FC = () => {
                                   style={pvGradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
-                                  <div className="flex items-center gap-4 px-5 pt-4 pb-3">
+                                  <div className="flex items-center gap-4 px-5 pt-3 pb-2">
                                       <div
                                           className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-colors duration-500"
                                           style={{ boxShadow: pvRingBoxShadow }}
@@ -3368,18 +3368,18 @@ const App: React.FC = () => {
                                   {/* 区切り線 */}
                                   <div className={`mx-5 border-t ${pvDivider}`} />
                                   {/* 下部：カウンターゾーン */}
-                                  <div className="grid grid-cols-3 gap-3 px-5 py-3">
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvCounterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込</span>
+                                  <div className="grid grid-cols-3 gap-2 px-5 py-2">
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvCounterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込</span>
                                       </div>
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvCounterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiRusuCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込留守</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvCounterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiRusuCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込留守</span>
                                       </div>
-                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvChokiAccent ? `${pvChokiAccent.bg} ${pvChokiAccent.border} border` : pvCounterCardBase}`}>
-                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvChokiAccent ? pvChokiAccent.num : pvCounterNum}`}>{pvChokiCount}</span>
-                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvChokiAccent ? pvChokiAccent.text : pvCounterLabel}`}>長期見込</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvChokiAccent ? `${pvChokiAccent.bg} ${pvChokiAccent.border} border` : pvCounterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${pvChokiAccent ? pvChokiAccent.num : pvCounterNum}`}>{pvChokiCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${pvChokiAccent ? pvChokiAccent.text : pvCounterLabel}`}>長期見込</span>
                                       </div>
                                   </div>
                               </div>
