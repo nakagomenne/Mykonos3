@@ -2811,7 +2811,7 @@ const App: React.FC = () => {
                       // --- mine: 保有数カウント ---
                       const mineMikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
                       const mineMikomiRusuBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
-                      const mineToday8 = new Date(); mineToday8.setDate(mineToday8.getDate() + 8); mineToday8.setHours(0,0,0,0);
+                      const mineToday8 = new Date(); mineToday8.setDate(mineToday8.getDate() + 4); mineToday8.setHours(0,0,0,0);
                       const mineActiveCalls = calls.filter(c => c.assignee === currentUser.name && c.status !== '完了');
                       const mineMikomiCount = mineActiveCalls.filter(c => (mineMikomiBases as readonly string[]).includes(c.rank)).length;
                       const mineMikomiRusuCount = mineActiveCalls.filter(c => (mineMikomiRusuBases as readonly string[]).includes(c.rank)).length;
@@ -2985,7 +2985,7 @@ const App: React.FC = () => {
                           // --- 保有数カウント ---
                           const mikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
                           const mikomirususBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
-                          const today8 = new Date(); today8.setDate(today8.getDate() + 8); today8.setHours(0,0,0,0);
+                          const today8 = new Date(); today8.setDate(today8.getDate() + 4); today8.setHours(0,0,0,0);
                           const activeCalls = calls.filter(c => c.assignee === selectedMember && c.status !== '完了');
                           const mikomiCount = activeCalls.filter(c => (mikomiBases as readonly string[]).includes(c.rank)).length;
                           const mikomiRusuCount = activeCalls.filter(c => (mikomirususBases as readonly string[]).includes(c.rank)).length;
@@ -3273,7 +3273,7 @@ const App: React.FC = () => {
                         // --- preview: 保有数カウント ---
                         const pvMikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
                         const pvMikomiRusuBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
-                        const pvToday8 = new Date(); pvToday8.setDate(pvToday8.getDate() + 8); pvToday8.setHours(0,0,0,0);
+                        const pvToday8 = new Date(); pvToday8.setDate(pvToday8.getDate() + 4); pvToday8.setHours(0,0,0,0);
                         const pvActiveCalls = calls.filter(c => c.assignee === previewMember && c.status !== '完了');
                         const pvMikomiCount = pvActiveCalls.filter(c => (pvMikomiBases as readonly string[]).includes(c.rank)).length;
                         const pvMikomiRusuCount = pvActiveCalls.filter(c => (pvMikomiRusuBases as readonly string[]).includes(c.rank)).length;
