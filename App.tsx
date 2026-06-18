@@ -175,6 +175,9 @@ const App: React.FC = () => {
   const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
   const [commentReplies, setCommentReplies] = useState<CommentReply[]>([]);
   const [isLogoWaving, setIsLogoWaving] = useState(false);
+  const [isLogoFlying, setIsLogoFlying] = useState(false);
+  const logoClickCountRef = useRef(0);
+  const logoClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [normalDuplicateIds,   setNormalDuplicateIds]   = useState<Set<string>>(new Set());
   const [precheckDuplicateIds, setPrecheckDuplicateIds] = useState<Set<string>>(new Set());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -2063,22 +2066,65 @@ const App: React.FC = () => {
             <h1
               className={`text-5xl font-bold font-inconsolata transition-colors duration-500 cursor-pointer select-none ${headerTextClass}`}
               onClick={() => {
-                if (isLogoWaving) return;
-                setIsLogoWaving(true);
-                // 全文字のアニメーション終了後にリセット（最後の文字のdelay + duration）
-                setTimeout(() => setIsLogoWaving(false), 650 + 6 * 60 + 50);
+                if (isLogoWaving || isLogoFlying) return;
+
+                // 3連打カウント（0.6秒以内の連続クリック）
+                logoClickCountRef.current += 1;
+                if (logoClickTimerRef.current) clearTimeout(logoClickTimerRef.current);
+
+                if (logoClickCountRef.current >= 3) {
+                  // 3連打：フライアニメーション
+                  logoClickCountRef.current = 0;
+                  setIsLogoFlying(true);
+                  // 全文字の最大delay(6*80ms) + duration(1200ms) + 余裕
+                  setTimeout(() => setIsLogoFlying(false), 1200 + 6 * 80 + 80);
+                } else {
+                  // リセットタイマー（0.6秒以内に次クリックがなければカウントリセット）
+                  logoClickTimerRef.current = setTimeout(() => {
+                    logoClickCountRef.current = 0;
+                    // 通常の波打ちアニメーション（1〜2回目のクリックで発火）
+                    setIsLogoWaving(true);
+                    setTimeout(() => setIsLogoWaving(false), 650 + 6 * 60 + 50);
+                  }, 600);
+                }
               }}
               title="Mykonos"
             >
-              {'Mykonos'.split('').map((char, i) => (
-                <span
-                  key={i}
-                  className={isLogoWaving ? 'logo-char-wave' : ''}
-                  style={isLogoWaving ? { animationDelay: `${i * 60}ms` } : undefined}
-                >
-                  {char}
-                </span>
-              ))}
+              {'Mykonos'.split('').map((char, i) => {
+                // フライ用：文字ごとにランダムな飛び先を固定シードで生成
+                const flyAngles  = [210, 45, 310, 130, 260, 20, 170];
+                const flyDists   = [180, 220, 160, 240, 190, 210, 170];
+                const flyRots    = ['-180deg', '135deg', '-270deg', '200deg', '-150deg', '240deg', '-200deg'];
+                const rad = (flyAngles[i] * Math.PI) / 180;
+                const tx = Math.round(Math.cos(rad) * flyDists[i]);
+                const ty = Math.round(Math.sin(rad) * flyDists[i]);
+
+                if (isLogoFlying) {
+                  return (
+                    <span
+                      key={i}
+                      className="logo-char-fly"
+                      style={{
+                        '--fly-tx': `${tx}px`,
+                        '--fly-ty': `${ty}px`,
+                        '--fly-rot': flyRots[i],
+                        animationDelay: `${i * 80}ms`,
+                      } as React.CSSProperties}
+                    >
+                      {char}
+                    </span>
+                  );
+                }
+                return (
+                  <span
+                    key={i}
+                    className={isLogoWaving ? 'logo-char-wave' : ''}
+                    style={isLogoWaving ? { animationDelay: `${i * 60}ms` } : undefined}
+                  >
+                    {char}
+                  </span>
+                );
+              })}
             </h1>
             <span className={`text-xs font-inconsolata transition-colors duration-500 ${isDarkHeader ? 'text-white/60' : 'text-[#0193be]/50'}`}>{appVersion}</span>
           </div>
