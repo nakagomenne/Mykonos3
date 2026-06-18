@@ -36,10 +36,17 @@
 
   /* ────────────────────────────────────────────
      マーキー
+     移動距離 = span1個分の幅（CSS変数 --marquee-span-width で注入）
+     duration  = spanWidth / PX_PER_SEC（JS側で --marquee-duration に注入）
+     → 文字数・画面幅によらず一定速度でシームレスループ
   ──────────────────────────────────────────── */
   @keyframes marquee {
     0%   { transform: translateX(0); }
     100% { transform: translateX(-50%); }
+  }
+  @keyframes marquee-item {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(calc(-1 * var(--marquee-span-width, 300px))); }
   }
 
   /* ────────────────────────────────────────────

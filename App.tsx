@@ -193,7 +193,8 @@ const App: React.FC = () => {
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const announcementMarqueeRef = useRef<HTMLDivElement>(null);
-  const [marqueeRepeat, setMarqueeRepeat] = useState(4); // 初期値は適当な数（後でJS計算で上書き）
+  const announcementTrackRef = useRef<HTMLDivElement>(null);
+  const [marqueeRepeat, setMarqueeRepeat] = useState(4);
   const searchRef = useRef<HTMLDivElement>(null);
   const iconFileInputRef = useRef<HTMLInputElement>(null);
   // Realtime コールバック内で最新のstateを参照するためのref
@@ -455,49 +456,35 @@ const App: React.FC = () => {
   }, [calls]);
 
   useEffect(() => {
-    const container = announcementMarqueeRef.current;
-    if (!container) return;
+    const track = announcementTrackRef.current;
+    if (!track) return;
 
-    if (announcement) {
-      container.style.animation = 'none';
-      container.style.willChange = 'auto';
-
-      const raf = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // 各スパンの実幅を取得（先頭のスパンの幅で計算）
-          const spans = container.querySelectorAll<HTMLSpanElement>('[data-marquee-item]');
-          const spanWidth = spans.length > 0 ? spans[0].getBoundingClientRect().width : announcement.length * 16 + 96;
-          const viewportWidth = window.innerWidth;
-
-          // 1セット内に何個繰り返すか：画面幅の少なくとも 1.5 倍以上になるまで
-          const repeatCount = Math.max(2, Math.ceil((viewportWidth * 1.5) / spanWidth));
-
-          // 現在の span 数と一致しない場合は再描画が必要——ここでは state 経由で届けるので
-          // 先に計算完了後、React state で届ける
-          setMarqueeRepeat(repeatCount);
-
-          // アニメを再設定（次の rAF で DOM が更新された後に実行）
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              // 移動距離 = 1セット幅（= spanWidth × repeatCount）
-              // 速度 50px/s は元の実装と同じ実効速度
-              const singleSetWidth = spanWidth * repeatCount;
-              const pixelsPerSecond = 200;
-              const duration = Math.max(3, singleSetWidth / pixelsPerSecond);
-              if (container) {
-                container.style.animation = `marquee ${duration}s linear infinite`;
-                container.style.willChange = 'transform';
-              }
-            });
-          });
-        });
-      });
-
-      return () => cancelAnimationFrame(raf);
-    } else {
-      container.style.animation = 'none';
-      container.style.willChange = 'auto';
+    if (!announcement) {
+      setMarqueeRepeat(4);
+      return;
     }
+
+    // 1フレーム待ってから span の実幅を計測
+    const raf = requestAnimationFrame(() => {
+      const span = track.querySelector<HTMLSpanElement>('[data-marquee-item]');
+      const spanWidth = span ? span.getBoundingClientRect().width : announcement.length * 14 + 96;
+      const viewportWidth = window.innerWidth;
+
+      // スパンを「画面幅の3倍以上」並べる → シームレスに見える十分な量
+      const count = Math.max(3, Math.ceil((viewportWidth * 3) / spanWidth));
+      setMarqueeRepeat(count);
+
+      // duration = spanWidth / 速度（px/s）→ 1個分のテキストが通過する時間
+      // これをアニメの1周期にすることで速度が一定になる
+      const PX_PER_SEC = 80; // ← この数値で速さを調整（大きいほど速い）
+      const duration = Math.max(4, spanWidth / PX_PER_SEC);
+
+      // --marquee-duration をCSS変数でセット（CSSアニメが参照する）
+      track.style.setProperty('--marquee-duration', `${duration}s`);
+      track.style.setProperty('--marquee-span-width', `${spanWidth}px`);
+    });
+
+    return () => cancelAnimationFrame(raf);
   }, [announcement, currentUser?.name]);
   
   // 期限切れ案件の削除は初回ロード時に apiService 側で実行済み
@@ -2554,28 +2541,28 @@ const App: React.FC = () => {
               boxShadow: '0 2px 8px rgba(251,191,36,0.15)',
             }}
           >
-            <div className="p-2 overflow-hidden">
+            <div className="py-2 overflow-hidden">
+              {/*
+                シームレスマーキーの仕組み:
+                - span を marqueeRepeat 個横並びにする（画面幅の3倍以上）
+                - CSS animation で translateX(0) → translateX(-spanWidth) を
+                  linear infinite で繰り返す
+                - 移動距離がちょうど span1個分なので、終端が先頭に重なり途切れない
+                - duration = spanWidth / PX_PER_SEC で文字数に関わらず一定速度
+              */}
               <div
-                ref={announcementMarqueeRef}
-                className="flex whitespace-nowrap flex-shrink-0"
+                ref={announcementTrackRef}
+                className="flex whitespace-nowrap"
+                style={{ animation: 'marquee-item var(--marquee-duration, 8s) linear infinite' }}
               >
-                {/*
-                  1セット = テキストを marqueeRepeat 個並べたもの
-                  それを2セット用意して translateX(-50%) でシームレスループ。
-                  marqueeRepeat は JS で「1セット幅 ≥ 画面幅」になるよう動的計算。
-                */}
-                {[0, 1].map((copy) => (
-                  <div key={copy} className="flex flex-shrink-0" aria-hidden={copy > 0}>
-                    {Array.from({ length: marqueeRepeat }).map((_, i) => (
-                      <span
-                        key={i}
-                        data-marquee-item="1"
-                        className="font-semibold tracking-wider text-amber-800 px-12"
-                      >
-                        {announcement}
-                      </span>
-                    ))}
-                  </div>
+                {Array.from({ length: marqueeRepeat }).map((_, i) => (
+                  <span
+                    key={i}
+                    data-marquee-item="1"
+                    className="font-semibold tracking-wider text-amber-800 px-12 flex-shrink-0"
+                  >
+                    {announcement}
+                  </span>
                 ))}
               </div>
             </div>
