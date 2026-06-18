@@ -304,7 +304,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     'relative', 'transition-all', 'duration-200', 'rounded-lg',
     isEditing ? `ring-2 ring-offset-1 ${mainRingClass}` : '',
     isHighlighted
-      ? 'bg-yellow-100 shadow-md scale-[1.01] ring-1 ring-yellow-300'
+      ? `scale-[1.015] ${isDarkMode ? 'bg-[#0193be]/10' : 'bg-[#0193be]/8'}`
       : isCompleted
       ? ''  // completed style is set via liStyle (gradient)
       : `${isDarkMode ? 'bg-[#151b28]' : 'bg-white'} ${mainTextClass} card-shadow-hover`,
@@ -409,11 +409,18 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
   return (
     <li ref={liRef} className={liClasses} style={liStyle}>
+      {/* ID検索ジャンプ：スポットライト + グロー発光オーバーレイ */}
+      {isHighlighted && (
+        <div className="highlight-spotlight" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
+      )}
+      {/* 編集後：グロー発光パルス */}
       {isRecentlyUpdated && (
         <div className="animate-datetime-updated" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
       )}
+      {/* 新規追加：グロー発光パルス + 左縦帯 + NEWバッジ */}
       {isNewCall && (
         <>
+          <div className="animate-new-call-glow" style={{ position: 'absolute', inset: 0, borderRadius: 8, zIndex: 10, pointerEvents: 'none' }} />
           {/* 左端の縦帯 */}
           <div style={{
             position: 'absolute', top: 0, left: 0, bottom: 0, width: 4,

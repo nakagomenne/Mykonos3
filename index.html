@@ -440,15 +440,49 @@
   /* ────────────────────────────────────────────
      予定日時変更直後の点滅ハイライト（#0193be 外枠）
   ──────────────────────────────────────────── */
-  @keyframes datetime-updated-pulse {
-    0%   { opacity: 0; outline: 2.5px solid rgba(1,147,190,0.9); outline-offset: -1px; }
-    15%  { opacity: 1; outline: 2.5px solid rgba(1,147,190,0.9); outline-offset: -1px; }
-    50%  { opacity: 0.2; outline: 2.5px solid rgba(1,147,190,0.2); outline-offset: -1px; }
-    85%  { opacity: 1; outline: 2.5px solid rgba(1,147,190,0.9); outline-offset: -1px; }
-    100% { opacity: 0; outline: 2.5px solid rgba(1,147,190,0); outline-offset: -1px; }
+  /* ────────────────────────────────────────────
+     ID検索ジャンプ強調（スポットライト + グロー）
+     段階的フェードアウト: 鮮明(0-5s) → 中間(5-20s) → フェード(20-30s)
+  ──────────────────────────────────────────── */
+  @keyframes highlight-spotlight {
+    0%   { box-shadow: 0 0 0 2px rgba(1,147,190,0.9), 0 0 18px 4px rgba(1,147,190,0.45), 0 4px 16px rgba(1,147,190,0.2); }
+    10%  { box-shadow: 0 0 0 2px rgba(1,147,190,1),   0 0 24px 8px rgba(1,147,190,0.55), 0 6px 20px rgba(1,147,190,0.25); }
+    50%  { box-shadow: 0 0 0 2px rgba(1,147,190,0.7), 0 0 16px 4px rgba(1,147,190,0.30), 0 4px 12px rgba(1,147,190,0.15); }
+    80%  { box-shadow: 0 0 0 1px rgba(1,147,190,0.4), 0 0 10px 2px rgba(1,147,190,0.15), 0 2px 8px rgba(1,147,190,0.08); }
+    100% { box-shadow: 0 0 0 1px rgba(1,147,190,0.15),0 0 4px 1px rgba(1,147,190,0.05), 0 0 0 rgba(0,0,0,0); }
+  }
+  .highlight-spotlight {
+    animation: highlight-spotlight 25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    border-radius: 8px;
+  }
+
+  /* ────────────────────────────────────────────
+     編集後強調（グロー発光パルス × 4回 = 6秒）
+  ──────────────────────────────────────────── */
+  @keyframes updated-glow-pulse {
+    0%   { opacity: 0;   box-shadow: 0 0 0 2px rgba(1,147,190,0),   0 0 0px 0px rgba(1,147,190,0); }
+    12%  { opacity: 1;   box-shadow: 0 0 0 2px rgba(1,147,190,0.95), 0 0 20px 6px rgba(1,147,190,0.5); }
+    45%  { opacity: 0.6; box-shadow: 0 0 0 1px rgba(1,147,190,0.4),  0 0 10px 3px rgba(1,147,190,0.2); }
+    88%  { opacity: 1;   box-shadow: 0 0 0 2px rgba(1,147,190,0.95), 0 0 20px 6px rgba(1,147,190,0.5); }
+    100% { opacity: 0;   box-shadow: 0 0 0 2px rgba(1,147,190,0),   0 0 0px 0px rgba(1,147,190,0); }
   }
   .animate-datetime-updated {
-    animation: datetime-updated-pulse 1.5s ease-in-out 4; /* 4回 × 1.5s = 6秒 */
+    animation: updated-glow-pulse 1.5s ease-in-out 4; /* 4回 × 1.5s = 6秒 */
+    border-radius: 8px;
+  }
+
+  /* ────────────────────────────────────────────
+     新規追加強調（グロー発光パルス × 4回 = 6秒）
+  ──────────────────────────────────────────── */
+  @keyframes new-call-glow {
+    0%   { opacity: 0;   box-shadow: 0 0 0 2px rgba(1,147,190,0),    0 0 0px 0px rgba(1,147,190,0); }
+    10%  { opacity: 1;   box-shadow: 0 0 0 2px rgba(1,147,190,1),     0 0 24px 8px rgba(1,147,190,0.55); }
+    50%  { opacity: 0.5; box-shadow: 0 0 0 1.5px rgba(1,147,190,0.5), 0 0 12px 4px rgba(1,147,190,0.25); }
+    90%  { opacity: 1;   box-shadow: 0 0 0 2px rgba(1,147,190,1),     0 0 24px 8px rgba(1,147,190,0.55); }
+    100% { opacity: 0;   box-shadow: 0 0 0 2px rgba(1,147,190,0),     0 0 0px 0px rgba(1,147,190,0); }
+  }
+  .animate-new-call-glow {
+    animation: new-call-glow 1.5s ease-in-out 4; /* 4回 × 1.5s = 6秒 */
     border-radius: 8px;
   }
 </style>
