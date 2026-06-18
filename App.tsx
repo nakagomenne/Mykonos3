@@ -2829,6 +2829,12 @@ const App: React.FC = () => {
                           : mineChokiRatio > 0.15
                           ? { text: 'text-yellow-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                           : null;
+                      const mineRusuRatio = mineTotalBase > 0 ? mineMikomiRusuCount / mineTotalBase : 0;
+                      const mineRusuAccent = mineRusuRatio > 0.45
+                          ? { text: 'text-red-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                          : mineRusuRatio > 0.30
+                          ? { text: 'text-yellow-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                          : null;
 
                       // グラデーション背景スタイル
                       const mineGradientStyle: React.CSSProperties = mineIsAvailable
@@ -2939,10 +2945,10 @@ const App: React.FC = () => {
                                   <span className={`text-xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiCount}</span>
                                   <span className={`text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込</span>
                               </div>
-                              {/* 見込留守 */}
-                              <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineCounterCardBase}`}>
-                                  <span className={`text-xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiRusuCount}</span>
-                                  <span className={`text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込留守</span>
+                              {/* 見込留守（アラート連動） */}
+                              <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineRusuAccent ? `${mineRusuAccent.bg} ${mineRusuAccent.border} border` : mineCounterCardBase}`}>
+                                  <span className={`text-xl font-black tabular-nums leading-none ${mineRusuAccent ? mineRusuAccent.num : mineCounterNum}`}>{mineMikomiRusuCount}</span>
+                                  <span className={`text-xs font-bold tracking-wide ${mineRusuAccent ? mineRusuAccent.text : mineCounterLabel}`}>見込留守</span>
                               </div>
                               {/* 長期見込（アラート連動） */}
                               <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${mineChokiAccent ? `${mineChokiAccent.bg} ${mineChokiAccent.border} border` : mineCounterCardBase}`}>
@@ -3001,6 +3007,12 @@ const App: React.FC = () => {
                           const chokiAccentColor = chokiRatio > 0.25
                               ? { text: 'text-red-500', bg: isAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
                               : chokiRatio > 0.15
+                              ? { text: 'text-yellow-500', bg: isAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                              : null;
+                          const rusuRatio = totalBase > 0 ? mikomiRusuCount / totalBase : 0;
+                          const rusuAccentColor = rusuRatio > 0.45
+                              ? { text: 'text-red-500', bg: isAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                              : rusuRatio > 0.30
                               ? { text: 'text-yellow-500', bg: isAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                               : null;
 
@@ -3101,10 +3113,10 @@ const App: React.FC = () => {
                                           <span className={`text-xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiCount}</span>
                                           <span className={`text-xs font-bold tracking-wide ${counterLabelColor}`}>見込</span>
                                       </div>
-                                      {/* 見込留守 */}
-                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${counterCardBase}`}>
-                                          <span className={`text-xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiRusuCount}</span>
-                                          <span className={`text-xs font-bold tracking-wide ${counterLabelColor}`}>見込留守</span>
+                                      {/* 見込留守（アラート連動） */}
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${rusuAccentColor ? `${rusuAccentColor.bg} ${rusuAccentColor.border} border` : counterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${rusuAccentColor ? rusuAccentColor.num : counterNumColor}`}>{mikomiRusuCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${rusuAccentColor ? rusuAccentColor.text : counterLabelColor}`}>見込留守</span>
                                       </div>
                                       {/* 長期見込（アラート連動） */}
                                       <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${chokiAccentColor ? `${chokiAccentColor.bg} ${chokiAccentColor.border} border` : counterCardBase}`}>
@@ -3291,6 +3303,12 @@ const App: React.FC = () => {
                             : pvChokiRatio > 0.15
                             ? { text: 'text-yellow-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                             : null;
+                        const pvRusuRatio = pvTotalBase > 0 ? pvMikomiRusuCount / pvTotalBase : 0;
+                        const pvRusuAccent = pvRusuRatio > 0.45
+                            ? { text: 'text-red-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                            : pvRusuRatio > 0.30
+                            ? { text: 'text-yellow-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                            : null;
                         const pvGradientStyle: React.CSSProperties = pvIsAvailable
                             ? isDarkMode
                                 ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
@@ -3373,9 +3391,9 @@ const App: React.FC = () => {
                                           <span className={`text-xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiCount}</span>
                                           <span className={`text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込</span>
                                       </div>
-                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvCounterCardBase}`}>
-                                          <span className={`text-xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiRusuCount}</span>
-                                          <span className={`text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込留守</span>
+                                      <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvRusuAccent ? `${pvRusuAccent.bg} ${pvRusuAccent.border} border` : pvCounterCardBase}`}>
+                                          <span className={`text-xl font-black tabular-nums leading-none ${pvRusuAccent ? pvRusuAccent.num : pvCounterNum}`}>{pvMikomiRusuCount}</span>
+                                          <span className={`text-xs font-bold tracking-wide ${pvRusuAccent ? pvRusuAccent.text : pvCounterLabel}`}>見込留守</span>
                                       </div>
                                       <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvChokiAccent ? `${pvChokiAccent.bg} ${pvChokiAccent.border} border` : pvCounterCardBase}`}>
                                           <span className={`text-xl font-black tabular-nums leading-none ${pvChokiAccent ? pvChokiAccent.num : pvCounterNum}`}>{pvChokiCount}</span>
