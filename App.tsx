@@ -2882,12 +2882,8 @@ const App: React.FC = () => {
                           ? { text: 'text-yellow-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                           : null;
 
-                      // グラデーション背景スタイル
-                      const mineGradientStyle: React.CSSProperties = mineIsAvailable
-                          ? isDarkMode
-                              ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
-                              : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
-                          : { backgroundColor: mineBgHex };
+                      // 背景スタイル（受付可：白背景、それ以外：ステータスカラー）
+                      const mineGradientStyle: React.CSSProperties = mineIsAvailable ? {} : { backgroundColor: mineBgHex };
 
                       // カウンターカード共通スタイル
                       const mineCounterCardBase = mineIsAvailable
@@ -2901,7 +2897,7 @@ const App: React.FC = () => {
 
                       return (
                       <div
-                          className={`rounded-xl overflow-hidden transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                          className={`rounded-xl overflow-hidden transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535] border-2 border-[#0193be]/60' : 'bg-white border-2 border-[#0193be]') : ''}`}
                           style={mineGradientStyle}
                       >
                           {/* 上部：プロフィール + 基本情報 */}
@@ -3062,12 +3058,8 @@ const App: React.FC = () => {
                               ? { text: 'text-yellow-500', bg: isAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                               : null;
 
-                          // グラデーション背景スタイル
-                          const gradientStyle: React.CSSProperties = isAvailable
-                              ? isDarkMode
-                                  ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
-                                  : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
-                              : { backgroundColor: statusBgHex };
+                          // 背景スタイル（受付可：白背景、それ以外：ステータスカラー）
+                          const gradientStyle: React.CSSProperties = isAvailable ? {} : { backgroundColor: statusBgHex };
 
                           // カウンターカード共通スタイル
                           const counterCardBase = isAvailable
@@ -3081,7 +3073,7 @@ const App: React.FC = () => {
 
                           return (
                               <div
-                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535] border-2 border-[#0193be]/60' : 'bg-white border-2 border-[#0193be]') : ''}`}
                                   style={gradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
@@ -3355,11 +3347,8 @@ const App: React.FC = () => {
                             : pvRusuRatio > 0.30
                             ? { text: 'text-yellow-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
                             : null;
-                        const pvGradientStyle: React.CSSProperties = pvIsAvailable
-                            ? isDarkMode
-                                ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
-                                : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
-                            : { backgroundColor: pvStatusBgHex };
+                        // 背景スタイル（受付可：白背景、それ以外：ステータスカラー）
+                        const pvGradientStyle: React.CSSProperties = pvIsAvailable ? {} : { backgroundColor: pvStatusBgHex };
                         const pvCounterCardBase = pvIsAvailable
                             ? isDarkMode ? 'bg-white/5 border border-[#0193be]/25 hover:bg-white/10' : 'bg-white/70 border border-[#0193be]/20 hover:bg-white/90'
                             : 'bg-white/15 border border-white/30 hover:bg-white/25';
@@ -3372,7 +3361,7 @@ const App: React.FC = () => {
                             <div className="mb-4">
                               {/* previewMember ヘッダーカード */}
                               <div
-                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${pvIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${pvIsAvailable ? (isDarkMode ? 'bg-[#1e2535] border-2 border-[#0193be]/60' : 'bg-white border-2 border-[#0193be]') : ''}`}
                                   style={pvGradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
