@@ -2897,7 +2897,7 @@ const App: React.FC = () => {
 
                       return (
                       <div
-                          className={`rounded-xl overflow-hidden transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535] border border-[#0193be]/25' : 'bg-white border border-[#0193be]/20') : ''}`}
+                          className={`rounded-xl overflow-hidden transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-white/5 border border-[#0193be]/25' : 'bg-white/70 border border-[#0193be]/20') : ''}`}
                           style={mineGradientStyle}
                       >
                           {/* 上部：プロフィール + 基本情報 */}
@@ -3073,7 +3073,7 @@ const App: React.FC = () => {
 
                           return (
                               <div
-                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535] border border-[#0193be]/25' : 'bg-white border border-[#0193be]/20') : ''}`}
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-white/5 border border-[#0193be]/25' : 'bg-white/70 border border-[#0193be]/20') : ''}`}
                                   style={gradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
@@ -3361,7 +3361,7 @@ const App: React.FC = () => {
                             <div className="mb-4">
                               {/* previewMember ヘッダーカード */}
                               <div
-                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${pvIsAvailable ? (isDarkMode ? 'bg-[#1e2535] border border-[#0193be]/25' : 'bg-white border border-[#0193be]/20') : ''}`}
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${pvIsAvailable ? (isDarkMode ? 'bg-white/5 border border-[#0193be]/25' : 'bg-white/70 border border-[#0193be]/20') : ''}`}
                                   style={pvGradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
