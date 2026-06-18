@@ -2853,7 +2853,7 @@ const App: React.FC = () => {
                           style={mineGradientStyle}
                       >
                           {/* 上部：プロフィール + 基本情報 */}
-                          <div className="flex items-center gap-4 px-5 pt-3 pb-2">
+                          <div className="flex items-center gap-4 px-5 pt-3 pb-4">
                               <button
                                   onClick={() => currentUserWithData && setProfilePopupUser(currentUserWithData)}
                                   className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-105"
@@ -3027,7 +3027,7 @@ const App: React.FC = () => {
                                   style={gradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
-                                  <div className="flex items-center gap-4 px-5 pt-3 pb-2">
+                                  <div className="flex items-center gap-4 px-5 pt-3 pb-4">
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
@@ -3312,7 +3312,7 @@ const App: React.FC = () => {
                                   style={pvGradientStyle}
                               >
                                   {/* 上部：プロフィール + 基本情報 */}
-                                  <div className="flex items-center gap-4 px-5 pt-3 pb-2">
+                                  <div className="flex items-center gap-4 px-5 pt-3 pb-4">
                                       <div
                                           className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-colors duration-500"
                                           style={{ boxShadow: pvRingBoxShadow }}
