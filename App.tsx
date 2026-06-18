@@ -2784,10 +2784,7 @@ const App: React.FC = () => {
                   ) : displayViewMode === 'mine' ? (() => {
                       const mineStatus = currentUserWithData?.availabilityStatus || '受付可';
                       const mineIsAvailable = mineStatus === '受付可';
-                      const mineBgStyle: React.CSSProperties = mineIsAvailable
-                          ? {}
-                          : { backgroundColor: { '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[mineStatus] ?? '#64748b' };
-                      const mineBgClass = mineIsAvailable ? '' : '';
+                      const mineBgHex = { '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[mineStatus] ?? '#64748b';
                       const mineRingHex = {
                           '受付可': 'white',
                           '一時受付不可': '#eab308',
@@ -2795,112 +2792,164 @@ const App: React.FC = () => {
                           '非稼働': '#64748b',
                       }[mineStatus] ?? 'white';
                       const mineOuterHex = mineIsAvailable ? '#0193be' : 'white';
-                      const mineRingColor = ''; // box-shadowで管理
                       const mineRingBoxShadow = `0 0 0 4px ${mineRingHex}, 0 0 0 9px ${mineOuterHex}`;
                       const mineTextColor = mineIsAvailable ? 'text-[#0193be]' : 'text-white';
                       const mineCalendarHover = mineIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
+                      const mineStatusBgColor = {
+                          '受付可': 'bg-[#0193be]',
+                          '一時受付不可': 'bg-yellow-500',
+                          '当日受付不可': 'bg-red-500',
+                          '非稼働': 'bg-slate-500',
+                      }[mineStatus] ?? 'bg-[#0193be]';
+                      const mineStatusBgHex = {
+                          '受付可': '#0193be',
+                          '一時受付不可': '#eab308',
+                          '当日受付不可': '#ef4444',
+                          '非稼働': '#64748b',
+                      }[mineStatus] ?? '#0193be';
+
+                      // --- mine: 保有数カウント ---
+                      const mineMikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
+                      const mineMikomiRusuBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
+                      const mineToday8 = new Date(); mineToday8.setDate(mineToday8.getDate() + 8); mineToday8.setHours(0,0,0,0);
+                      const mineActiveCalls = calls.filter(c => c.assignee === currentUser.name && c.status !== '完了');
+                      const mineMikomiCount = mineActiveCalls.filter(c => (mineMikomiBases as readonly string[]).includes(c.rank)).length;
+                      const mineMikomiRusuCount = mineActiveCalls.filter(c => (mineMikomiRusuBases as readonly string[]).includes(c.rank)).length;
+                      const mineChokiCount = mineActiveCalls.filter(c => {
+                          const isTarget = (mineMikomiBases as readonly string[]).includes(c.rank) || (mineMikomiRusuBases as readonly string[]).includes(c.rank);
+                          if (!isTarget) return false;
+                          if (!c.dateTime) return false;
+                          const dt = new Date(c.dateTime); dt.setHours(0,0,0,0);
+                          return dt >= mineToday8;
+                      }).length;
+                      const mineTotalBase = mineMikomiCount + mineMikomiRusuCount;
+                      const mineChokiRatio = mineTotalBase > 0 ? mineChokiCount / mineTotalBase : 0;
+                      const mineChokiAccent = mineChokiRatio > 0.25
+                          ? { text: 'text-red-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                          : mineChokiRatio > 0.15
+                          ? { text: 'text-yellow-500', bg: mineIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                          : null;
+
+                      // グラデーション背景スタイル
+                      const mineGradientStyle: React.CSSProperties = mineIsAvailable
+                          ? isDarkMode
+                              ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
+                              : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
+                          : { backgroundColor: mineBgHex };
+
+                      // カウンターカード共通スタイル
+                      const mineCounterCardBase = mineIsAvailable
+                          ? isDarkMode
+                              ? 'bg-white/5 border border-[#0193be]/25 hover:bg-white/10'
+                              : 'bg-white/70 border border-[#0193be]/20 hover:bg-white/90'
+                          : 'bg-white/15 border border-white/30 hover:bg-white/25';
+                      const mineCounterLabel = mineIsAvailable ? (isDarkMode ? 'text-[#0193be]/70' : 'text-[#0193be]/70') : 'text-white/70';
+                      const mineCounterNum = mineIsAvailable ? (isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]') : 'text-white';
+                      const mineDivider = mineIsAvailable ? (isDarkMode ? 'border-[#0193be]/20' : 'border-[#0193be]/15') : 'border-white/25';
+
                       return (
                       <div
-                          className={`rounded-xl py-4 px-4 transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
-                          style={mineIsAvailable ? {} : mineBgStyle}
+                          className={`rounded-xl overflow-hidden transition-colors duration-500 ${mineIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                          style={mineGradientStyle}
                       >
-                      <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-center gap-4">
+                          {/* 上部：プロフィール + 基本情報 */}
+                          <div className="flex items-center gap-4 px-5 pt-4 pb-3">
                               <button
                                   onClick={() => currentUserWithData && setProfilePopupUser(currentUserWithData)}
-                                  className="relative w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-105"
+                                  className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 hover:scale-105"
                                   style={{ boxShadow: mineRingBoxShadow }}
                                   title="プロフィールを表示"
                               >
                                   {currentUserWithData?.profilePicture ? (
-                                      <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-32 h-32 rounded-full object-cover" />
+                                      <img src={currentUserWithData.profilePicture} alt={currentUser.name} className="w-24 h-24 rounded-full object-cover" />
                                   ) : (
-                                      <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                        <UserIcon className="w-16 h-16 text-[#0193be]/80" />
+                                      <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center">
+                                          <UserIcon className="w-12 h-12 text-[#0193be]/80" />
                                       </div>
                                   )}
                               </button>
-                              <div className="flex items-center">
-                                {currentUserWithData?.comment ? (
-                                    <>
-                                        <div className="mr-4">
-                                            <div className="mb-1">
-                                                <div className="relative inline-block">
-                                                    <button
-                                                        onClick={() => setIsCommentModalOpen(true)}
-                                                        className="group bg-[#0193be] px-4 py-2 rounded-lg shadow-sm flex items-baseline gap-2 hover:bg-[#017a9a] transition-colors"
-                                                        title="コメントを編集"
-                                                    >
-                                                        <p className="text-base font-bold text-white">
-                                                            {currentUserWithData.comment}
-                                                        </p>
-                                                        {currentUserWithData.commentUpdatedAt && (
-                                                          <span className="text-xs text-white/80 whitespace-nowrap">
-                                                            {formatRelativeTime(currentUserWithData.commentUpdatedAt)}
-                                                          </span>
-                                                        )}
-                                                        <PencilIcon className="w-4 h-4 text-white/70 group-hover:text-white transition-colors flex-shrink-0 self-center" />
-                                                    </button>
-                                                    <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent border-t-[8px] border-t-[#0193be]"></div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-baseline gap-2">
-                                              <h2 className={`text-5xl font-bold transition-colors duration-500 ${mineTextColor}`}>{currentUser.name}</h2>
+                              <div className="flex-1 min-w-0">
+                                  {currentUserWithData?.comment ? (
+                                      <div className="mb-2">
+                                          <div className="relative inline-block">
                                               <button
-                                                  onClick={() => handleShowUserSchedule(currentUser.name)}
-                                                  className={`${mineTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${mineCalendarHover} transition`}
-                                                  title={`${currentUser.name}さんのスケジュールを表示`}
+                                                  onClick={() => setIsCommentModalOpen(true)}
+                                                  className={`group ${mineStatusBgColor} hover:opacity-90 px-3 py-1.5 rounded-lg shadow-sm flex items-baseline gap-2 transition-opacity`}
+                                                  title="コメントを編集"
                                               >
-                                                  <CalendarIcon className="w-6 h-6" />
+                                                  <p className="text-sm font-bold text-white">
+                                                      {currentUserWithData.comment}
+                                                  </p>
+                                                  {currentUserWithData.commentUpdatedAt && (
+                                                      <span className="text-xs text-white/80 whitespace-nowrap">
+                                                          {formatRelativeTime(currentUserWithData.commentUpdatedAt)}
+                                                      </span>
+                                                  )}
+                                                  <PencilIcon className="w-3.5 h-3.5 text-white/70 group-hover:text-white transition-colors flex-shrink-0 self-center" />
                                               </button>
-                                            </div>
-                                            {(currentUserWithData && (( currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
-                                              <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
-                                                対応可能商材：{getProductsLabel(currentUserWithData)}
-                                              </p>
-                                            )}
-                                            {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
-                                              <p className={`text-sm font-medium transition-colors duration-500 ${mineTextColor} opacity-60`}>
-                                                稼働時間：{currentUserWithData.workStart ?? '11:00'}〜{currentUserWithData.workEnd ?? '20:00'}
-                                              </p>
-                                            )}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="relative">
-                                         <button
-                                            onClick={() => setIsCommentModalOpen(true)}
-                                            className={`absolute bottom-full left-0 mb-1 ${mineTextColor} opacity-70 hover:opacity-100 transition-colors`}
-                                            title="コメントを設定"
-                                            aria-label="コメントを設定"
-                                        >
-                                            <SpeechBubbleIcon className="w-8 h-8" />
-                                        </button>
-                                        <div className="flex items-baseline gap-2">
-                                          <h2 className={`text-5xl font-bold transition-colors duration-500 ${mineTextColor}`}>{currentUser.name}</h2>
-                                          <button
-                                              onClick={() => handleShowUserSchedule(currentUser.name)}
-                                              className={`${mineTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${mineCalendarHover} transition`}
-                                              title={`${currentUser.name}さんのスケジュールを表示`}
-                                          >
-                                              <CalendarIcon className="w-6 h-6" />
-                                          </button>
-                                        </div>
-                                        {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
-                                          <p className={`mt-1 text-lg font-bold transition-colors duration-500 ${mineTextColor} opacity-80`}>
-                                            対応可能商材：{getProductsLabel(currentUserWithData)}
-                                          </p>
-                                        )}
-                                        {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
-                                          <p className={`text-sm font-medium transition-colors duration-500 ${mineTextColor} opacity-60`}>
-                                            稼働時間：{currentUserWithData.workStart ?? '11:00'}〜{currentUserWithData.workEnd ?? '20:00'}
-                                          </p>
-                                        )}
-                                    </div>
-                                )}
+                                              <div className="absolute top-full left-6 w-0 h-0 border-r-[12px] border-r-transparent" style={{ borderTopWidth: '6px', borderTopColor: mineStatusBgHex }}></div>
+                                          </div>
+                                      </div>
+                                  ) : (
+                                      <button
+                                          onClick={() => setIsCommentModalOpen(true)}
+                                          className={`mb-2 ${mineTextColor} opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1`}
+                                          title="コメントを設定"
+                                          aria-label="コメントを設定"
+                                      >
+                                          <SpeechBubbleIcon className="w-5 h-5" />
+                                          <span className="text-xs">コメントを設定</span>
+                                      </button>
+                                  )}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                      <h2 className={`text-4xl font-black tracking-tight transition-colors duration-500 ${mineTextColor}`}>{currentUser.name}</h2>
+                                      <button
+                                          onClick={() => handleShowUserSchedule(currentUser.name)}
+                                          className={`${mineTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${mineCalendarHover} transition`}
+                                          title={`${currentUser.name}さんのスケジュールを表示`}
+                                      >
+                                          <CalendarIcon className="w-5 h-5" />
+                                      </button>
+                                      {/* ステータスバッジ */}
+                                      <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${mineStatusBgColor} text-white`}>
+                                          {mineStatus}
+                                      </span>
+                                  </div>
+                                  <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${mineTextColor} opacity-75`}>
+                                      {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
+                                          <span className="font-semibold">{getProductsLabel(currentUserWithData)}</span>
+                                      )}
+                                      {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
+                                          <>
+                                              {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
+                                                  <span className="opacity-40">|</span>
+                                              )}
+                                              <span>{currentUserWithData?.workStart ?? '11:00'} - {currentUserWithData?.workEnd ?? '20:00'}</span>
+                                          </>
+                                      )}
+                                  </div>
                               </div>
                           </div>
-                      </div>
+                          {/* 区切り線 */}
+                          <div className={`mx-5 border-t ${mineDivider}`} />
+                          {/* 下部：カウンターゾーン */}
+                          <div className="grid grid-cols-3 gap-3 px-5 py-3">
+                              {/* 見込 */}
+                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineCounterCardBase}`}>
+                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiCount}</span>
+                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込</span>
+                              </div>
+                              {/* 見込留守 */}
+                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineCounterCardBase}`}>
+                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineCounterNum}`}>{mineMikomiRusuCount}</span>
+                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineCounterLabel}`}>見込留守</span>
+                              </div>
+                              {/* 長期見込（アラート連動） */}
+                              <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${mineChokiAccent ? `${mineChokiAccent.bg} ${mineChokiAccent.border} border` : mineCounterCardBase}`}>
+                                  <span className={`text-3xl font-black tabular-nums leading-none ${mineChokiAccent ? mineChokiAccent.num : mineCounterNum}`}>{mineChokiCount}</span>
+                                  <span className={`mt-1 text-xs font-bold tracking-wide ${mineChokiAccent ? mineChokiAccent.text : mineCounterLabel}`}>長期見込</span>
+                              </div>
+                          </div>
                       </div>
                       );
                   })()
@@ -2917,7 +2966,6 @@ const App: React.FC = () => {
                               '非稼働': '#64748b',
                           }[status] ?? 'white';
                           const outerHex = isAvailable ? '#0193be' : 'white';
-                          const ringColorClass = ''; // box-shadowで管理
                           const ringBoxShadow = `0 0 0 4px ${ringHex}, 0 0 0 9px ${outerHex}`;
                           const statusTextColor = isAvailable ? 'text-[#0193be]' : 'text-white';
                           const statusBgColor = {
@@ -2933,36 +2981,74 @@ const App: React.FC = () => {
                               '非稼働': '#64748b',
                           }[status] ?? '#0193be';
                           const calendarHover = isAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20';
-                          const headerBgStyle: React.CSSProperties = isAvailable ? {} : { backgroundColor: statusBgHex };
+
+                          // --- 保有数カウント ---
+                          const mikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
+                          const mikomirususBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
+                          const today8 = new Date(); today8.setDate(today8.getDate() + 8); today8.setHours(0,0,0,0);
+                          const activeCalls = calls.filter(c => c.assignee === selectedMember && c.status !== '完了');
+                          const mikomiCount = activeCalls.filter(c => (mikomiBases as readonly string[]).includes(c.rank)).length;
+                          const mikomiRusuCount = activeCalls.filter(c => (mikomirususBases as readonly string[]).includes(c.rank)).length;
+                          const chokiCount = activeCalls.filter(c => {
+                              const isTarget = (mikomiBases as readonly string[]).includes(c.rank) || (mikomirususBases as readonly string[]).includes(c.rank);
+                              if (!isTarget) return false;
+                              if (!c.dateTime) return false;
+                              const dt = new Date(c.dateTime); dt.setHours(0,0,0,0);
+                              return dt >= today8;
+                          }).length;
+                          const totalBase = mikomiCount + mikomiRusuCount;
+                          const chokiRatio = totalBase > 0 ? chokiCount / totalBase : 0;
+                          const chokiAccentColor = chokiRatio > 0.25
+                              ? { text: 'text-red-500', bg: isAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                              : chokiRatio > 0.15
+                              ? { text: 'text-yellow-500', bg: isAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                              : null;
+
+                          // グラデーション背景スタイル
+                          const gradientStyle: React.CSSProperties = isAvailable
+                              ? isDarkMode
+                                  ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
+                                  : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
+                              : { backgroundColor: statusBgHex };
+
+                          // カウンターカード共通スタイル
+                          const counterCardBase = isAvailable
+                              ? isDarkMode
+                                  ? 'bg-white/5 border border-[#0193be]/25 hover:bg-white/10'
+                                  : 'bg-white/70 border border-[#0193be]/20 hover:bg-white/90'
+                              : 'bg-white/15 border border-white/30 hover:bg-white/25';
+                          const counterLabelColor = isAvailable ? (isDarkMode ? 'text-[#0193be]/70' : 'text-[#0193be]/70') : 'text-white/70';
+                          const counterNumColor = isAvailable ? (isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]') : 'text-white';
+                          const dividerColor = isAvailable ? (isDarkMode ? 'border-[#0193be]/20' : 'border-[#0193be]/15') : 'border-white/25';
 
                           return (
                               <div
-                                  className={`rounded-xl py-4 px-4 transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
-                                  style={headerBgStyle}
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${isAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                                  style={gradientStyle}
                               >
-                              <div className="flex items-center justify-between gap-4">
-                                  <div className="flex items-center gap-4">
+                                  {/* 上部：プロフィール + 基本情報 */}
+                                  <div className="flex items-center gap-4 px-5 pt-4 pb-3">
                                       {/* アイコン：クリックでポップアップ拡大表示 */}
                                       <button
                                           onClick={() => setProfilePopupUser(selectedUserDetails)}
-                                          className="relative w-32 h-32 rounded-full transition-all duration-500 hover:scale-105"
+                                          className="relative flex-shrink-0 w-24 h-24 rounded-full transition-all duration-500 hover:scale-105"
                                           style={{ boxShadow: ringBoxShadow }}
                                           title={`${selectedMember}さんのプロフィール画像を拡大`}
                                       >
                                           {selectedUserDetails.profilePicture ? (
-                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-32 h-32 rounded-full object-cover" />
+                                              <img src={selectedUserDetails.profilePicture} alt={selectedMember} className="w-24 h-24 rounded-full object-cover" />
                                           ) : (
-                                              <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                                  <UserIcon className={`w-16 h-16 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
+                                              <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center">
+                                                  <UserIcon className={`w-12 h-12 ${isAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
                                               </div>
                                           )}
                                       </button>
-                                      <div>
+                                      <div className="flex-1 min-w-0">
                                           {selectedUserDetails.comment && (
-                                              <div className="mb-3">
-                                                  <div className={`relative inline-block ${statusBgColor} px-4 py-2 rounded-lg shadow-sm`}>
-                                                      <div className="flex items-baseline gap-3">
-                                                          <p className="text-base font-bold text-white">
+                                              <div className="mb-2">
+                                                  <div className={`relative inline-block ${statusBgColor} px-3 py-1.5 rounded-lg shadow-sm`}>
+                                                      <div className="flex items-baseline gap-2">
+                                                          <p className="text-sm font-bold text-white">
                                                               {selectedUserDetails.comment}
                                                           </p>
                                                           {selectedUserDetails.commentUpdatedAt && (
@@ -2971,35 +3057,61 @@ const App: React.FC = () => {
                                                               </span>
                                                           )}
                                                       </div>
-                                                      <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent" style={{ borderTopWidth: '8px', borderTopColor: statusBgHex }}></div>
+                                                      <div className="absolute top-full left-6 w-0 h-0 border-r-[12px] border-r-transparent" style={{ borderTopWidth: '6px', borderTopColor: statusBgHex }}></div>
                                                   </div>
                                               </div>
                                           )}
-                                          <div className="flex items-baseline gap-2">
-                                            <h2 className={`text-5xl font-bold transition-colors duration-500 ${statusTextColor}`}>
-                                                {selectedMember}
-                                            </h2>
-                                            <button
-                                                onClick={() => handleShowUserSchedule(selectedMember)}
-                                                className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${calendarHover} transition`}
-                                                title={`${selectedMember}さんのスケジュールを表示`}
-                                            >
-                                                <CalendarIcon className="w-6 h-6" />
-                                            </button>
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                              <h2 className={`text-4xl font-black tracking-tight transition-colors duration-500 ${statusTextColor}`}>
+                                                  {selectedMember}
+                                              </h2>
+                                              <button
+                                                  onClick={() => handleShowUserSchedule(selectedMember)}
+                                                  className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${calendarHover} transition`}
+                                                  title={`${selectedMember}さんのスケジュールを表示`}
+                                              >
+                                                  <CalendarIcon className="w-5 h-5" />
+                                              </button>
+                                              {/* ステータスバッジ */}
+                                              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${statusBgColor} text-white`}>
+                                                  {status}
+                                              </span>
                                           </div>
-                                          {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
-                                            <p className={`mt-2 text-lg font-bold transition-colors duration-500 ${statusTextColor} opacity-80`}>
-                                              対応可能商材：{getProductsLabel(selectedUserDetails)}
-                                            </p>
-                                          )}
-                                          {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
-                                            <p className={`mt-1 text-sm font-medium transition-colors duration-500 ${statusTextColor} opacity-70`}>
-                                              稼働時間：{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}
-                                            </p>
-                                          )}
+                                          <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${statusTextColor} opacity-75`}>
+                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                  <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
+                                              )}
+                                              {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                                  <>
+                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                          <span className="opacity-40">|</span>
+                                                      )}
+                                                      <span>{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}</span>
+                                                  </>
+                                              )}
+                                          </div>
                                       </div>
                                   </div>
-                              </div>
+                                  {/* 区切り線 */}
+                                  <div className={`mx-5 border-t ${dividerColor}`} />
+                                  {/* 下部：カウンターゾーン */}
+                                  <div className="grid grid-cols-3 gap-3 px-5 py-3">
+                                      {/* 見込 */}
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${counterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${counterLabelColor}`}>見込</span>
+                                      </div>
+                                      {/* 見込留守 */}
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${counterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiRusuCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${counterLabelColor}`}>見込留守</span>
+                                      </div>
+                                      {/* 長期見込（アラート連動） */}
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${chokiAccentColor ? `${chokiAccentColor.bg} ${chokiAccentColor.border} border` : counterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${chokiAccentColor ? chokiAccentColor.num : counterNumColor}`}>{chokiCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${chokiAccentColor ? chokiAccentColor.text : counterLabelColor}`}>長期見込</span>
+                                      </div>
+                                  </div>
                               </div>
                           );
                       })()}
@@ -3151,65 +3263,125 @@ const App: React.FC = () => {
                         const selectedUserDetails = users.find(u => u.name === previewMember);
                         if (!selectedUserDetails) return null;
                         const status = selectedUserDetails.availabilityStatus;
+                        const pvIsAvailable = status === '受付可';
+                        const pvRingHex = { '受付可': 'white', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? 'white';
+                        const pvRingBoxShadow = `0 0 0 4px ${pvRingHex}, 0 0 0 9px ${pvIsAvailable ? '#0193be' : 'white'}`;
+                        const pvStatusBgHex = { '受付可': '#0193be', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? '#0193be';
+                        const pvStatusBgColor = { '受付可': 'bg-[#0193be]', '一時受付不可': 'bg-yellow-500', '当日受付不可': 'bg-red-500', '非稼働': 'bg-slate-500' }[status] ?? 'bg-[#0193be]';
+                        const pvTextColor = pvIsAvailable ? 'text-[#0193be]' : 'text-white';
+
+                        // --- preview: 保有数カウント ---
+                        const pvMikomiBases = ['見込C','見込B','見込A','見込S','LL見込'] as const;
+                        const pvMikomiRusuBases = ['見込C留守','見込B留守','見込A留守','見込S留守'] as const;
+                        const pvToday8 = new Date(); pvToday8.setDate(pvToday8.getDate() + 8); pvToday8.setHours(0,0,0,0);
+                        const pvActiveCalls = calls.filter(c => c.assignee === previewMember && c.status !== '完了');
+                        const pvMikomiCount = pvActiveCalls.filter(c => (pvMikomiBases as readonly string[]).includes(c.rank)).length;
+                        const pvMikomiRusuCount = pvActiveCalls.filter(c => (pvMikomiRusuBases as readonly string[]).includes(c.rank)).length;
+                        const pvChokiCount = pvActiveCalls.filter(c => {
+                            const isTarget = (pvMikomiBases as readonly string[]).includes(c.rank) || (pvMikomiRusuBases as readonly string[]).includes(c.rank);
+                            if (!isTarget) return false;
+                            if (!c.dateTime) return false;
+                            const dt = new Date(c.dateTime); dt.setHours(0,0,0,0);
+                            return dt >= pvToday8;
+                        }).length;
+                        const pvTotalBase = pvMikomiCount + pvMikomiRusuCount;
+                        const pvChokiRatio = pvTotalBase > 0 ? pvChokiCount / pvTotalBase : 0;
+                        const pvChokiAccent = pvChokiRatio > 0.25
+                            ? { text: 'text-red-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-red-500/15' : 'bg-red-50') : 'bg-white/15', border: 'border-red-400/50', num: 'text-red-500' }
+                            : pvChokiRatio > 0.15
+                            ? { text: 'text-yellow-500', bg: pvIsAvailable ? (isDarkMode ? 'bg-yellow-500/15' : 'bg-yellow-50') : 'bg-white/15', border: 'border-yellow-400/50', num: 'text-yellow-500' }
+                            : null;
+                        const pvGradientStyle: React.CSSProperties = pvIsAvailable
+                            ? isDarkMode
+                                ? { background: 'linear-gradient(135deg, rgba(1,147,190,0.12) 0%, rgba(1,147,190,0.04) 50%, transparent 100%)' }
+                                : { background: 'linear-gradient(135deg, rgba(1,147,190,0.10) 0%, rgba(1,147,190,0.03) 50%, transparent 100%)' }
+                            : { backgroundColor: pvStatusBgHex };
+                        const pvCounterCardBase = pvIsAvailable
+                            ? isDarkMode ? 'bg-white/5 border border-[#0193be]/25 hover:bg-white/10' : 'bg-white/70 border border-[#0193be]/20 hover:bg-white/90'
+                            : 'bg-white/15 border border-white/30 hover:bg-white/25';
+                        const pvCounterLabel = pvIsAvailable ? (isDarkMode ? 'text-[#0193be]/70' : 'text-[#0193be]/70') : 'text-white/70';
+                        const pvCounterNum = pvIsAvailable ? 'text-[#0193be]' : 'text-white';
+                        const pvDivider = pvIsAvailable ? (isDarkMode ? 'border-[#0193be]/20' : 'border-[#0193be]/15') : 'border-white/25';
+
                         return (
                           <div key={previewMember} className="animate-wipe-in-down-slow">
                             <div className="mb-4">
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-4 ml-4">
-                                  <div
-                              className="relative w-32 h-32 rounded-full flex items-center justify-center transition-colors duration-500"
-                              style={{ boxShadow: `0 0 0 4px ${{ '受付可': 'white', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? 'white'}, 0 0 0 9px ${status === '受付可' ? '#0193be' : 'white'}` }}
-                          >
-                                      {selectedUserDetails.profilePicture ? (
-                                        <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-32 h-32 rounded-full object-cover" />
-                                      ) : (
-                                        <div className="w-32 h-32 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                          <UserIcon className="w-16 h-16 text-[#0193be]/80" />
-                                        </div>
-                                      )}
-                                  </div>
-                                  <div>
-                                    {selectedUserDetails.comment && (
-                                        <div className="mb-3">
-                                            <div className="relative inline-block bg-[#0193be] px-4 py-2 rounded-lg shadow-sm">
-                                                <div className="flex items-baseline gap-3">
-                                                    <p className="text-base font-bold text-white">
-                                                        {selectedUserDetails.comment}
-                                                    </p>
-                                                    {selectedUserDetails.commentUpdatedAt && (
-                                                        <span className="text-xs text-white/80 whitespace-nowrap">
-                                                            {formatRelativeTime(selectedUserDetails.commentUpdatedAt)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="absolute top-full left-8 w-0 h-0 border-r-[16px] border-r-transparent border-t-[8px] border-t-[#0193be]"></div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="flex items-baseline gap-2">
-                                      <h2 className="text-5xl font-bold text-[#0193be]">
-                                        {previewMember}
-                                      </h2>
-                                       <button
-                                          onClick={() => handleShowUserSchedule(previewMember)}
-                                          className="text-[#0193be]/60 hover:text-[#0193be] p-1 rounded-full hover:bg-slate-200/60 transition"
-                                          title={`${previewMember}さんのスケジュールを表示`}
+                              {/* previewMember ヘッダーカード */}
+                              <div
+                                  className={`rounded-xl overflow-hidden transition-colors duration-500 ${pvIsAvailable ? (isDarkMode ? 'bg-[#1e2535]' : 'bg-white') : ''}`}
+                                  style={pvGradientStyle}
+                              >
+                                  {/* 上部：プロフィール + 基本情報 */}
+                                  <div className="flex items-center gap-4 px-5 pt-4 pb-3">
+                                      <div
+                                          className="relative flex-shrink-0 w-24 h-24 rounded-full flex items-center justify-center transition-colors duration-500"
+                                          style={{ boxShadow: pvRingBoxShadow }}
                                       >
-                                          <CalendarIcon className="w-6 h-6" />
-                                      </button>
-                                    </div>
-                                    {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
-                                      <p className="mt-2 text-lg font-bold text-[#0193be]/80">
-                                        対応可能商材：{getProductsLabel(selectedUserDetails)}
-                                      </p>
-                                    )}
-                                    {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
-                                      <p className="mt-1 text-sm font-medium text-[#0193be]/70">
-                                        稼働時間：{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}
-                                      </p>
-                                    )}
+                                          {selectedUserDetails.profilePicture ? (
+                                              <img src={selectedUserDetails.profilePicture} alt={previewMember} className="w-24 h-24 rounded-full object-cover" />
+                                          ) : (
+                                              <div className="w-24 h-24 rounded-full bg-slate-200 flex items-center justify-center">
+                                                  <UserIcon className={`w-12 h-12 ${pvIsAvailable ? 'text-[#0193be]/80' : 'text-slate-400'}`} />
+                                              </div>
+                                          )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          {selectedUserDetails.comment && (
+                                              <div className="mb-2">
+                                                  <div className={`relative inline-block ${pvStatusBgColor} px-3 py-1.5 rounded-lg shadow-sm`}>
+                                                      <div className="flex items-baseline gap-2">
+                                                          <p className="text-sm font-bold text-white">{selectedUserDetails.comment}</p>
+                                                          {selectedUserDetails.commentUpdatedAt && (
+                                                              <span className="text-xs text-white/80 whitespace-nowrap">{formatRelativeTime(selectedUserDetails.commentUpdatedAt)}</span>
+                                                          )}
+                                                      </div>
+                                                      <div className="absolute top-full left-6 w-0 h-0 border-r-[12px] border-r-transparent" style={{ borderTopWidth: '6px', borderTopColor: pvStatusBgHex }}></div>
+                                                  </div>
+                                              </div>
+                                          )}
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                              <h2 className={`text-4xl font-black tracking-tight ${pvTextColor}`}>{previewMember}</h2>
+                                              <button
+                                                  onClick={() => handleShowUserSchedule(previewMember)}
+                                                  className={`${pvTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${pvIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20'} transition`}
+                                                  title={`${previewMember}さんのスケジュールを表示`}
+                                              >
+                                                  <CalendarIcon className="w-5 h-5" />
+                                              </button>
+                                              <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${pvStatusBgColor} text-white`}>{status}</span>
+                                          </div>
+                                          <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${pvTextColor} opacity-75`}>
+                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                  <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
+                                              )}
+                                              {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                                  <>
+                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                          <span className="opacity-40">|</span>
+                                                      )}
+                                                      <span>{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}</span>
+                                                  </>
+                                              )}
+                                          </div>
+                                      </div>
                                   </div>
-                                </div>
+                                  {/* 区切り線 */}
+                                  <div className={`mx-5 border-t ${pvDivider}`} />
+                                  {/* 下部：カウンターゾーン */}
+                                  <div className="grid grid-cols-3 gap-3 px-5 py-3">
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvCounterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込</span>
+                                      </div>
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvCounterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiRusuCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込留守</span>
+                                      </div>
+                                      <div className={`flex flex-col items-center rounded-xl px-3 py-2.5 transition-colors ${pvChokiAccent ? `${pvChokiAccent.bg} ${pvChokiAccent.border} border` : pvCounterCardBase}`}>
+                                          <span className={`text-3xl font-black tabular-nums leading-none ${pvChokiAccent ? pvChokiAccent.num : pvCounterNum}`}>{pvChokiCount}</span>
+                                          <span className={`mt-1 text-xs font-bold tracking-wide ${pvChokiAccent ? pvChokiAccent.text : pvCounterLabel}`}>長期見込</span>
+                                      </div>
+                                  </div>
                               </div>
                             </div>
                             <CallList 
