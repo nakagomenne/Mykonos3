@@ -25,6 +25,10 @@ interface AdminMenuProps {
     onResetUserPassword: (userName: string) => void;
     announcement: string;
     onSetAnnouncement: (text: string) => void;
+    announcementExpiresAt: string;
+    onSetAnnouncementExpiresAt: (expiresAt: string) => void;
+    announcementPriority: string;
+    onSetAnnouncementPriority: (priority: string) => void;
     appVersion: string;
     onSetAppVersion: (version: string) => void;
     onCreateTasks: (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId'>, assignees: string[]) => void;
@@ -246,6 +250,10 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     onResetUserPassword,
     announcement, 
     onSetAnnouncement,
+    announcementExpiresAt,
+    onSetAnnouncementExpiresAt,
+    announcementPriority,
+    onSetAnnouncementPriority,
     appVersion,
     onSetAppVersion,
     onCreateTasks,
@@ -278,6 +286,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const [resettingUser, setResettingUser] = useState<User | null>(null);
 
     const [announcementText, setAnnouncementText] = useState(announcement);
+    const [announcementExpiresAtText, setAnnouncementExpiresAtText] = useState(announcementExpiresAt);
+    const [announcementPriorityText, setAnnouncementPriorityText] = useState(announcementPriority || 'medium');
     const [versionText, setVersionText] = useState(appVersion);
     
     const [userToUpdatePicture, setUserToUpdatePicture] = useState<string | null>(null);
@@ -290,6 +300,14 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     useEffect(() => {
         setAnnouncementText(announcement);
     }, [announcement]);
+
+    useEffect(() => {
+        setAnnouncementExpiresAtText(announcementExpiresAt);
+    }, [announcementExpiresAt]);
+
+    useEffect(() => {
+        setAnnouncementPriorityText(announcementPriority || 'medium');
+    }, [announcementPriority]);
     
     useEffect(() => {
         setVersionText(appVersion);
@@ -412,6 +430,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const handleSetAnnouncement = (e: React.FormEvent) => {
         e.preventDefault();
         onSetAnnouncement(announcementText);
+        onSetAnnouncementExpiresAt(announcementExpiresAtText);
+        onSetAnnouncementPriority(announcementPriorityText);
         alert('周知事項が更新されました。');
     };
 
@@ -986,18 +1006,83 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                              {activeTab === 'announcement' && (
                                 <div role="tabpanel" aria-labelledby="tab-announcement">
                                     <h3 className="sr-only">周知事項</h3>
-                                    <form onSubmit={handleSetAnnouncement} className="space-y-3 max-w-sm">
+                                    <form onSubmit={handleSetAnnouncement} className="space-y-4 max-w-lg">
+                                        {/* メッセージ本文 */}
                                         <div>
-                                            <label className="block text-sm font-medium text-[#0193be]/80 mb-1">表示するメッセージ (空にすると非表示)</label>
+                                            <label className="block text-sm font-medium text-[#0193be]/80 mb-1">表示するメッセージ <span className="text-slate-400 font-normal">(空にすると非表示)</span></label>
                                             <textarea
                                                 value={announcementText}
                                                 onChange={(e) => setAnnouncementText(e.target.value)}
-                                                rows={5}
+                                                rows={4}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
+                                                placeholder="全スタッフへの周知事項を入力..."
                                             />
                                         </div>
-                                        <div className="text-right pt-2">
-                                            <button type="submit" className="bg-slate-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-700 transition">更新</button>
+
+                                        {/* 重要度 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-[#0193be]/80 mb-1">重要度</label>
+                                            <select
+                                                value={announcementPriorityText}
+                                                onChange={(e) => setAnnouncementPriorityText(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition bg-white"
+                                            >
+                                                <option value="high">🔴 高（黒背景・黄色文字・点滅）</option>
+                                                <option value="medium">🟡 中（従来通り・黄色背景）</option>
+                                                <option value="low">🔵 低（青背景・白文字）</option>
+                                            </select>
+                                            {/* プレビュー */}
+                                            <div className="mt-2 rounded-lg overflow-hidden">
+                                                {announcementPriorityText === 'high' && (
+                                                    <div className="px-4 py-2 text-sm font-semibold text-yellow-300" style={{ background: '#111' }}>
+                                                        ⚠️ 重要度「高」: 黒背景・黄色文字・点滅でスクロール
+                                                    </div>
+                                                )}
+                                                {announcementPriorityText === 'medium' && (
+                                                    <div className="px-4 py-2 text-sm font-semibold text-amber-800" style={{ background: 'linear-gradient(135deg, #fef9c3, #fde68a)' }}>
+                                                        ℹ️ 重要度「中」: 従来通りの黄色バナー
+                                                    </div>
+                                                )}
+                                                {announcementPriorityText === 'low' && (
+                                                    <div className="px-4 py-2 text-sm font-semibold text-white" style={{ background: '#0193be' }}>
+                                                        📢 重要度「低」: 青背景・白文字でスクロール
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 期限 */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-[#0193be]/80 mb-1">
+                                                期限 <span className="text-slate-400 font-normal">(任意 — 設定した日時に自動で非表示)</span>
+                                            </label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="datetime-local"
+                                                    value={announcementExpiresAtText}
+                                                    onChange={(e) => setAnnouncementExpiresAtText(e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
+                                                />
+                                                {announcementExpiresAtText && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setAnnouncementExpiresAtText('')}
+                                                        className="px-3 py-2 text-sm text-slate-500 border border-slate-300 rounded-md hover:bg-slate-100 transition"
+                                                        title="期限をクリア"
+                                                    >
+                                                        クリア
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {announcementExpiresAtText && (
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {new Date(announcementExpiresAtText).toLocaleString('ja-JP')} に自動で周知事項がリセットされます
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="text-right pt-1">
+                                            <button type="submit" className="bg-slate-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-slate-700 transition">更新</button>
                                         </div>
                                     </form>
                                 </div>

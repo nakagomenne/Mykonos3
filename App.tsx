@@ -30,6 +30,7 @@ import {
   deleteExpiredCompletedCalls,
   purgeOldDeletedRecords,
   purgeOldFeedbackReports,
+  purgeOldCommentReplies,
   createBulkCallRequests,
   fetchUsers,
   fetchUserProfilePictures,
@@ -113,6 +114,8 @@ const App: React.FC = () => {
   const [displayViewMode, setDisplayViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [announcement, setAnnouncement] = useState<string>('');
+  const [announcementExpiresAt, setAnnouncementExpiresAt] = useState<string>('');
+  const [announcementPriority, setAnnouncementPriority] = useState<string>('medium');
   const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [scheduleOpenedFromAdmin, setScheduleOpenedFromAdmin] = useState(false);
@@ -253,6 +256,7 @@ const App: React.FC = () => {
         // 古い論理削除済みレコードとフィードバックの物理削除（90日以上削除済み・既読済み）
         purgeOldDeletedRecords().catch(() => {});
         purgeOldFeedbackReports().catch(() => {});
+        purgeOldCommentReplies().catch(() => {});
 
         // 表示に必要なデータのみ並列取得
         const [fetchedUsers, fetchedCalls, settings] = await Promise.all([
@@ -265,8 +269,10 @@ const App: React.FC = () => {
 
         setUsers(fetchedUsers);
         setCalls(fetchedCalls);
-        if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
-        if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+        if (settings.announcement              !== undefined) setAnnouncement(settings.announcement);
+        if (settings.app_version               !== undefined) setAppVersion(settings.app_version);
+        if (settings.announcement_expires_at   !== undefined) setAnnouncementExpiresAt(settings.announcement_expires_at);
+        if (settings.announcement_priority     !== undefined) setAnnouncementPriority(settings.announcement_priority || 'medium');
 
       } catch (err: any) {
         if (!isMounted) return;
@@ -327,8 +333,10 @@ const App: React.FC = () => {
 
       // ── app_settings ──
       onSettingsChange: (settings) => {
-        if (settings.announcement !== undefined) setAnnouncement(settings.announcement);
-        if (settings.app_version  !== undefined) setAppVersion(settings.app_version);
+        if (settings.announcement              !== undefined) setAnnouncement(settings.announcement);
+        if (settings.app_version               !== undefined) setAppVersion(settings.app_version);
+        if (settings.announcement_expires_at   !== undefined) setAnnouncementExpiresAt(settings.announcement_expires_at);
+        if (settings.announcement_priority     !== undefined) setAnnouncementPriority(settings.announcement_priority || 'medium');
       },
 
       // ── feedback_reports ──
@@ -485,8 +493,34 @@ const App: React.FC = () => {
     });
 
     return () => cancelAnimationFrame(raf);
-  }, [announcement, currentUser?.name]);
-  
+  }, [announcement, currentUser?.name, announcementPriority]);
+
+  // ── 周知事項の期限到来チェック ──────────────────────────────────
+  // announcementExpiresAt が設定されていれば、期限到来時に自動リセット
+  useEffect(() => {
+    if (!announcementExpiresAt || !announcement) return;
+
+    const expiresMs = new Date(announcementExpiresAt).getTime();
+    if (isNaN(expiresMs)) return;
+
+    const msUntilExpiry = expiresMs - Date.now();
+
+    if (msUntilExpiry <= 0) {
+      // 既に期限切れなら即リセット
+      handleSetAnnouncement('');
+      handleSetAnnouncementExpiresAt('');
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      await handleSetAnnouncement('');
+      await handleSetAnnouncementExpiresAt('');
+    }, msUntilExpiry);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [announcementExpiresAt, announcement]);
+
   // 期限切れ案件の削除は初回ロード時に apiService 側で実行済み
   // （削除後の最新データが setCalls でセットされるため、ここは不要）
 
@@ -1482,6 +1516,24 @@ const App: React.FC = () => {
       setAnnouncement(trimmed);
     } catch (err: any) {
       alert(`お知らせの更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
+  const handleSetAnnouncementExpiresAt = async (expiresAt: string) => {
+    try {
+      await updateAppSetting('announcement_expires_at', expiresAt);
+      setAnnouncementExpiresAt(expiresAt);
+    } catch (err: any) {
+      alert(`期限の更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
+  const handleSetAnnouncementPriority = async (priority: string) => {
+    try {
+      await updateAppSetting('announcement_priority', priority);
+      setAnnouncementPriority(priority);
+    } catch (err: any) {
+      alert(`重要度の更新に失敗しました: ${err?.message ?? err}`);
     }
   };
 
@@ -2533,41 +2585,58 @@ const App: React.FC = () => {
       </header>
       
       <main className="px-4 sm:px-6 lg:px-8 py-4">
-        {announcement && (
-          <div className="mb-4 overflow-hidden rounded-xl shadow-sm"
-            style={{
-              background: 'linear-gradient(135deg, #fef9c3 0%, #fef3c7 50%, #fde68a 100%)',
-              border: '1px solid rgba(251,191,36,0.4)',
-              boxShadow: '0 2px 8px rgba(251,191,36,0.15)',
-            }}
-          >
-            <div className="py-2 overflow-hidden">
-              {/*
-                シームレスマーキーの仕組み:
-                - span を marqueeRepeat 個横並びにする（画面幅の3倍以上）
-                - CSS animation で translateX(0) → translateX(-spanWidth) を
-                  linear infinite で繰り返す
-                - 移動距離がちょうど span1個分なので、終端が先頭に重なり途切れない
-                - duration = spanWidth / PX_PER_SEC で文字数に関わらず一定速度
-              */}
-              <div
-                ref={announcementTrackRef}
-                className="flex whitespace-nowrap"
-                style={{ animation: 'marquee-item var(--marquee-duration, 8s) linear infinite' }}
-              >
-                {Array.from({ length: marqueeRepeat }).map((_, i) => (
-                  <span
-                    key={i}
-                    data-marquee-item="1"
-                    className="font-semibold tracking-wider text-amber-800 px-12 flex-shrink-0"
-                  >
-                    {announcement}
-                  </span>
-                ))}
+        {announcement && (() => {
+          // 重要度別スタイル設定
+          const priorityStyle = announcementPriority === 'high'
+            ? {
+                wrapperStyle: { background: '#111', border: '1px solid rgba(255,220,0,0.4)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' },
+                spanClassName: 'font-semibold tracking-wider px-12 flex-shrink-0 announcement-blink',
+                spanStyle: { color: '#ffe600' } as React.CSSProperties,
+              }
+            : announcementPriority === 'low'
+            ? {
+                wrapperStyle: { background: '#0193be', border: '1px solid rgba(1,147,190,0.5)', boxShadow: '0 2px 8px rgba(1,147,190,0.2)' },
+                spanClassName: 'font-semibold tracking-wider text-white px-12 flex-shrink-0',
+                spanStyle: {} as React.CSSProperties,
+              }
+            : {
+                // medium（デフォルト）
+                wrapperStyle: { background: 'linear-gradient(135deg, #fef9c3 0%, #fef3c7 50%, #fde68a 100%)', border: '1px solid rgba(251,191,36,0.4)', boxShadow: '0 2px 8px rgba(251,191,36,0.15)' },
+                spanClassName: 'font-semibold tracking-wider text-amber-800 px-12 flex-shrink-0',
+                spanStyle: {} as React.CSSProperties,
+              };
+
+          return (
+            <div className="mb-4 overflow-hidden rounded-xl shadow-sm" style={priorityStyle.wrapperStyle}>
+              <div className="py-2 overflow-hidden">
+                {/*
+                  シームレスマーキーの仕組み:
+                  - span を marqueeRepeat 個横並びにする（画面幅の3倍以上）
+                  - CSS animation で translateX(0) → translateX(-spanWidth) を
+                    linear infinite で繰り返す
+                  - 移動距離がちょうど span1個分なので、終端が先頭に重なり途切れない
+                  - duration = spanWidth / PX_PER_SEC で文字数に関わらず一定速度
+                */}
+                <div
+                  ref={announcementTrackRef}
+                  className="flex whitespace-nowrap"
+                  style={{ animation: 'marquee-item var(--marquee-duration, 8s) linear infinite' }}
+                >
+                  {Array.from({ length: marqueeRepeat }).map((_, i) => (
+                    <span
+                      key={i}
+                      data-marquee-item="1"
+                      className={priorityStyle.spanClassName}
+                      style={priorityStyle.spanStyle}
+                    >
+                      {announcement}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
         <div>
           <nav className={`border-b-2 tab-nav ${isDarkMode ? 'border-white/10 tab-nav-dark' : 'border-slate-200/80 tab-nav-light'}`}>
             {currentUser.isLinePrechecker ? (
@@ -3297,6 +3366,10 @@ const App: React.FC = () => {
             onResetUserPassword={handleResetUserPassword}
             announcement={announcement}
             onSetAnnouncement={handleSetAnnouncement}
+            announcementExpiresAt={announcementExpiresAt}
+            onSetAnnouncementExpiresAt={handleSetAnnouncementExpiresAt}
+            announcementPriority={announcementPriority}
+            onSetAnnouncementPriority={handleSetAnnouncementPriority}
             appVersion={appVersion}
             onSetAppVersion={handleSetAppVersion}
             onCreateTasks={handleCreateBulkTasks}

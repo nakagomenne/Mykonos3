@@ -273,6 +273,32 @@ export async function purgeOldFeedbackReports(): Promise<void> {
   if (error) throw new Error(`古いフィードバックの削除に失敗しました: ${error.message}`);
 }
 
+/**
+ * 古い comment_replies を物理削除してDBサイズを削減する。
+ * - 30日以上前のリプライを対象とする
+ * - 1日1回だけ実行（localStorage で管理）
+ */
+const REPLIES_PURGE_KEY = 'mykonosPurgeRepliesLastRun';
+function shouldRunRepliesToday(): boolean {
+  const last = localStorage.getItem(REPLIES_PURGE_KEY);
+  if (!last) return true;
+  const lastDate = new Date(last).toLocaleDateString('ja-JP');
+  const today = new Date().toLocaleDateString('ja-JP');
+  return lastDate !== today;
+}
+
+export async function purgeOldCommentReplies(): Promise<void> {
+  if (!shouldRunRepliesToday()) return;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const { error } = await supabase
+    .from('comment_replies')
+    .delete()
+    .lt('created_at', cutoff.toISOString());
+  if (error) throw new Error(`古いリプライの削除に失敗しました: ${error.message}`);
+  localStorage.setItem(REPLIES_PURGE_KEY, new Date().toISOString());
+}
+
 /** 削除済み案件を顧客IDで検索する（論理削除レコードのみ） */
 export async function searchDeletedCallRequests(customerId: string): Promise<CallRequest[]> {
   const { data, error } = await supabase
