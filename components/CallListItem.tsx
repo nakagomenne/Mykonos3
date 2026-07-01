@@ -354,7 +354,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
     const newCount = Math.min(currentCount + 1, 9);
     // 見込SABCの場合は対応する留守ランクに自動変更
     const newRank = isMikomRank ? mikomRanks[call.rank] : call.rank;
-    onUpdateCall(call.id, { absenceCount: newCount, rank: newRank });
+
+    const updateData: Partial<Omit<CallRequest, 'id'>> = { absenceCount: newCount, rank: newRank };
+
+    // 回線前確タブで0→1になるとき、架電時間を自動で「待機中」に変更
+    if (isPrecheckTheme && currentCount === 0) {
+      const datePart = call.dateTime.split('T')[0];
+      updateData.dateTime = `${datePart}T待機中`;
+    }
+
+    onUpdateCall(call.id, updateData);
   };
   
   const rankOptionsForDisplay = useMemo(() => {
