@@ -767,20 +767,6 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
       }
     )
 
-    // ── comment_reactions ───────────────────────────────────
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'comment_reactions' },
-      async () => {
-        try {
-          const reactions = await fetchCommentReactions();
-          callbacks.onReactionsChange?.(reactions);
-        } catch (e) {
-          console.error('[Realtime] comment_reactions エラー:', e);
-        }
-      }
-    )
-
     .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
         console.info('[Realtime] チャンネル接続成功 ✅');
@@ -793,8 +779,35 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
       }
     });
 
+  // ── comment_reactions（メインチャンネルと分離して安全に購読）──────
+  // comment_reactions は Realtime 未設定でもメインチャンネルに影響しないよう別チャンネル化
+  let reactionsChannel: ReturnType<typeof supabase.channel> | null = null;
+  if (callbacks.onReactionsChange) {
+    const onReactionsChange = callbacks.onReactionsChange;
+    reactionsChannel = supabase
+      .channel(`mykonos_reactions_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'comment_reactions' },
+        async () => {
+          try {
+            const reactions = await fetchCommentReactions();
+            onReactionsChange(reactions);
+          } catch (e) {
+            console.error('[Realtime] comment_reactions エラー:', e);
+          }
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.warn('[Realtime] comment_reactions チャンネルエラー（Realtime未設定の可能性）:', err);
+        }
+      });
+  }
+
   return () => {
     supabase.removeChannel(channel);
+    if (reactionsChannel) supabase.removeChannel(reactionsChannel);
   };
 }
 
