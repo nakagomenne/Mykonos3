@@ -5,7 +5,7 @@
 // ============================================================
 
 import { supabase } from '../lib/supabaseClient';
-import { CallRequest, User, AvailabilityStatus, EditHistory, CommentReply, FeedbackType, FeedbackReport } from '../types';
+import { CallRequest, User, AvailabilityStatus, EditHistory, CommentReply, CommentReaction, FeedbackType, FeedbackReport } from '../types';
 
 // ────────────────────────────────────────────────────────────
 // 型変換ヘルパー
@@ -613,6 +613,7 @@ export interface RealtimeCallbacks {
   onSettingsChange: (settings: Record<string, string>) => void;
   onFeedbackChange: (reports: FeedbackReport[]) => void;
   onRepliesChange: (replies: CommentReply[]) => void;
+  onReactionsChange?: (reactions: CommentReaction[]) => void;
 }
 
 /** 全テーブルの変更を1本のチャンネルで購読する */
@@ -762,6 +763,20 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
           callbacks.onRepliesChange(replies);
         } catch (e) {
           console.error('[Realtime] comment_replies エラー:', e);
+        }
+      }
+    )
+
+    // ── comment_reactions ───────────────────────────────────
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'comment_reactions' },
+      async () => {
+        try {
+          const reactions = await fetchCommentReactions();
+          callbacks.onReactionsChange?.(reactions);
+        } catch (e) {
+          console.error('[Realtime] comment_reactions エラー:', e);
         }
       }
     )
@@ -949,4 +964,82 @@ export function subscribeToCommentReplies(callback: (replies: CommentReply[]) =>
     onFeedbackChange: () => {},
     onRepliesChange:  callback,
   });
+}
+
+// ============================================================
+// コメントリアクション (comment_reactions)
+// ============================================================
+
+function rowToReaction(row: any): CommentReaction {
+  return {
+    id:        row.id,
+    userName:  row.user_name,
+    reactor:   row.reactor,
+    emoji:     row.emoji,
+    createdAt: row.created_at,
+  };
+}
+
+const REACTION_COLUMNS = 'id,user_name,reactor,emoji,created_at';
+
+/** 全リアクションを取得 */
+export async function fetchCommentReactions(): Promise<CommentReaction[]> {
+  const { data, error } = await supabase
+    .from('comment_reactions')
+    .select(REACTION_COLUMNS)
+    .order('created_at', { ascending: true });
+  // テーブルが未作成の場合は空配列を返す（graceful fallback）
+  if (error) {
+    if (error.message?.includes('schema cache') || error.code === 'PGRST205' || error.message?.includes('does not exist')) return [];
+    throw new Error(`リアクションの取得に失敗しました: ${error.message}`);
+  }
+  return (data ?? []).map(rowToReaction);
+}
+
+/** リアクションをトグル（同じ絵文字が既存なら削除、なければ追加） */
+export async function toggleCommentReaction(
+  params: { userName: string; reactor: string; emoji: string }
+): Promise<{ action: 'added' | 'removed'; reaction?: CommentReaction }> {
+  // 既存を検索
+  const { data: existing, error: fetchErr } = await supabase
+    .from('comment_reactions')
+    .select(REACTION_COLUMNS)
+    .eq('user_name', params.userName)
+    .eq('reactor', params.reactor)
+    .eq('emoji', params.emoji)
+    .maybeSingle();
+
+  if (fetchErr && !fetchErr.message?.includes('does not exist')) {
+    throw new Error(`リアクション確認に失敗しました: ${fetchErr.message}`);
+  }
+
+  if (existing) {
+    // 既存 → 削除
+    const { error: delErr } = await supabase
+      .from('comment_reactions')
+      .delete()
+      .eq('id', existing.id);
+    if (delErr) throw new Error(`リアクションの削除に失敗しました: ${delErr.message}`);
+    return { action: 'removed' };
+  } else {
+    // 未存在 → 追加
+    const { data, error: insErr } = await supabase
+      .from('comment_reactions')
+      .insert({ user_name: params.userName, reactor: params.reactor, emoji: params.emoji })
+      .select(REACTION_COLUMNS)
+      .single();
+    if (insErr) throw new Error(`リアクションの追加に失敗しました: ${insErr.message}`);
+    return { action: 'added', reaction: rowToReaction(data) };
+  }
+}
+
+/** 特定ユーザーへのリアクションをすべて削除（コメント削除時に呼ぶ） */
+export async function deleteReactionsByUserName(userName: string): Promise<void> {
+  const { error } = await supabase
+    .from('comment_reactions')
+    .delete()
+    .eq('user_name', userName);
+  if (error && !error.message?.includes('does not exist')) {
+    throw new Error(`リアクションの削除に失敗しました: ${error.message}`);
+  }
 }

@@ -109,3 +109,11 @@ export interface CommentReply {
   body: string;
   createdAt: string;
 }
+
+export interface CommentReaction {
+  id: string;
+  userName: string;  // リアクション先のユーザー名（コメントオーナー）
+  reactor: string;   // リアクションした人の名前
+  emoji: string;     // 絵文字
+  createdAt: string;
+}
