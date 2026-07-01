@@ -327,6 +327,21 @@ const App: React.FC = () => {
           });
         }
 
+        // 担当案件の即時通知
+        if (
+          settings.assigneeInstantNotify &&
+          user &&
+          Notification.permission === 'granted' &&
+          newCall.assignee === user.name &&
+          newCall.requester !== user.name
+        ) {
+          new Notification('🔔 担当案件 新規追加', {
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            tag: `assignee_insert_${newCall.id}`,
+            icon: '/favicon.ico',
+          });
+        }
+
         // 他メンバーが自分宛に追加した案件を点滅
         if (user && newCall.assignee === user.name && newCall.requester !== user.name) {
           setRecentlyAddedCallId(newCall.id);
@@ -403,8 +418,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     localStorage.setItem('mykonosNotificationSettings', JSON.stringify(notificationSettings));
-    // callNotifyEnabled / precheckInstantNotify のいずれかが ON なら notificationsEnabled も ON に同期
-    const anyEnabled = notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify;
+    // callNotifyEnabled / precheckInstantNotify / assigneeInstantNotify のいずれかが ON なら notificationsEnabled も ON に同期
+    const anyEnabled = notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify || notificationSettings.assigneeInstantNotify;
     if (anyEnabled && !notificationsEnabled) setNotificationsEnabled(true);
     if (!anyEnabled && notificationsEnabled) setNotificationsEnabled(false);
   }, [notificationSettings]);
@@ -791,7 +806,14 @@ const App: React.FC = () => {
 
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
-    if (!notificationSettings.callNotifyEnabled || !currentUser || Notification.permission !== 'granted') {
+    if (!currentUser || Notification.permission !== 'granted') {
+      return;
+    }
+
+    const hasNormalNotify  = notificationSettings.callNotifyEnabled;
+    const hasPrecheckNotify = (notificationSettings.precheckCallNotifyTimings ?? []).length > 0 && currentUser.isLinePrechecker;
+
+    if (!hasNormalNotify && !hasPrecheckNotify) {
       return;
     }
 
@@ -818,43 +840,85 @@ const App: React.FC = () => {
 
     const checkCalls = () => {
       const now = new Date();
-      const myCalls = calls.filter(
-        call => call.assignee === currentUser.name && call.status === '追客中'
-      );
 
-      myCalls.forEach(call => {
-        try {
-          const [, timePart] = call.dateTime.split('T');
-          if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
-            return;
-          }
+      // ── 通常担当案件（自分の案件）──
+      if (hasNormalNotify) {
+        const myCalls = calls.filter(
+          call => call.assignee === currentUser.name && call.status === '追客中'
+        );
 
-          const callDateTime = new Date(call.dateTime);
-
-          notificationSettings.callNotifyTimings.forEach(timing => {
-            const offsetSec = timingToSeconds(timing);
-            // 通知すべき時刻 = 架電時刻 - offset秒
-            const notifyAt = callDateTime.getTime() - offsetSec * 1000;
-            const diff = now.getTime() - notifyAt; // 正なら通知時刻を過ぎた
-
-            // 通知ウィンドウ: 0〜30秒以内
-            if (diff >= 0 && diff < 30000) {
-              const sessionKey = `notified_${call.id}_${timing}`;
-              if (!sessionStorage.getItem(sessionKey)) {
-                const label = timingToLabel(timing);
-                new Notification('架電時間のお知らせ', {
-                  body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
-                  tag: `${call.id}_${timing}`,
-                  icon: '/favicon.ico',
-                });
-                sessionStorage.setItem(sessionKey, 'true');
-              }
+        myCalls.forEach(call => {
+          try {
+            const [, timePart] = call.dateTime.split('T');
+            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+              return;
             }
-          });
-        } catch {
-          // invalid date などを無視
-        }
-      });
+
+            const callDateTime = new Date(call.dateTime);
+
+            notificationSettings.callNotifyTimings.forEach(timing => {
+              const offsetSec = timingToSeconds(timing);
+              const notifyAt = callDateTime.getTime() - offsetSec * 1000;
+              const diff = now.getTime() - notifyAt;
+
+              if (diff >= 0 && diff < 30000) {
+                const sessionKey = `notified_${call.id}_${timing}`;
+                if (!sessionStorage.getItem(sessionKey)) {
+                  const label = timingToLabel(timing);
+                  new Notification('架電時間のお知らせ', {
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    tag: `${call.id}_${timing}`,
+                    icon: '/favicon.ico',
+                  });
+                  sessionStorage.setItem(sessionKey, 'true');
+                }
+              }
+            });
+          } catch {
+            // invalid date などを無視
+          }
+        });
+      }
+
+      // ── 回線前確案件（precheckCallNotifyTimings）──
+      if (hasPrecheckNotify) {
+        const precheckTimings = notificationSettings.precheckCallNotifyTimings ?? ['exact'];
+        const precheckCalls = calls.filter(
+          call => call.assignee === PRECHECKER_ASSIGNEE_NAME && call.status === '追客中'
+        );
+
+        precheckCalls.forEach(call => {
+          try {
+            const [, timePart] = call.dateTime.split('T');
+            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+              return;
+            }
+
+            const callDateTime = new Date(call.dateTime);
+
+            precheckTimings.forEach(timing => {
+              const offsetSec = timingToSeconds(timing);
+              const notifyAt = callDateTime.getTime() - offsetSec * 1000;
+              const diff = now.getTime() - notifyAt;
+
+              if (diff >= 0 && diff < 30000) {
+                const sessionKey = `notified_precheck_${call.id}_${timing}`;
+                if (!sessionStorage.getItem(sessionKey)) {
+                  const label = timingToLabel(timing);
+                  new Notification('🔔 回線前確 架電時間のお知らせ', {
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    tag: `precheck_${call.id}_${timing}`,
+                    icon: '/favicon.ico',
+                  });
+                  sessionStorage.setItem(sessionKey, 'true');
+                }
+              }
+            });
+          } catch {
+            // invalid date などを無視
+          }
+        });
+      }
     };
 
     // calls が更新されたタイミングで1回チェック（DBポーリング廃止・負荷削減）
