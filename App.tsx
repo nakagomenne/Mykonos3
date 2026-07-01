@@ -2492,7 +2492,7 @@ const App: React.FC = () => {
                                           title="リアクションを追加"
                                         >＋ 😀</button>
                                         {isPaletteOpen && (
-                                          <div className="absolute bottom-full left-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '168px'}}>
+                                          <div className="absolute bottom-full left-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
                                             {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮'].map(em => {
                                               const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
                                               return (
