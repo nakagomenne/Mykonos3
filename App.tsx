@@ -2417,7 +2417,7 @@ const App: React.FC = () => {
                                 const isReplyOpen = expandedReplyUser === u.name;
                                 const replyText = replyInputs[u.name] ?? '';
                                 // このユーザーへのリアクション集計 {emoji: [reactor, ...]}
-                                const REACTION_EMOJIS = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮'];
+                                const REACTION_EMOJIS = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
                                 const userReactions = commentReactions.filter(r => r.userName === u.name);
                                 const reactionMap = REACTION_EMOJIS.reduce<Record<string, string[]>>((acc, em) => {
                                   const reactors = userReactions.filter(r => r.emoji === em).map(r => r.reactor);
@@ -2493,7 +2493,7 @@ const App: React.FC = () => {
                                         >＋ 😀</button>
                                         {isPaletteOpen && (
                                           <div className="absolute bottom-full left-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
-                                            {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮'].map(em => {
+                                            {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
                                               const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
                                               return (
                                                 <button
@@ -3117,7 +3117,7 @@ const App: React.FC = () => {
                                           </div>
                                           {/* 自分のコメントへのリアクション表示 */}
                                           {(() => {
-                                            const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮'];
+                                            const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
                                             const myReactions = commentReactions.filter(r => r.userName === currentUser.name);
                                             const rMap = REACTION_EMOJIS_LIST.reduce<Record<string, string[]>>((acc, em) => {
                                               const rs = myReactions.filter(r => r.emoji === em).map(r => r.reactor);
@@ -3314,7 +3314,7 @@ const App: React.FC = () => {
                                                   </div>
                                                   {/* 他者コメントへのリアクション表示 */}
                                                   {(() => {
-                                                    const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮'];
+                                                    const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
                                                     const theirReactions = commentReactions.filter(r => r.userName === selectedMember);
                                                     const rMap = REACTION_EMOJIS_LIST.reduce<Record<string, string[]>>((acc, em) => {
                                                       const rs = theirReactions.filter(r => r.emoji === em).map(r => r.reactor);
