@@ -29,6 +29,8 @@ interface AdminMenuProps {
     onSetAnnouncementExpiresAt: (expiresAt: string) => void;
     announcementPriority: string;
     onSetAnnouncementPriority: (priority: string) => void;
+    workRules: string;
+    onSetWorkRules: (rules: string) => void;
     appVersion: string;
     onSetAppVersion: (version: string) => void;
     onCreateTasks: (taskData: Omit<CallRequest, 'id' | 'status' | 'createdAt' | 'assignee' | 'customerId'>, assignees: string[]) => void;
@@ -42,7 +44,7 @@ interface AdminMenuProps {
     onMarkFeedbackRead?: (id: string) => Promise<void>;
 }
 
-type AdminTab = 'alerts' | 'users' | 'announcement' | 'tasks' | 'version' | 'export' | 'feedback';
+type AdminTab = 'alerts' | 'users' | 'announcement' | 'work_rules' | 'tasks' | 'version' | 'export' | 'feedback';
 type ExportTarget = 'active' | 'completed' | 'all';
 
 interface NewUserModalProps {
@@ -241,7 +243,7 @@ const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: bool
 };
 
 
-const AdminMenu: React.FC<AdminMenuProps> = ({ 
+const AdminMenu: React.FC<AdminMenuProps> = ({
     isOpen, 
     onClose, 
     users, 
@@ -254,6 +256,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     onSetAnnouncementExpiresAt,
     announcementPriority,
     onSetAnnouncementPriority,
+    workRules,
+    onSetWorkRules,
     appVersion,
     onSetAppVersion,
     onCreateTasks,
@@ -288,6 +292,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const [announcementText, setAnnouncementText] = useState(announcement);
     const [announcementExpiresAtText, setAnnouncementExpiresAtText] = useState(announcementExpiresAt);
     const [announcementPriorityText, setAnnouncementPriorityText] = useState(announcementPriority || 'medium');
+    const [workRulesText, setWorkRulesText] = useState(workRules);
     const [versionText, setVersionText] = useState(appVersion);
     
     const [userToUpdatePicture, setUserToUpdatePicture] = useState<string | null>(null);
@@ -309,6 +314,10 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         setAnnouncementPriorityText(announcementPriority || 'medium');
     }, [announcementPriority]);
     
+    useEffect(() => {
+        setWorkRulesText(workRules);
+    }, [workRules]);
+
     useEffect(() => {
         setVersionText(appVersion);
     }, [appVersion]);
@@ -433,6 +442,12 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         onSetAnnouncementExpiresAt(announcementExpiresAtText);
         onSetAnnouncementPriority(announcementPriorityText);
         alert('周知事項が更新されました。');
+    };
+
+    const handleSetWorkRules = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSetWorkRules(workRulesText);
+        alert('稼働ルールが更新されました。');
     };
 
     const handleSetVersion = (e: React.FormEvent) => {
@@ -688,6 +703,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                 <TabButton tab="users" label="ユーザー管理" />
                                 <TabButton tab="tasks" label="全体タスク" />
                                 <TabButton tab="announcement" label="周知事項" />
+                                <TabButton tab="work_rules" label="稼働ルール" />
                                 {isSuperAdmin && <TabButton tab="export" label="エクスポート" />}
                                 {isSuperAdmin && <TabButton tab="feedback" label="報告・要望" count={feedbackReports.filter(r => !r.isRead).length} />}
                                 {isSuperAdmin && <TabButton tab="version" label="バージョン" />}
@@ -1081,6 +1097,30 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                             )}
                                         </div>
 
+                                        <div className="text-right pt-1">
+                                            <button type="submit" className="bg-slate-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-slate-700 transition">更新</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
+                            {activeTab === 'work_rules' && (
+                                <div role="tabpanel" aria-labelledby="tab-work_rules">
+                                    <h3 className="sr-only">稼働ルール</h3>
+                                    <form onSubmit={handleSetWorkRules} className="space-y-4 max-w-lg">
+                                        <div>
+                                            <label className="block text-sm font-medium text-[#0193be]/80 mb-1">
+                                                稼働ルール <span className="text-slate-400 font-normal">(空にすると非表示)</span>
+                                            </label>
+                                            <textarea
+                                                value={workRulesText}
+                                                onChange={(e) => setWorkRulesText(e.target.value)}
+                                                rows={10}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition font-mono text-sm"
+                                                placeholder={`例:\n・受電後は30分以内に折り返し\n・見込Aは週1回以上コンタクト\n・完了報告は当日中に記録`}
+                                            />
+                                            <p className="mt-1 text-xs text-slate-400">設定した内容はメンバーのマイメニュー「稼働ルール」から閲覧できます。</p>
+                                        </div>
                                         <div className="text-right pt-1">
                                             <button type="submit" className="bg-slate-600 text-white font-bold py-2 px-5 rounded-lg hover:bg-slate-700 transition">更新</button>
                                         </div>

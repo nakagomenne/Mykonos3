@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -116,6 +116,8 @@ const App: React.FC = () => {
   const [announcement, setAnnouncement] = useState<string>('');
   const [announcementExpiresAt, setAnnouncementExpiresAt] = useState<string>('');
   const [announcementPriority, setAnnouncementPriority] = useState<string>('medium');
+  const [workRules, setWorkRules] = useState<string>('');
+  const [isWorkRulesModalOpen, setIsWorkRulesModalOpen] = useState(false);
   const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [scheduleOpenedFromAdmin, setScheduleOpenedFromAdmin] = useState(false);
@@ -276,6 +278,7 @@ const App: React.FC = () => {
         if (settings.app_version               !== undefined) setAppVersion(settings.app_version);
         if (settings.announcement_expires_at   !== undefined) setAnnouncementExpiresAt(settings.announcement_expires_at);
         if (settings.announcement_priority     !== undefined) setAnnouncementPriority(settings.announcement_priority || 'medium');
+        if (settings.work_rules                !== undefined) setWorkRules(settings.work_rules);
 
       } catch (err: any) {
         if (!isMounted) return;
@@ -340,6 +343,7 @@ const App: React.FC = () => {
         if (settings.app_version               !== undefined) setAppVersion(settings.app_version);
         if (settings.announcement_expires_at   !== undefined) setAnnouncementExpiresAt(settings.announcement_expires_at);
         if (settings.announcement_priority     !== undefined) setAnnouncementPriority(settings.announcement_priority || 'medium');
+        if (settings.work_rules                !== undefined) setWorkRules(settings.work_rules);
       },
 
       // ── feedback_reports ──
@@ -1540,6 +1544,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSetWorkRules = async (rules: string) => {
+    try {
+      await updateAppSetting('work_rules', rules);
+      setWorkRules(rules);
+    } catch (err: any) {
+      alert(`稼働ルールの更新に失敗しました: ${err?.message ?? err}`);
+    }
+  };
+
   const handleSetAppVersion = async (version: string) => {
     try {
       await updateAppSetting('app_version', version);
@@ -2550,6 +2563,20 @@ const App: React.FC = () => {
                           <PencilIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                           <span>コメント設定</span>
                         </button>
+                        {/* 稼働ルール（設定されている場合のみ表示） */}
+                        {workRules && (
+                          <button
+                            onClick={() => {
+                              setIsWorkRulesModalOpen(true);
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                            role="menuitem"
+                          >
+                            <ClipboardDocumentListIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                            <span>稼働ルール</span>
+                          </button>
+                        )}
                         {/* バグ報告・要望 */}
                         <button
                           onClick={() => {
@@ -3595,6 +3622,8 @@ const App: React.FC = () => {
             onSetAnnouncementExpiresAt={handleSetAnnouncementExpiresAt}
             announcementPriority={announcementPriority}
             onSetAnnouncementPriority={handleSetAnnouncementPriority}
+            workRules={workRules}
+            onSetWorkRules={handleSetWorkRules}
             appVersion={appVersion}
             onSetAppVersion={handleSetAppVersion}
             onCreateTasks={handleCreateBulkTasks}
@@ -3678,6 +3707,41 @@ const App: React.FC = () => {
             handleSaveWorkHours(workStart, workEnd, autoUnavailableOffset)
           }
         />
+      )}
+
+      {/* 稼働ルールポップアップモーダル */}
+      {isWorkRulesModalOpen && workRules && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+          onClick={() => setIsWorkRulesModalOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div
+            className={`relative w-full max-w-lg rounded-2xl shadow-2xl ${isDarkMode ? 'bg-[#1e2535] text-white' : 'bg-white text-slate-800'} overflow-hidden`}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#0193be]/20">
+              <div className="flex items-center gap-2">
+                <ClipboardDocumentListIcon className="w-5 h-5 text-[#0193be]" />
+                <h2 className="text-lg font-bold text-[#0193be]">稼働ルール</h2>
+              </div>
+              <button
+                onClick={() => setIsWorkRulesModalOpen(false)}
+                className={`p-1.5 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-white/60 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                aria-label="閉じる"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            {/* 本文 */}
+            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+              <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isDarkMode ? 'text-white/85' : 'text-slate-700'}`}>
+                {workRules}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 通知設定モーダル */}
