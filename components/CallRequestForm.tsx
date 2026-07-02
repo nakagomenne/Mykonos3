@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS } from '../constants';
+import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_ASSIGNEE_NAME } from '../constants';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
@@ -20,6 +20,7 @@ interface CallRequestFormProps {
   assigneeNonWorkingDays?: string[];
   isPrecheckMode?: boolean;
   isPrecheckTheme?: boolean;
+  isElecTheme?: boolean;
   prefilledDate?: string | null;
   prefilledAssignee?: string | null;
   prefilledRequester?: string | null;
@@ -71,7 +72,7 @@ const getListTypeForAssignee = (
 };
 
 
-const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, calls = [], formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, prefilledDate = null, prefilledAssignee = null, prefilledRequester = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
+const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAssignee, currentUser, users, calls = [], formResetCounter, onAssigneeChange, enableProductFiltering = false, isPrecheckMode = false, isPrecheckTheme = false, isElecTheme = false, prefilledDate = null, prefilledAssignee = null, prefilledRequester = null, onPrefillConsumed = () => {}, isDarkMode = false }) => {
   // users を ref でも保持することで resetForm の useCallback 依存から外し、
   // Realtime更新による users 参照変化がフォームリセットを引き起こさないようにする
   const usersRef = useRef(users);
@@ -178,7 +179,10 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   const timeOptions = isPrecheckMode ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
-  const rankOptionsToDisplay = isPrecheckMode ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+  // 電気契確モード時はELECランク、前確モード時は前確ランク、それ以外は通常ランク
+  const rankOptionsToDisplay = isPrecheckMode
+    ? (isElecTheme ? ELEC_RANK_OPTIONS : PRECHECK_RANK_OPTIONS)
+    : NON_PRECHECK_RANK_OPTIONS;
 
   useEffect(() => {
     if (prefilledDate) {
@@ -429,12 +433,12 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const isAssigneeDisabled = !!defaultAssignee && showAssigneeField;
 
 
-  const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const mainColorClassLight = isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
-  const mainRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-  const mainBorderClass = isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
-  const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
-  const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+  const mainColorClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainColorClassLight = isElecTheme ? 'text-[#d9619e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const mainRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainBorderClass = isElecTheme ? 'focus:border-[#d9619e]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
+  const mainBgClass = isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#b0336b]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
 
   // ダークモード用フィールドスタイル
   const darkFieldBg    = isDarkMode ? 'bg-[#0f1623]' : 'bg-white';
@@ -578,7 +582,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         )}
         <div className="md:col-span-2">
           <label htmlFor="date" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>予定日時 <span className="text-red-500">*</span></label>
-          <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
+          <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#d9619e] focus-within:border-[#d9619e]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
               <div ref={dateInputRef} className="relative w-1/2">
                   <button 
                       type="button"
@@ -649,7 +653,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                 type="checkbox"
                 checked={isStrict}
                 onChange={e => setIsStrict(e.target.checked)}
-                className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                className={`w-4 h-4 ${isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>厳守</span>
             </label>
@@ -666,7 +670,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                     if (isSpecialTime(time)) setTime('11:00');
                   }
                 }}
-                className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                className={`w-4 h-4 ${isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>詳細な時設</span>
             </label>

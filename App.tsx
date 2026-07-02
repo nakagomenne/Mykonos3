@@ -1224,19 +1224,23 @@ const App: React.FC = () => {
     const existingCalls = calls.filter(call => call.customerId.trim().toLowerCase() === trimmedCustomerId.toLowerCase());
     if (existingCalls.length > 0) {
       const isNewCallPrecheck = newCallData.assignee === PRECHECKER_ASSIGNEE_NAME;
-      const hasExistingNormalCall = existingCalls.some(c => c.assignee !== PRECHECKER_ASSIGNEE_NAME);
-      const hasExistingPrecheckCall = existingCalls.some(c => c.assignee === PRECHECKER_ASSIGNEE_NAME);
+      const isNewCallElec = newCallData.assignee === ELEC_ASSIGNEE_NAME;
+      // 電気契確案件の作成は重複チェックをスキップ（追跡案件と電気契確案件が同一IDで分かれる仕様）
+      if (!isNewCallElec) {
+        const hasExistingNormalCall = existingCalls.some(c => c.assignee !== PRECHECKER_ASSIGNEE_NAME && c.assignee !== ELEC_ASSIGNEE_NAME);
+        const hasExistingPrecheckCall = existingCalls.some(c => c.assignee === PRECHECKER_ASSIGNEE_NAME);
 
-      let showDuplicateDialog = false;
-      if (isNewCallPrecheck && hasExistingPrecheckCall) {
-        showDuplicateDialog = true;
-      } else if (!isNewCallPrecheck && hasExistingNormalCall) {
-        showDuplicateDialog = true;
-      }
+        let showDuplicateDialog = false;
+        if (isNewCallPrecheck && hasExistingPrecheckCall) {
+          showDuplicateDialog = true;
+        } else if (!isNewCallPrecheck && hasExistingNormalCall) {
+          showDuplicateDialog = true;
+        }
 
-      if (showDuplicateDialog) {
-        setPendingDuplicate({ existingCalls, newCallData });
-        return false;
+        if (showDuplicateDialog) {
+          setPendingDuplicate({ existingCalls, newCallData });
+          return false;
+        }
       }
     }
     
@@ -3493,6 +3497,7 @@ const App: React.FC = () => {
                             enableProductFiltering={false}
                             isPrecheckMode={isPrecheckContext || isElecContext}
                             isPrecheckTheme={isPrecheckTheme}
+                            isElecTheme={isElecTheme}
                             prefilledDate={prefilledRequestDate}
                             prefilledAssignee={prefilledAssignee}
                             prefilledRequester={prefilledRequester}
