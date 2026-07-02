@@ -48,6 +48,8 @@ export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 export const ELEC_ASSIGNEE_NAME = '電気契確';
 export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡'];
 export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡'];
+// 電気タブでAP戻しチェック時のランク選択肢
+export const ELEC_AP_RETURN_RANK_OPTIONS: Rank[] = ['立ち上げ', 'キャッチ'];
 
 
 const now = new Date().toISOString();

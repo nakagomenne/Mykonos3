@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
+import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_AP_RETURN_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
@@ -230,19 +230,21 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
   };
 
   // AP戻し時は通常ランク選択肢、回線受注時は前確ランク選択肢、電気受注時は電気ランク選択肢
+  // 電気タブでAP戻し時は専用選択肢（立ち上げ・キャッチ）
   const effectiveIsPrecheckForRank = isLineOrder ? true : isApReturn ? false : isPrecheckTheme;
 
   const timeOptions = isPrecheckTheme ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
   const rankOptionsForEdit = useMemo(() => {
-    const options = isElecOrder || isElecTheme ? ELEC_RANK_OPTIONS
+    const options = isElecTheme && isApReturn ? ELEC_AP_RETURN_RANK_OPTIONS
+      : isElecOrder || isElecTheme ? ELEC_RANK_OPTIONS
       : effectiveIsPrecheckForRank ? PRECHECK_RANK_OPTIONS
       : NON_PRECHECK_RANK_OPTIONS;
     if (!options.includes(rank)) {
       return [rank, ...options];
     }
     return options;
-  }, [effectiveIsPrecheckForRank, isElecOrder, isElecTheme, rank]);
+  }, [effectiveIsPrecheckForRank, isElecOrder, isElecTheme, isApReturn, rank]);
 
   // listType に対応する商材キーを返す
   const requiredProduct = useMemo((): string | null => {
