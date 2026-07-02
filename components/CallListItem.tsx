@@ -6,11 +6,12 @@ import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
 import EmojiPicker from './EmojiPicker';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
   onUpdateCall: (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
+  onCreateCall?: (data: Partial<Omit<CallRequest, 'id'>>) => void;
   onSelectCall: (call: CallRequest) => void;
   selectedMember: string | undefined;
   isHighlighted: boolean;
@@ -21,6 +22,7 @@ interface CallListItemProps {
   members: string[];
   users: User[];
   isPrecheckTheme?: boolean;
+  isElecTheme?: boolean;
   currentUser: User;
   isDuplicate: boolean;
   isDarkMode?: boolean;
@@ -32,7 +34,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, isElecTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isAppNumCopied, setIsAppNumCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
@@ -322,7 +324,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   const handleSaveInline = (updatedData: Partial<Omit<CallRequest, 'id'>>) => {
       // 担当者が自分・回線前確以外の場合、依頼者を編集者の名前に自動更新
       const effectiveAssignee = updatedData.assignee !== undefined ? updatedData.assignee : call.assignee;
-      if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME) {
+      if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME && effectiveAssignee !== ELEC_ASSIGNEE_NAME) {
           updatedData = { ...updatedData, requester: currentUser.name };
       }
       onUpdateCall(call.id, updatedData);
@@ -334,12 +336,17 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
 
   const handleSaveFull = (updatedData: Partial<Omit<CallRequest, 'id'>>) => {
-    // 担当者が自分・回線前確以外の場合、依頼者を編集者の名前に自動更新
+    // 担当者が自分・回線前確・電気契確以外の場合、依頼者を編集者の名前に自動更新
     const effectiveAssignee = updatedData.assignee !== undefined ? updatedData.assignee : call.assignee;
-    if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME) {
+    if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME && effectiveAssignee !== ELEC_ASSIGNEE_NAME) {
       updatedData = { ...updatedData, requester: currentUser.name };
     }
     onUpdateCall(call.id, updatedData);
+    setIsEditing(false);
+  };
+
+  const handleCreateCallFromEdit = (data: Partial<Omit<CallRequest, 'id'>>) => {
+    onCreateCall?.(data);
     setIsEditing(false);
   };
 
@@ -367,16 +374,17 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   };
   
   const rankOptionsForDisplay = useMemo(() => {
-    const options = isPrecheckTheme ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+    const options = isElecTheme ? ELEC_RANK_OPTIONS : isPrecheckTheme ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
     if (!options.includes(call.rank)) {
         return [call.rank, ...options];
     }
     return options;
-  }, [isPrecheckTheme, call.rank]);
+  }, [isElecTheme, isPrecheckTheme, call.rank]);
 
   const rankStyle = RANK_STYLES[call.rank] || { backgroundColor: '#f1f5f9', color: '#1e293b' };
 
   const hasPrecheckPermission = currentUser.isLinePrechecker;
+  const hasElecPermission = currentUser.isElecChecker;
 
   const handlePrecheckerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
