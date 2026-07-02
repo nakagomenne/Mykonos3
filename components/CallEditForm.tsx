@@ -17,6 +17,7 @@ interface CallEditFormProps {
   isPrecheckTheme?: boolean;
   isElecTheme?: boolean;
   currentUserName?: string;
+  currentUserIsElecChecker?: boolean;
   isDarkMode?: boolean;
 }
 
@@ -40,7 +41,7 @@ const roundTo15 = (t: string): string => {
 
 const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
-const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall, onCancel, members, users = [], isPrecheckTheme = false, isElecTheme = false, currentUserName, isDarkMode = false }) => {
+const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall, onCancel, members, users = [], isPrecheckTheme = false, isElecTheme = false, currentUserName, currentUserIsElecChecker = false, isDarkMode = false }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
   const [requester, setRequester] = useState(call.requester);
@@ -564,7 +565,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         </div>
 
         {/* ── AP戻し / 回線受注 / 電気受注チェック ── */}
-        {(isPrecheckTheme || isElecTheme) && (
+        {/* AP戻し: 前確タブ・電気タブ、または電気契確権限ありの場合に表示 */}
+        {(isPrecheckTheme || isElecTheme || currentUserIsElecChecker) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 ${isElecOrder ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input
@@ -579,7 +581,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
           </div>
         )}
 
-        {!isPrecheckTheme && !isElecTheme && listType === '回線' && (
+        {/* 回線受注: 電気タブ・前確タブ以外、かつ電気受注権限なし、かつ回線リスト種別の場合に表示 */}
+        {!isPrecheckTheme && !isElecTheme && !currentUserIsElecChecker && listType === '回線' && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 cursor-pointer select-none`}>
               <input
@@ -593,7 +596,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
           </div>
         )}
 
-        {isElecTheme && (
+        {/* 電気受注チェック: 電気タブ、または電気契確権限ありの場合に表示（どのタブからでも使える） */}
+        {(isElecTheme || currentUserIsElecChecker) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 ${isApReturn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input

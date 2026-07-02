@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, RANK_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, TIME_SLOTS, NON_PRECHECK_RANK_OPTIONS } from '../constants';
+import { LIST_TYPE_OPTIONS, RANK_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, TIME_SLOTS, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 
@@ -17,6 +17,7 @@ interface InlineEditPopupProps {
   members: string[];
   users: User[];
   isPrecheckTheme?: boolean;
+  isElecTheme?: boolean;
 }
 
 const FIELD_TITLES: Record<EditableField, string> = {
@@ -30,7 +31,7 @@ const FIELD_TITLES: Record<EditableField, string> = {
 };
 
 
-const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, onClose, targetRect, members, users, isPrecheckTheme = false }) => {
+const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, onClose, targetRect, members, users, isPrecheckTheme = false, isElecTheme = false }) => {
     const popupRef = useRef<HTMLDivElement>(null);
     const [position, setPosition] = useState({ top: targetRect.bottom + 4, left: targetRect.left });
     const [positionReady, setPositionReady] = useState(false);
@@ -224,19 +225,20 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
         return grid;
     }, [calendarDisplayDate]);
 
-    const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-    const mainRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-    const mainBorderClass = isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
-    const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
-    const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+    const mainColorClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+    const mainRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+    const mainBorderClass = isElecTheme ? 'focus:border-[#d9619e]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
+    const mainBgClass = isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+    const mainHoverBgClass = isElecTheme ? 'hover:bg-[#b0336b]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
 
     const rankOptionsForPopup = useMemo(() => {
-        const options = isPrecheckTheme ? RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+        // 電気契確テーマ → ELECランク、前確テーマ → 全ランク、通常 → 通常ランク
+        const options = isElecTheme ? ELEC_RANK_OPTIONS : isPrecheckTheme ? RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
         if (!options.includes(call.rank)) {
             return [call.rank, ...options];
         }
         return options;
-    }, [isPrecheckTheme, call.rank]);
+    }, [isElecTheme, isPrecheckTheme, call.rank]);
 
     const CalendarPopup = (
     <div
@@ -377,7 +379,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                                     type="checkbox"
                                     checked={isStrict}
                                     onChange={e => setIsStrict(e.target.checked)}
-                                    className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                                    className={`w-4 h-4 ${isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
                                 />
                                 <span>厳守</span>
                             </label>
@@ -394,7 +396,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                                             if (isSpecialTime(time)) setTime('11:00');
                                         }
                                     }}
-                                    className={`w-4 h-4 ${isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                                    className={`w-4 h-4 ${isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
                                 />
                                 <span>詳細な時設</span>
                             </label>

@@ -850,6 +850,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                       isPrecheckTheme={isPrecheckTheme}
                       isElecTheme={isElecTheme}
                       currentUserName={currentUser.name}
+                      currentUserIsElecChecker={!!currentUser.isElecChecker}
                       isDarkMode={isDarkMode}
                   />
               </div>
@@ -865,7 +866,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
             targetRect={editingState.targetRect}
             members={members}
             users={users}
-            isPrecheckTheme={isPrecheckTheme || isElecTheme}
+            isPrecheckTheme={isPrecheckTheme}
+            isElecTheme={isElecTheme}
         />,
         document.body
       )}

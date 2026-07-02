@@ -119,7 +119,8 @@ const CallList: React.FC<CallListProps> = ({
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
         <div className={`px-4 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
-            <div className="w-7 flex-shrink-0 flex justify-center gap-1">
+            {/* 完了トグル + 電気契確タブの追跡トグルを並べて表示 */}
+            <div className="flex-shrink-0 flex items-center gap-1">
               {hasCompletedCalls && (
                 <button
                   onClick={() => setHideCompleted(prev => !prev)}
@@ -136,22 +137,14 @@ const CallList: React.FC<CallListProps> = ({
                   />
                 </button>
               )}
-            </div>
-            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
-            <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
-            {(isPrecheckTheme || isElecTheme) && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
-            <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
-            {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
-            <div className="w-24 flex-shrink-0 text-center">ランク</div>
-            {/* 電気契確タブ: 追跡案件トグル */}
-            {isElecTheme && hasTrackingCalls && (
-              <div className="flex-shrink-0 flex items-center gap-1">
+              {/* 電気契確タブ: 追跡案件トグル（常時表示） */}
+              {isElecTheme && (
                 <button
                   onClick={() => setHideTracking(prev => !prev)}
                   title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
                   aria-pressed={hideTracking}
                   className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
-                    hideTracking ? activeBgClass : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                    hideTracking ? 'bg-[#d9619e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
                   }`}
                 >
                   <span
@@ -160,9 +153,14 @@ const CallList: React.FC<CallListProps> = ({
                     }`}
                   />
                 </button>
-                <span className="text-[10px]">追跡非表示</span>
-              </div>
-            )}
+              )}
+            </div>
+            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
+            <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
+            {(isPrecheckTheme || isElecTheme) && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
+            <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
+            {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
+            <div className="w-24 flex-shrink-0 text-center">ランク</div>
             <div className="w-16 flex-shrink-0 text-center">留守</div>
             <div className="w-8 flex-shrink-0 text-center">★</div>
             {isPrecheckTheme && !isElecTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
