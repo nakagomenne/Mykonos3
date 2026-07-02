@@ -854,6 +854,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                       isElecTheme={isElecTheme}
                       currentUserName={currentUser.name}
                       currentUserIsElecChecker={!!currentUser.isElecChecker}
+                      currentUserHasLineProduct={!!(currentUser.availableProducts ?? []).includes('回線')}
                       isDarkMode={isDarkMode}
                   />
               </div>
