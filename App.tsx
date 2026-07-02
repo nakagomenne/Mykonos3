@@ -2164,10 +2164,11 @@ const App: React.FC = () => {
   
   const currentUserWithData = users.find(u => u.name === currentUser.name);
 
-  // ユーザーの対応可能商材ラベルを生成（回線前確権限があれば末尾に追加）
+  // ユーザーの対応可能商材ラベルを生成（回線前確・電気契確権限があれば末尾に追加）
   const getProductsLabel = (user: User): string => {
     const products = [...(user.availableProducts ?? [])];
     if (user.isLinePrechecker) products.push('回線前確');
+    if (user.isElecChecker) products.push('電気契確');
     return products.join('・');
   };
 
@@ -3234,12 +3235,12 @@ const App: React.FC = () => {
                                       </span>
                                   </div>
                                   <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${mineTextColor} opacity-75`}>
-                                      {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
+                                      {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker || currentUserWithData.isElecChecker)) && (
                                           <span className="font-semibold">{getProductsLabel(currentUserWithData)}</span>
                                       )}
                                       {(currentUserWithData?.workStart || currentUserWithData?.workEnd) && (
                                           <>
-                                              {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker)) && (
+                                              {(currentUserWithData && ((currentUserWithData.availableProducts && currentUserWithData.availableProducts.length > 0) || currentUserWithData.isLinePrechecker || currentUserWithData.isElecChecker)) && (
                                                   <span className="opacity-40">|</span>
                                               )}
                                               <span>{currentUserWithData?.workStart ?? '11:00'} - {currentUserWithData?.workEnd ?? '20:00'}</span>
@@ -3423,12 +3424,12 @@ const App: React.FC = () => {
                                               </span>
                                           </div>
                                           <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${statusTextColor} opacity-75`}>
-                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                   <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
                                               )}
                                               {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
                                                   <>
-                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                           <span className="opacity-40">|</span>
                                                       )}
                                                       <span>{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}</span>
@@ -3700,12 +3701,12 @@ const App: React.FC = () => {
                                               <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${pvStatusBgColor} text-white`}>{status}</span>
                                           </div>
                                           <div className={`mt-1 flex items-center gap-3 text-sm flex-wrap ${pvTextColor} opacity-75`}>
-                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                              {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                   <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
                                               )}
                                               {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
                                                   <>
-                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker) && (
+                                                      {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                           <span className="opacity-40">|</span>
                                                       )}
                                                       <span>{formatWorkTime(selectedUserDetails.workStart ?? '11:00')} - {formatWorkTime(selectedUserDetails.workEnd ?? '20:00')}</span>
