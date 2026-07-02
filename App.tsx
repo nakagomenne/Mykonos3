@@ -437,7 +437,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // 重複チェック：同一 assignee 内で同一顧客IDが複数ある場合のみ重複とする
-    // ・回線前確案件と通常案件は別グループ
+    // ・回線前確案件・電気契確案件と通常案件は別グループ
     // ・全体タスクのように異なる assignee に同じ顧客IDを振っても重複扱いしない
     // ・assignee ごとに (assignee + customerId) の組み合わせをカウント
     const normalAssigneeIds   = new Map<string, Set<string>>(); // customerId → assignee Set
@@ -447,7 +447,8 @@ const App: React.FC = () => {
       if (call.status === '完了') return;
       const trimmedId = call.customerId.trim().toLowerCase();
       if (!trimmedId) return;
-      if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
+      // 回線前確・電気契確は専用グループで管理（通常グループに混入させない）
+      if (call.assignee === PRECHECKER_ASSIGNEE_NAME || call.assignee === ELEC_ASSIGNEE_NAME) {
         if (!precheckAssigneeIds.has(trimmedId)) precheckAssigneeIds.set(trimmedId, new Set());
         precheckAssigneeIds.get(trimmedId)!.add(call.assignee + ':' + call.id); // 同一案件重複防止
       } else {
@@ -459,10 +460,12 @@ const App: React.FC = () => {
     });
 
     // 通常案件：同一 assignee で同一 customerId が2件以上ある場合を重複とする
+    // ※ 回線前確・電気契確は除外（それぞれ独立した重複グループで管理）
     const normalCountPerAssignee = new Map<string, number>(); // "assignee::customerId" → count
     calls.forEach(call => {
       if (call.status === '完了') return;
       if (call.assignee === PRECHECKER_ASSIGNEE_NAME) return;
+      if (call.assignee === ELEC_ASSIGNEE_NAME) return; // 電気契確案件は通常重複から除外
       const trimmedId = call.customerId.trim().toLowerCase();
       if (!trimmedId) return;
       const key = call.assignee + '::' + trimmedId;
@@ -2923,9 +2926,14 @@ const App: React.FC = () => {
             {(() => {
               const hasPrecheck = !!currentUser.isLinePrechecker;
               const hasElec = !!currentUser.isElecChecker;
-              const colCount = 2 + (hasPrecheck ? 1 : 0) + (hasElec ? 1 : 0);
+              // Tailwindは動的クラス名をPurgeするため、静的クラス名で条件分岐する
+              const gridColsClass = hasPrecheck && hasElec
+                ? 'grid-cols-4'
+                : (hasPrecheck || hasElec)
+                  ? 'grid-cols-3'
+                  : 'grid-cols-2';
               return (
-              <div className={`grid grid-cols-${colCount}`} role="tablist">
+              <div className={`grid ${gridColsClass}`} role="tablist">
                   {/* 自分タブ */}
                   <button
                     type="button"
@@ -4174,20 +4182,18 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 32, fontFamily: 'monospace', background: '#fff0f0', minHeight: '100vh' }}>
-          <h1 style={{ color: '#c00', fontSize: 20 }}>⚠️ アプリエラー</h1>
-          <p style={{ color: '#333', marginTop: 8 }}>以下のエラーが発生しました。開発者に共有してください。</p>
-          <pre style={{ background: '#fff', border: '1px solid #fcc', padding: 16, marginTop: 16, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 13 }}>
-            {this.state.error.message}
-            {'\n\n'}
-            {this.state.error.stack}
-          </pre>
-          <button
-            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
-            style={{ marginTop: 16, padding: '8px 24px', background: '#0193be', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
-          >
-            再読み込み
-          </button>
+        <div style={{ padding: 32, fontFamily: 'sans-serif', background: '#f2f4f7', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h1 style={{ color: '#0193be', fontSize: 40, fontWeight: 'bold', marginBottom: 16, fontFamily: 'monospace' }}>Mykonos</h1>
+          <div style={{ background: '#fff', border: '1px solid #fcc', borderRadius: 8, padding: 24, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <p style={{ color: '#c00', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>予期しないエラーが発生しました</p>
+            <p style={{ color: '#555', fontSize: 14, marginBottom: 20 }}>再読み込みしても解決しない場合は管理者にご連絡ください。</p>
+            <button
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              style={{ padding: '10px 28px', background: '#0193be', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+            >
+              再読み込み
+            </button>
+          </div>
         </div>
       );
     }

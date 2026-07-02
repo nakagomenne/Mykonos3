@@ -147,6 +147,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
 
   // AP戻し チェック ON/OFF
   const handleApReturnChange = (checked: boolean) => {
+    // 電気受注チェックと排他制御：AP戻しをONにする際は電気受注をOFF
+    if (checked && isElecOrder) {
+      setIsElecOrder(false);
+    }
     setIsApReturn(checked);
     if (checked) {
       // ランク → 通常選択肢「立ち上げ」
@@ -201,6 +205,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
 
   // 電気受注 チェック ON/OFF
   const handleElecOrderChange = (checked: boolean) => {
+    // AP戻しと排他制御：電気受注をONにする際はAP戻しをOFF
+    if (checked && isApReturn) {
+      setIsApReturn(false);
+    }
     setIsElecOrder(checked);
     if (checked) {
       setRank('ジライフ契確');
@@ -310,7 +318,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         return;
     }
 
-    // 電気受注チェック時：元案件は変更せず新規作成
+    // 電気受注チェック時：元案件は変更せず新規作成してフォームを閉じる
     if (isElecOrder && onCreateCall) {
       onCreateCall({
         customerId,
@@ -325,6 +333,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         isDetailedTime,
         absenceCount: 0,
       });
+      onCancel(); // フォームを閉じる（CallListItem側でsetIsEditing(false)も呼ばれるが念のため）
       return;
     }
 
@@ -557,12 +566,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         {/* ── AP戻し / 回線受注 / 電気受注チェック ── */}
         {(isPrecheckTheme || isElecTheme) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
-            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+            <label className={`flex items-center gap-2 ${isElecOrder ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input
                 type="checkbox"
                 checked={isApReturn}
                 onChange={e => handleApReturnChange(e.target.checked)}
-                className="w-4 h-4 accent-[#0193be] cursor-pointer"
+                disabled={isElecOrder}
+                className="w-4 h-4 accent-[#0193be] cursor-pointer disabled:cursor-not-allowed"
               />
               <span className={`text-sm font-bold text-[#0193be]`}>AP戻し</span>
             </label>
@@ -585,12 +595,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
 
         {isElecTheme && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
-            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+            <label className={`flex items-center gap-2 ${isApReturn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input
                 type="checkbox"
                 checked={isElecOrder}
                 onChange={e => handleElecOrderChange(e.target.checked)}
-                className="w-4 h-4 accent-[#d9619e] cursor-pointer"
+                disabled={isApReturn}
+                className="w-4 h-4 accent-[#d9619e] cursor-pointer disabled:cursor-not-allowed"
               />
               <span className={`text-sm font-bold text-[#d9619e]`}>電気受注チェック</span>
             </label>
