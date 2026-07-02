@@ -344,8 +344,13 @@ export async function createBulkCallRequests(
 
 /** 全ユーザーを取得する */
 // profile_picture を除いたカラム一覧（初期ロード高速化）
+// is_elec_checker: DDL実行済み環境ではカラムが存在するためSELECTに含める。
+// DDL未実行の場合は fetchUsers 内でフォールバックして除外カラムで再取得する。
 const USER_COLUMNS_WITHOUT_PICTURE =
   'name,furigana,is_admin,is_line_prechecker,is_elec_checker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
+
+const USER_COLUMNS_WITHOUT_PICTURE_FALLBACK =
+  'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
 
 /** ユーザー一覧を取得する（profile_picture 除外で高速化） */
 export async function fetchUsers(): Promise<User[]> {
@@ -354,7 +359,18 @@ export async function fetchUsers(): Promise<User[]> {
     .select(USER_COLUMNS_WITHOUT_PICTURE)
     .order('created_at', { ascending: true });
 
-  if (error) throw new Error(`ユーザーの取得に失敗しました: ${error.message}`);
+  if (error) {
+    // is_elec_checker カラムが存在しない場合（DDL未実行）はフォールバック
+    if (error.message.includes('is_elec_checker') || error.code === '42703') {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('users')
+        .select(USER_COLUMNS_WITHOUT_PICTURE_FALLBACK)
+        .order('created_at', { ascending: true });
+      if (fallbackError) throw new Error(`ユーザーの取得に失敗しました: ${fallbackError.message}`);
+      return (fallbackData ?? []).map(rowToUser);
+    }
+    throw new Error(`ユーザーの取得に失敗しました: ${error.message}`);
+  }
   return (data ?? []).map(rowToUser);
 }
 
@@ -380,7 +396,19 @@ export async function updateUser(name: string, updatedData: Partial<User>): Prom
     .update(row)
     .eq('name', name);
 
-  if (error) throw new Error(`ユーザーの更新に失敗しました: ${error.message}`);
+  if (error) {
+    // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
+    if ((error.message.includes('is_elec_checker') || error.code === '42703') && row.is_elec_checker !== undefined) {
+      const { is_elec_checker: _omit, ...rowWithout } = row;
+      const { error: retryError } = await supabase
+        .from('users')
+        .update(rowWithout)
+        .eq('name', name);
+      if (retryError) throw new Error(`ユーザーの更新に失敗しました: ${retryError.message}`);
+      return;
+    }
+    throw new Error(`ユーザーの更新に失敗しました: ${error.message}`);
+  }
 }
 
 /** 複数ユーザーを一括 upsert する（AdminMenu の保存用） */
@@ -392,7 +420,19 @@ export async function upsertUsers(users: User[]): Promise<User[]> {
     .upsert(rows, { onConflict: 'name' })
     .select(USER_COLUMNS_WITHOUT_PICTURE);
 
-  if (error) throw new Error(`ユーザーの一括更新に失敗しました: ${error.message}`);
+  if (error) {
+    // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
+    if (error.message.includes('is_elec_checker') || error.code === '42703') {
+      const rowsWithout = rows.map(r => { const { is_elec_checker: _omit, ...rest } = r; return rest; });
+      const { data: d2, error: e2 } = await supabase
+        .from('users')
+        .upsert(rowsWithout, { onConflict: 'name' })
+        .select(USER_COLUMNS_WITHOUT_PICTURE_FALLBACK);
+      if (e2) throw new Error(`ユーザーの一括更新に失敗しました: ${e2.message}`);
+      return (d2 ?? []).map(rowToUser);
+    }
+    throw new Error(`ユーザーの一括更新に失敗しました: ${error.message}`);
+  }
   return (data ?? []).map(rowToUser);
 }
 
@@ -414,7 +454,20 @@ export async function insertUser(user: User): Promise<User> {
     .insert([row])
     .select(USER_COLUMNS_WITHOUT_PICTURE)
     .single();
-  if (error) throw new Error(`ユーザーの作成に失敗しました: ${error.message}`);
+  if (error) {
+    // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
+    if (error.message.includes('is_elec_checker') || error.code === '42703') {
+      const { is_elec_checker: _omit, ...rowWithout } = row;
+      const { data: d2, error: e2 } = await supabase
+        .from('users')
+        .insert([rowWithout])
+        .select(USER_COLUMNS_WITHOUT_PICTURE_FALLBACK)
+        .single();
+      if (e2) throw new Error(`ユーザーの作成に失敗しました: ${e2.message}`);
+      return rowToUser(d2);
+    }
+    throw new Error(`ユーザーの作成に失敗しました: ${error.message}`);
+  }
   return rowToUser(data);
 }
 
