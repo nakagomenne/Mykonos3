@@ -568,8 +568,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         </div>
 
         {/* ── AP戻し / 回線受注 / 電気受注チェック ── */}
-        {/* AP戻し: 前確タブ・電気タブ、または電気契確権限ありの場合に表示 */}
-        {(isPrecheckTheme || isElecTheme || currentUserIsElecChecker) && (
+        {/* AP戻し: 担当者が回線前確 or 電気契確の案件のみ表示 */}
+        {(assignee === PRECHECKER_ASSIGNEE_NAME || assignee === ELEC_ASSIGNEE_NAME) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 ${isElecOrder ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input
