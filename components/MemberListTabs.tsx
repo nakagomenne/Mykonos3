@@ -95,11 +95,8 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                   border-b-[2.5px] px-3 pb-2 pt-1 font-medium text-sm
                   min-w-[90px] transition-all duration-500 
                   focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be]
-                  ${isElecCheckerTab
-                    ? isSelected
-                      ? `border-[#d9619e] text-[#d9619e] ${isDarkMode ? 'bg-[#d9619e]/10' : 'bg-white'} shadow-sm`
-                      : `border-transparent ${isDarkMode ? 'text-[#d9619e]/50 hover:text-[#d9619e] hover:border-[#d9619e]/30 hover:bg-white/5' : 'text-[#d9619e]/60 hover:text-[#d9619e] hover:border-[#d9619e]/30 hover:bg-white/70'}`
-                    : isSelected
+                  ${
+                    isSelected
                       ? `border-[#0193be] text-[#0193be] ${isDarkMode ? 'bg-[#0193be]/10' : 'bg-white'} shadow-sm`
                       : `border-transparent ${isDarkMode ? 'text-[#0193be]/50 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/5' : 'text-[#0193be]/60 hover:text-[#0193be] hover:border-[#0193be]/30 hover:bg-white/70'}`
                   }
@@ -111,10 +108,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                   <div className={`
                       relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full 
                       transition-all duration-500
-                      ${isElecCheckerTab
-                        ? isSelected ? 'ring-[3px] ring-[#d9619e] ring-offset-1' : `ring-[2px] ${isDarkMode ? 'ring-slate-600 group-hover:ring-[#d9619e]/50' : 'ring-slate-300 group-hover:ring-[#d9619e]/50'}`
-                        : isSelected ? 'ring-[3px] ring-[#0193be] ring-offset-1' : `ring-[2px] ${isDarkMode ? 'ring-slate-600 group-hover:ring-[#0193be]/50' : 'ring-slate-300 group-hover:ring-[#0193be]/50'}`
-                      }
+                      ${isSelected ? 'ring-[3px] ring-[#0193be] ring-offset-1' : `ring-[2px] ${isDarkMode ? 'ring-slate-600 group-hover:ring-[#0193be]/50' : 'ring-slate-300 group-hover:ring-[#0193be]/50'}`}
                     `}>
                       {isListTab ? (
                         <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} text-[#0193be]/60`}>
@@ -129,7 +123,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                           <CircleIcon className="h-7 w-7" />
                         </div>
                       ) : isElecCheckerTab ? (
-                        <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-[#7c1a3f]/40' : 'bg-[#fde8f1]'} text-[#d9619e]`}>
+                        <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} text-[#0193be]/60`}>
                           <CircleIcon className="h-7 w-7" />
                         </div>
                       ) : user?.profilePicture ? (
