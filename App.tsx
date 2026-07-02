@@ -2011,7 +2011,8 @@ const App: React.FC = () => {
 
   const otherMemberNames = memberNames.filter(m => m !== currentUser?.name);
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
-  // タブ順: 新規依頼 → 全体 → 回線前確 → 各メンバー
+  const hasElecCheckers = users.some(u => u.isElecChecker);
+  // タブ順: 新規依頼 → 回線前確 → 電気契確 → 各メンバー
   // 各メンバー部分: その日稼働（非稼働でない）が先、非稼働が後ろ
   // 同グループ内はcommentUpdatedAt が新しい順（未設定は末尾）
   const sortedOtherMemberNames = [...otherMemberNames].sort((a, b) => {
@@ -2028,6 +2029,10 @@ const App: React.FC = () => {
   const otherMembers = ['新規依頼'];
   if (hasPrecheckers) {
     otherMembers.push(PRECHECKER_ASSIGNEE_NAME);
+  }
+  // 電気契確タブ: 回線前確の右隣・各メンバーの前に固定配置
+  if (hasElecCheckers) {
+    otherMembers.push(ELEC_ASSIGNEE_NAME);
   }
   otherMembers.push(...sortedOtherMemberNames);
 
