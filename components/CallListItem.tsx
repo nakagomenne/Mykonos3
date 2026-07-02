@@ -83,7 +83,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   }, [isRankDropdownOpen, isAbsenceDropdownOpen]);
 
   const { liStyle, dateTimeStyle, absenceCounterClass } = useMemo((): { liStyle: React.CSSProperties; dateTimeStyle: React.CSSProperties; absenceCounterClass: string; } => {
-    const defaultMainTextClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+    const defaultMainTextClass = isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
     if (call.status === '完了') {
       return {
         liStyle: {
@@ -298,9 +298,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   // 全ランクで留守ボタン・カウンターを表示（完了案件は除く）
   const showAbsenceCount = !isCompleted;
 
-  const mainTextClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const mainRingClass = isElecTheme ? 'ring-[#d9619e]' : isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
-  const focusRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainTextClass = isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainRingClass = isElecTheme ? 'ring-[#1e3a5f]' : isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
+  const focusRingClass = isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
 
   const liClasses = [
     'relative', 'transition-all', 'duration-200', 'rounded-lg',
@@ -441,7 +441,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
           {/* 左端の縦帯 */}
           <div style={{
             position: 'absolute', top: 0, left: 0, bottom: 0, width: 4,
-            background: isElecTheme ? '#d9619e' : isPrecheckTheme ? '#118f82' : '#0193be',
+            background: isElecTheme ? '#1e3a5f' : isPrecheckTheme ? '#118f82' : '#0193be',
             borderRadius: '8px 0 0 8px',
             zIndex: 11,
             pointerEvents: 'none',
@@ -449,7 +449,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
           {/* NEW バッジ */}
           <div style={{
             position: 'absolute', top: 4, left: 6,
-            background: isElecTheme ? '#d9619e' : isPrecheckTheme ? '#118f82' : '#0193be',
+            background: isElecTheme ? '#1e3a5f' : isPrecheckTheme ? '#118f82' : '#0193be',
             color: 'white',
             fontSize: 9,
             fontWeight: 700,
@@ -469,7 +469,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
               <input
                   type="checkbox"
                   id={`call-item-checkbox-${call.id}`}
-                  className={`appearance-none cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 ${isElecTheme ? 'checked:bg-[#d9619e] focus:ring-[#d9619e]' : isPrecheckTheme ? 'checked:bg-[#118f82] focus:ring-[#118f82]' : 'checked:bg-[#0193be] focus:ring-[#0193be]'} disabled:opacity-50`}
+                  className={`appearance-none cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 ${isElecTheme ? 'checked:bg-[#1e3a5f] focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'checked:bg-[#118f82] focus:ring-[#118f82]' : 'checked:bg-[#0193be] focus:ring-[#0193be]'} disabled:opacity-50`}
                   checked={call.status === '完了'}
                   onClick={handleCheckboxClick}
                   onChange={handleCheckboxChange}
@@ -805,7 +805,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                 <div className="relative h-5 w-5">
                   <button
                     className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
+                        isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
                     disabled={!(hasPrecheckPermission || hasElecPermission) || isCompleted}
                     onClick={handlePrecheckerClick}

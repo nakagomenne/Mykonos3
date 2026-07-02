@@ -357,13 +357,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
     });
   };
   
-  const mainColorClassLight = isElecTheme ? 'text-[#d9619e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
-  const mainRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-  const mainBorderClass = isElecTheme ? 'focus:border-[#d9619e]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
-  const mainBgClass = isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
-  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#b0336b]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
-  const mainColorClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const checkboxColor = isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
+  const mainColorClassLight = isElecTheme ? 'text-[#1e3a5f]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const mainRingClass = isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainBorderClass = isElecTheme ? 'focus:border-[#1e3a5f]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
+  const mainBgClass = isElecTheme ? 'bg-[#1e3a5f]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#152a45]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+  const mainColorClass = isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const checkboxColor = isElecTheme ? 'accent-[#1e3a5f]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
 
   // カレンダーポップアップ JSX
   const CalendarPopup = isCalendarOpen && calendarPosition ? createPortal(
@@ -465,7 +465,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
           </div>
           <div className="md:col-span-2">
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
-            <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#d9619e] focus-within:border-[#d9619e]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
+            <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#1e3a5f] focus-within:border-[#1e3a5f]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
               <div ref={dateInputRef} className="relative w-1/2">
                 <button
                   type="button"
@@ -605,9 +605,9 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
                 checked={isElecOrder}
                 onChange={e => handleElecOrderChange(e.target.checked)}
                 disabled={isApReturn}
-                className="w-4 h-4 accent-[#d9619e] cursor-pointer disabled:cursor-not-allowed"
+                className="w-4 h-4 accent-[#1e3a5f] cursor-pointer disabled:cursor-not-allowed"
               />
-              <span className={`text-sm font-bold text-[#d9619e]`}>電気受注チェック</span>
+              <span className={`text-sm font-bold text-[#1e3a5f]`}>電気受注チェック</span>
             </label>
             {isElecOrder && (
               <p className={`text-xs mt-1 ml-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>元案件は変更せず「電気契確」担当で新規作成します</p>
