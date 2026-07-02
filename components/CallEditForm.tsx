@@ -596,8 +596,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
           </div>
         )}
 
-        {/* 電気受注チェック: 電気タブ、または電気契確権限ありの場合に表示（どのタブからでも使える） */}
-        {(isElecTheme || currentUserIsElecChecker) && (
+        {/* 電気受注チェック: 電気タブ以外で電気契確権限ありの場合に表示（電気タブ自体では不要） */}
+        {(!isElecTheme && currentUserIsElecChecker) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 ${isApReturn ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} select-none`}>
               <input
