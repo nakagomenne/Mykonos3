@@ -81,7 +81,8 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
             const isListTab = member === '新規依頼';
             const isAllTab = member === '全体';
             const isPrecheckerTab = member === PRECHECKER_ASSIGNEE_NAME;
-            const user = !isListTab && !isAllTab && !isPrecheckerTab ? userMap.get(member) : undefined;
+            const isElecCheckerTab = member === ELEC_ASSIGNEE_NAME;
+            const user = !isListTab && !isAllTab && !isPrecheckerTab && !isElecCheckerTab ? userMap.get(member) : undefined;
             const isSelected = member === selectedMember;
             
             return (
