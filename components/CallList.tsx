@@ -118,9 +118,11 @@ const CallList: React.FC<CallListProps> = ({
   return (
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
-        <div className={`px-4 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
-            {/* 完了トグル + 電気契確タブの追跡トグルを並べて表示 */}
-            <div className="flex-shrink-0 flex items-center gap-1">
+        {/* ヘッダーとデータ行(px-2 gap-1.5)の縦軸を揃えるため px-2 gap-1.5 を使用 */}
+        <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
+            {/* w-7: データ行のチェックボックス列(w-7)と幅を完全一致させるコンテナ */}
+            {/* 完了トグルのみをこのコンテナに収める */}
+            <div className="w-7 flex-shrink-0 flex items-center justify-center">
               {hasCompletedCalls && (
                 <button
                   onClick={() => setHideCompleted(prev => !prev)}
@@ -137,7 +139,10 @@ const CallList: React.FC<CallListProps> = ({
                   />
                 </button>
               )}
-              {/* 電気契確タブ: 追跡案件トグル（常時表示） */}
+            </div>
+            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
+            {/* 顧客ID列ヘッダー：電気タブでは追跡トグルも内包してデータ行と幅を合わせる */}
+            <div className="w-28 flex-shrink-0 flex items-center justify-center gap-1">
               {isElecTheme && (
                 <button
                   onClick={() => setHideTracking(prev => !prev)}
@@ -154,9 +159,8 @@ const CallList: React.FC<CallListProps> = ({
                   />
                 </button>
               )}
+              <span>顧客ID</span>
             </div>
-            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
-            <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
             {(isPrecheckTheme || isElecTheme) && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
             <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
             {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
