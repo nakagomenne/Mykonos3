@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { User } from '../types';
 import { UserIcon, ListBulletIcon, CircleIcon, UsersGroupIcon } from './icons';
-import { AVAILABILITY_STATUS_STYLES, PRECHECKER_ASSIGNEE_NAME } from '../constants';
+import { AVAILABILITY_STATUS_STYLES, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
 
 interface MemberListTabsProps {
   members: string[];
