@@ -610,7 +610,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
                 disabled={isApReturn}
                 className="w-4 h-4 accent-[#2d5a9e] cursor-pointer disabled:cursor-not-allowed"
               />
-              <span className={`text-sm font-bold text-[#2d5a9e]`}>電気受注チェック</span>
+              <span className={`text-sm font-bold text-[#2d5a9e]`}>電気受注</span>
             </label>
             {isElecOrder && (
               <p className={`text-xs mt-1 ml-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>元案件は変更せず「電気契確」担当で新規作成します</p>
