@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { User } from '../types';
-import { UserIcon, ListBulletIcon, CircleIcon, UsersGroupIcon } from './icons';
+import { UserIcon, ListBulletIcon, CircleIcon, UsersGroupIcon, DiamondIcon } from './icons';
 import { AVAILABILITY_STATUS_STYLES, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
 
 interface MemberListTabsProps {
@@ -124,7 +124,7 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                         </div>
                       ) : isElecCheckerTab ? (
                         <div className={`flex h-full w-full items-center justify-center rounded-full ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'} text-[#0193be]/60`}>
-                          <CircleIcon className="h-7 w-7" />
+                          <DiamondIcon className="h-7 w-7" />
                         </div>
                       ) : user?.profilePicture ? (
                         <img src={user.profilePicture} alt={user.name} className="h-full w-full rounded-full object-cover" />

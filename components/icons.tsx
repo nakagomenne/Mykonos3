@@ -175,6 +175,12 @@ export const CircleIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+export const DiamondIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || 'w-6 h-6'}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25 L21.75 12 L12 21.75 L2.25 12 Z" />
+    </svg>
+);
+
 export const BellIcon = ({ className }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className || 'w-6 h-6'}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.31 5.772 23.848 23.848 0 0 0 5.454 1.31M15 17.5c-.512 2.801-2.98 5-5.64 5s-5.128-2.199-5.64-5m11.28 0c-.097.521-.219 1.026-.362 1.519M8.64 17.5c-.097.521-.219 1.026-.362 1.519M12 21a.75.75 0 0 1-.75-.75V17.5h1.5v2.75A.75.75 0 0 1 12 21Z" />
