@@ -46,8 +46,8 @@ export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '
 export const ADMIN_USER_NAME = '中込賢三';
 export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 export const ELEC_ASSIGNEE_NAME = '電気契確';
-export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジライフ同意追跡', 'ジライフ決済追跡'];
-export const ELEC_TRACKING_RANKS: Rank[] = ['ジライフ同意追跡', 'ジライフ決済追跡'];
+export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡'];
+export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡'];
 
 
 const now = new Date().toISOString();
@@ -112,8 +112,8 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
 
   // 電気契確ランク
   'ジライフ契確':     { backgroundColor: '#d9619e', color: '#ffffff' },
-  'ジライフ同意追跡': { backgroundColor: '#ffffff', color: '#d9619e', border: '1px solid #d9619e' },
-  'ジライフ決済追跡': { backgroundColor: '#fde8f1', color: '#b0336b' },
+  'ジラ同意追跡': { backgroundColor: '#ffffff', color: '#d9619e', border: '1px solid #d9619e' },
+  'ジラ決済追跡': { backgroundColor: '#fde8f1', color: '#b0336b' },
 
   // 既存電気系ランク（RANK_STYLES完全網羅用）
   '電気前確':   { backgroundColor: '#f0e6ff', color: '#7c3aed' },
