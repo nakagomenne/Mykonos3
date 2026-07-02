@@ -120,8 +120,7 @@ const CallList: React.FC<CallListProps> = ({
         {/* Header */}
         {/* ヘッダーとデータ行(px-2 gap-1.5)の縦軸を揃えるため px-2 gap-1.5 を使用 */}
         <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
-            {/* w-7: データ行のチェックボックス列(w-7)と幅を完全一致させるコンテナ */}
-            {/* 完了トグルのみをこのコンテナに収める */}
+            {/* col-1: w-7 固定 — データ行チェックボックス列と幅を一致 */}
             <div className="w-7 flex-shrink-0 flex items-center justify-center">
               {hasCompletedCalls && (
                 <button
@@ -140,27 +139,26 @@ const CallList: React.FC<CallListProps> = ({
                 </button>
               )}
             </div>
-            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
-            {/* 顧客ID列ヘッダー：電気タブでは追跡トグルも内包してデータ行と幅を合わせる */}
-            <div className="w-28 flex-shrink-0 flex items-center justify-center gap-1">
-              {isElecTheme && (
-                <button
-                  onClick={() => setHideTracking(prev => !prev)}
-                  title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
-                  aria-pressed={hideTracking}
-                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
-                    hideTracking ? 'bg-[#d9619e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+            {/* col-2(電気タブのみ): 追跡トグル — データ行の対応スペーサーと幅を一致 */}
+            {isElecTheme && (
+              <button
+                onClick={() => setHideTracking(prev => !prev)}
+                title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
+                aria-pressed={hideTracking}
+                className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                  hideTracking ? 'bg-[#d9619e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                    hideTracking ? 'translate-x-3' : 'translate-x-0'
                   }`}
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                      hideTracking ? 'translate-x-3' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              )}
-              <span>顧客ID</span>
-            </div>
+                />
+              </button>
+            )}
+            {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
+            {/* col-3(電気タブ以外はcol-2): 顧客ID */}
+            <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
             {(isPrecheckTheme || isElecTheme) && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
             <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
             {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}

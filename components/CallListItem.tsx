@@ -463,6 +463,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         </>
       )}
       <div className="px-2 py-1 flex items-center gap-1.5 text-sm">
+          {/* col-1: w-7 固定 — ヘッダー完了トグルコンテナと幅を一致 */}
           <div className="w-7 flex-shrink-0 flex justify-center items-center">
             <div className="relative h-5 w-5">
               <input
@@ -479,6 +480,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
               )}
             </div>
           </div>
+          {/* col-2(電気タブのみ): 追跡トグルヘッダーと幅を一致させるスペーサー */}
+          {isElecTheme && <div className="w-7 flex-shrink-0" aria-hidden="true" />}
 
           {isAllMembersView && (
             <div className={`w-20 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
