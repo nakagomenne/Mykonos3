@@ -171,6 +171,20 @@ const CallList: React.FC<CallListProps> = ({
             {showRequesterColumn && <div className="w-20 flex-shrink-0 text-center">依頼者</div>}
             <div className="w-8 flex-shrink-0" aria-hidden="true" />
         </div>
+        {/* 追跡案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
+        {isElecTheme && hideTracking && filteredByTracking.length < calls.length && (
+            <div
+              className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
+              style={{ backgroundColor: '#d9619e' }}
+              onClick={() => setHideTracking(false)}
+              title="クリックして追跡案件を表示"
+            >
+              <span className="text-white text-xs font-bold">
+                追跡案件（{calls.length - filteredByTracking.length}件）は非表示中
+              </span>
+              <span className="text-white/80 text-xs">— クリックして表示</span>
+            </div>
+        )}
         {/* List */}
         <ul className="space-y-1.5 p-2" style={{ background: listBg }}>
             {displayedCalls.map(call => (
@@ -204,11 +218,7 @@ const CallList: React.FC<CallListProps> = ({
                 <p className={`text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>完了した依頼はすべて非表示になっています。</p>
             </div>
         )}
-        {isElecTheme && hideTracking && filteredByTracking.length < calls.length && (
-            <div className="text-center py-2 px-6" style={{ background: listBg }}>
-                <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>追跡案件（{calls.length - filteredByTracking.length}件）は非表示中</p>
-            </div>
-        )}
+
     </div>
   );
 };
