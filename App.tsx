@@ -4160,4 +4160,45 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 32, fontFamily: 'monospace', background: '#fff0f0', minHeight: '100vh' }}>
+          <h1 style={{ color: '#c00', fontSize: 20 }}>⚠️ アプリエラー</h1>
+          <p style={{ color: '#333', marginTop: 8 }}>以下のエラーが発生しました。開発者に共有してください。</p>
+          <pre style={{ background: '#fff', border: '1px solid #fcc', padding: 16, marginTop: 16, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: 13 }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.error.stack}
+          </pre>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            style={{ marginTop: 16, padding: '8px 24px', background: '#0193be', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
+          >
+            再読み込み
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const AppWithBoundary: React.FC = () => (
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+export default AppWithBoundary;
