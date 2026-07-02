@@ -111,9 +111,9 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   '見込S留守': { backgroundColor: '#ffffff', color: '#5a3286', border: '1px solid #5a3286' },
 
   // 電気契確ランク
-  'ジライフ契確':     { backgroundColor: '#1e3a5f', color: '#ffffff' },
-  'ジラ同意追跡': { backgroundColor: '#ffffff', color: '#1e3a5f', border: '1px solid #1e3a5f' },
-  'ジラ決済追跡': { backgroundColor: '#e8eef5', color: '#152a45' },
+  'ジライフ契確':     { backgroundColor: '#2d5a9e', color: '#ffffff' },
+  'ジラ同意追跡': { backgroundColor: '#ffffff', color: '#2d5a9e', border: '1px solid #2d5a9e' },
+  'ジラ決済追跡': { backgroundColor: '#dde6f5', color: '#1e4080' },
 
   // 既存電気系ランク（RANK_STYLES完全網羅用）
   '電気前確':   { backgroundColor: '#f0e6ff', color: '#7c3aed' },

@@ -433,12 +433,12 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const isAssigneeDisabled = !!defaultAssignee && showAssigneeField;
 
 
-  const mainColorClass = isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const mainColorClassLight = isElecTheme ? 'text-[#1e3a5f]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
-  const mainRingClass = isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-  const mainBorderClass = isElecTheme ? 'focus:border-[#1e3a5f]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
-  const mainBgClass = isElecTheme ? 'bg-[#1e3a5f]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
-  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#152a45]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+  const mainColorClass = isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainColorClassLight = isElecTheme ? 'text-[#2d5a9e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const mainRingClass = isElecTheme ? 'focus:ring-[#2d5a9e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainBorderClass = isElecTheme ? 'focus:border-[#2d5a9e]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
+  const mainBgClass = isElecTheme ? 'bg-[#2d5a9e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#1e4080]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
 
   // ダークモード用フィールドスタイル
   const darkFieldBg    = isDarkMode ? 'bg-[#0f1623]' : 'bg-white';
@@ -582,7 +582,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         )}
         <div className="md:col-span-2">
           <label htmlFor="date" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>予定日時 <span className="text-red-500">*</span></label>
-          <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#1e3a5f] focus-within:border-[#1e3a5f]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
+          <div className={`flex items-center border ${darkFieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#2d5a9e] focus-within:border-[#2d5a9e]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition ${darkFieldBg}`}>
               <div ref={dateInputRef} className="relative w-1/2">
                   <button 
                       type="button"
@@ -653,7 +653,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                 type="checkbox"
                 checked={isStrict}
                 onChange={e => setIsStrict(e.target.checked)}
-                className={`w-4 h-4 ${isElecTheme ? 'accent-[#1e3a5f]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                className={`w-4 h-4 ${isElecTheme ? 'accent-[#2d5a9e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>厳守</span>
             </label>
@@ -670,7 +670,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
                     if (isSpecialTime(time)) setTime('11:00');
                   }
                 }}
-                className={`w-4 h-4 ${isElecTheme ? 'accent-[#1e3a5f]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
+                className={`w-4 h-4 ${isElecTheme ? 'accent-[#2d5a9e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]'} cursor-pointer`}
               />
               <span>詳細な時設</span>
             </label>

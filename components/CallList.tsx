@@ -47,12 +47,12 @@ const CallList: React.FC<CallListProps> = ({
   const [hideCompleted, setHideCompleted] = useState(true);
   const [hideTracking, setHideTracking] = useState(false);
 
-  const mainColor = isElecTheme ? '#1e3a5f' : isPrecheckTheme ? '#118f82' : '#0193be';
-  const mainColorClass = isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const mainColorClass60 = isElecTheme ? 'text-[#1e3a5f]/60' : isPrecheckTheme ? 'text-[#118f82]/60' : 'text-[#0193be]/60';
-  const mainColorClass80 = isElecTheme ? 'text-[#1e3a5f]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
-  const focusRingClass = isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-  const activeBgClass = isElecTheme ? 'bg-[#1e3a5f]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+  const mainColor = isElecTheme ? '#2d5a9e' : isPrecheckTheme ? '#118f82' : '#0193be';
+  const mainColorClass = isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainColorClass60 = isElecTheme ? 'text-[#2d5a9e]/60' : isPrecheckTheme ? 'text-[#118f82]/60' : 'text-[#0193be]/60';
+  const mainColorClass80 = isElecTheme ? 'text-[#2d5a9e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const focusRingClass = isElecTheme ? 'focus:ring-[#2d5a9e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const activeBgClass = isElecTheme ? 'bg-[#2d5a9e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
 
   // 電気契確タブの追跡案件フィルタリング
   const filteredByTracking = isElecTheme && hideTracking
@@ -105,8 +105,8 @@ const CallList: React.FC<CallListProps> = ({
 
   const headerBg = isElecTheme
     ? isDarkMode
-      ? 'bg-[#0d1e33]/20 border-[#1e3a5f]/30'
-      : 'bg-gradient-to-r from-[#1e3a5f]/10 to-[#152a45]/5 border-[#1e3a5f]/20'
+      ? 'bg-[#162d5a]/20 border-[#2d5a9e]/30'
+      : 'bg-gradient-to-r from-[#2d5a9e]/10 to-[#1e4080]/5 border-[#2d5a9e]/20'
     : isPrecheckTheme
     ? isDarkMode
       ? 'bg-[#0d7a6f]/20 border-[#118f82]/30'
@@ -146,7 +146,7 @@ const CallList: React.FC<CallListProps> = ({
                 title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
                 aria-pressed={hideTracking}
                 className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
-                  hideTracking ? 'bg-[#1e3a5f]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  hideTracking ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
                 }`}
               >
                 <span
@@ -175,7 +175,7 @@ const CallList: React.FC<CallListProps> = ({
         {isElecTheme && hideTracking && filteredByTracking.length < calls.length && (
             <div
               className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
-              style={{ backgroundColor: '#1e3a5f' }}
+              style={{ backgroundColor: '#2d5a9e' }}
               onClick={() => setHideTracking(false)}
               title="クリックして追跡案件を表示"
             >

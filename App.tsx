@@ -3004,10 +3004,10 @@ const App: React.FC = () => {
                     aria-selected={viewMode === 'elec'}
                     title="電気契確"
                     onClick={() => handleViewModeChange('elec')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] ${
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2d5a9e] ${
                         viewMode === 'elec'
-                            ? 'text-[#1e3a5f]'
-                            : `text-slate-400 hover:text-[#1e3a5f] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
+                            ? 'text-[#2d5a9e]'
+                            : `text-slate-400 hover:text-[#2d5a9e] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
@@ -3022,7 +3022,7 @@ const App: React.FC = () => {
                       )}
                     </div>
                     <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-500 ${viewMode === 'elec' ? 'opacity-100' : 'opacity-0'}`}
-                      style={{ background: 'linear-gradient(90deg, #1e3a5f, #152a45)' }} />
+                      style={{ background: 'linear-gradient(90deg, #2d5a9e, #1e4080)' }} />
                   </button>
                   )}
 
@@ -3473,10 +3473,10 @@ const App: React.FC = () => {
                           return !prev;
                         });
                       }}
-                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isElecTheme ? 'focus:ring-[#1e3a5f]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-500 ${
+                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isElecTheme ? 'focus:ring-[#2d5a9e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-500 ${
                         isFormVisible
-                          ? `${isElecTheme ? 'bg-[#1e3a5f]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
-                          : `${isElecTheme ? 'text-[#1e3a5f]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
+                          ? `${isElecTheme ? 'bg-[#2d5a9e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
+                          : `${isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
                       }`}
                       aria-expanded={isFormVisible}
                       aria-controls="new-request-form"
