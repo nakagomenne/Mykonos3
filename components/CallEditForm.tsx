@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME } from '../constants';
+import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
@@ -10,10 +10,12 @@ import EmojiPicker from './EmojiPicker';
 interface CallEditFormProps {
   call: CallRequest;
   onSave: (updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
+  onCreateCall?: (data: Partial<Omit<CallRequest, 'id'>>) => void;
   onCancel: () => void;
   members: string[];
   users?: User[];
   isPrecheckTheme?: boolean;
+  isElecTheme?: boolean;
   currentUserName?: string;
   isDarkMode?: boolean;
 }
@@ -38,7 +40,7 @@ const roundTo15 = (t: string): string => {
 
 const isSpecialTime = (t: string) => !/^\d{2}:\d{2}$/.test(t);
 
-const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, members, users = [], isPrecheckTheme = false, currentUserName, isDarkMode = false }) => {
+const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall, onCancel, members, users = [], isPrecheckTheme = false, isElecTheme = false, currentUserName, isDarkMode = false }) => {
   const [customerId, setCustomerId] = useState(call.customerId);
   const [assignee, setAssignee] = useState(call.assignee);
   const [requester, setRequester] = useState(call.requester);
@@ -55,9 +57,10 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
 
-  // AP戻し / 回線受注 チェック状態
+  // AP戻し / 回線受注 / 電気受注 チェック状態
   const [isApReturn, setIsApReturn] = useState(false);
   const [isLineOrder, setIsLineOrder] = useState(false);
+  const [isElecOrder, setIsElecOrder] = useState(false);
 
   // call prop が外部（インライン編集など）で更新されたとき、フォームの state を同期する
   useEffect(() => {
@@ -74,6 +77,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     setIsDetailedTime(call.isDetailedTime ?? false);
     setIsApReturn(false);
     setIsLineOrder(false);
+    setIsElecOrder(false);
   }, [call.id, call.customerId, call.assignee, call.requester, call.listType, call.rank, call.dateTime, call.notes, call.emoji, call.isStrict, call.isDetailedTime]);
 
   const today = useMemo(() => {
@@ -195,18 +199,41 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     }
   };
 
-  // AP戻し時は通常ランク選択肢、回線受注時は前確ランク選択肢、それ以外は元のテーマに従う
+  // 電気受注 チェック ON/OFF
+  const handleElecOrderChange = (checked: boolean) => {
+    setIsElecOrder(checked);
+    if (checked) {
+      setRank('ジライフ契確');
+      setAssignee(ELEC_ASSIGNEE_NAME);
+      if (currentUserName) setRequester(currentUserName);
+      setDate(today);
+      setTime('このあとOK');
+      setNotes(prev => '\n\n' + prev);
+      setEmoji('');
+    } else {
+      setRank(call.rank);
+      setAssignee(call.assignee);
+      setRequester(call.requester);
+      setDate(call.dateTime.split('T')[0]);
+      setTime(call.dateTime.split('T')[1]);
+      setNotes(call.notes);
+    }
+  };
+
+  // AP戻し時は通常ランク選択肢、回線受注時は前確ランク選択肢、電気受注時は電気ランク選択肢
   const effectiveIsPrecheckForRank = isLineOrder ? true : isApReturn ? false : isPrecheckTheme;
 
   const timeOptions = isPrecheckTheme ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
   const rankOptionsForEdit = useMemo(() => {
-    const options = effectiveIsPrecheckForRank ? PRECHECK_RANK_OPTIONS : NON_PRECHECK_RANK_OPTIONS;
+    const options = isElecOrder || isElecTheme ? ELEC_RANK_OPTIONS
+      : effectiveIsPrecheckForRank ? PRECHECK_RANK_OPTIONS
+      : NON_PRECHECK_RANK_OPTIONS;
     if (!options.includes(rank)) {
       return [rank, ...options];
     }
     return options;
-  }, [effectiveIsPrecheckForRank, rank]);
+  }, [effectiveIsPrecheckForRank, isElecOrder, isElecTheme, rank]);
 
   // listType に対応する商材キーを返す
   const requiredProduct = useMemo((): string | null => {
@@ -220,7 +247,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
   // AP戻し・回線受注チェック時は担当者選択肢を拡張（回線前確 or 元の依頼者が含まれるよう）
   // 通常時はリスト種別の商材でフィルタリング
   const assigneeOptions = useMemo(() => {
-    if (isApReturn || isLineOrder) {
+    if (isApReturn || isLineOrder || isElecOrder) {
       const base = [...members];
       if (isApReturn && call.requester && !base.includes(call.requester)) {
         base.push(call.requester);
@@ -228,12 +255,20 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       if (isLineOrder && !base.includes(PRECHECKER_ASSIGNEE_NAME)) {
         base.push(PRECHECKER_ASSIGNEE_NAME);
       }
+      if (isElecOrder && !base.includes(ELEC_ASSIGNEE_NAME)) {
+        base.push(ELEC_ASSIGNEE_NAME);
+      }
       return base;
     }
     // 担当者が回線前確の場合は回線前確を選択肢の先頭に固定（商材フィルタを適用しない）
     if (call.assignee === PRECHECKER_ASSIGNEE_NAME) {
       const base = members.filter(name => name !== PRECHECKER_ASSIGNEE_NAME);
       return [PRECHECKER_ASSIGNEE_NAME, ...base];
+    }
+    // 担当者が電気契確の場合も同様
+    if (call.assignee === ELEC_ASSIGNEE_NAME) {
+      const base = members.filter(name => name !== ELEC_ASSIGNEE_NAME);
+      return [ELEC_ASSIGNEE_NAME, ...base];
     }
     // 商材フィルタリング
     if (requiredProduct && users.length > 0) {
@@ -248,13 +283,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
       });
     }
     return [...members];
-  }, [members, users, isApReturn, isLineOrder, call.assignee, call.requester, requiredProduct]);
+  }, [members, users, isApReturn, isLineOrder, isElecOrder, call.assignee, call.requester, requiredProduct]);
 
   // listType が変わったとき、現在の担当者がフィルタ後リストにいなければ先頭に切り替え
   // ただし担当者が回線前確の場合は自動切り替えしない（AP戻しチェック時のみ切り替わる）
   useEffect(() => {
-    if (isApReturn || isLineOrder) return;
-    if (assignee === PRECHECKER_ASSIGNEE_NAME) return;
+    if (isApReturn || isLineOrder || isElecOrder) return;
+    if (assignee === PRECHECKER_ASSIGNEE_NAME || assignee === ELEC_ASSIGNEE_NAME) return;
     if (assigneeOptions.length > 0 && !assigneeOptions.includes(assignee)) {
       setAssignee(assigneeOptions[0]);
     }
@@ -273,6 +308,24 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
         return;
+    }
+
+    // 電気受注チェック時：元案件は変更せず新規作成
+    if (isElecOrder && onCreateCall) {
+      onCreateCall({
+        customerId,
+        assignee,
+        requester,
+        listType,
+        rank,
+        dateTime: `${date}T${time}`,
+        notes,
+        emoji,
+        isStrict,
+        isDetailedTime,
+        absenceCount: 0,
+      });
+      return;
     }
 
     onSave({
@@ -294,13 +347,13 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
     });
   };
   
-  const mainColorClassLight = isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
-  const mainRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
-  const mainBorderClass = isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
-  const mainBgClass = isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
-  const mainHoverBgClass = isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
-  const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const checkboxColor = isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
+  const mainColorClassLight = isElecTheme ? 'text-[#d9619e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const mainRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainBorderClass = isElecTheme ? 'focus:border-[#d9619e]' : isPrecheckTheme ? 'focus:border-[#118f82]' : 'focus:border-[#0193be]';
+  const mainBgClass = isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
+  const mainHoverBgClass = isElecTheme ? 'hover:bg-[#b0336b]' : isPrecheckTheme ? 'hover:bg-[#0e7268]' : 'hover:bg-[#017a9a]';
+  const mainColorClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const checkboxColor = isElecTheme ? 'accent-[#d9619e]' : isPrecheckTheme ? 'accent-[#118f82]' : 'accent-[#0193be]';
 
   // カレンダーポップアップ JSX
   const CalendarPopup = isCalendarOpen && calendarPosition ? createPortal(
