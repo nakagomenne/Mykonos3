@@ -4,7 +4,7 @@ import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditCha
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon } from './components/icons';
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -113,8 +113,8 @@ const App: React.FC = () => {
   const [searchResultsList, setSearchResultsList] = useState<SearchResultItem[]>([]);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [formResetCounter, setFormResetCounter] = useState(0);
-  const [viewMode, setViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
-  const [displayViewMode, setDisplayViewMode] = useState<'mine' | 'others' | 'precheck'>('mine');
+  const [viewMode, setViewMode] = useState<'mine' | 'others' | 'precheck' | 'elec'>('mine');
+  const [displayViewMode, setDisplayViewMode] = useState<'mine' | 'others' | 'precheck' | 'elec'>('mine');
   const [isTabTransitioning, setIsTabTransitioning] = useState(false);
   const [announcement, setAnnouncement] = useState<string>('');
   const [announcementExpiresAt, setAnnouncementExpiresAt] = useState<string>('');
@@ -1074,7 +1074,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
   };
   
-  const handleViewModeChange = (newMode: 'mine' | 'others' | 'precheck', memberToSelect?: string) => {
+  const handleViewModeChange = (newMode: 'mine' | 'others' | 'precheck' | 'elec', memberToSelect?: string) => {
     // 同じモードへの切り替えでも、メンバー指定がある場合はタブ選択だけ行う
     if (newMode === viewMode) {
       if (newMode === 'others' && memberToSelect) {
@@ -1097,6 +1097,11 @@ const App: React.FC = () => {
         ...prev,
         [PRECHECKER_ASSIGNEE_NAME]: now,
       }));
+    } else if (viewMode === 'elec') {
+      setLastViewedTimestamps(prev => ({
+        ...prev,
+        [ELEC_ASSIGNEE_NAME]: now,
+      }));
     }
 
     // 入るタブの既読タイムスタンプを更新（NEW バッジをクリア）
@@ -1109,6 +1114,11 @@ const App: React.FC = () => {
       setLastViewedTimestamps(prev => ({
         ...prev,
         [PRECHECKER_ASSIGNEE_NAME]: now,
+      }));
+    } else if (newMode === 'elec') {
+      setLastViewedTimestamps(prev => ({
+        ...prev,
+        [ELEC_ASSIGNEE_NAME]: now,
       }));
     }
   
@@ -1848,7 +1858,11 @@ const App: React.FC = () => {
   };
 
   const memberNames = users.map(u => u.name);
-  const assigneesForEditing = currentUser?.isLinePrechecker ? [...new Set([...memberNames, PRECHECKER_ASSIGNEE_NAME])] : memberNames;
+  const assigneesForEditing = [
+    ...memberNames,
+    ...(currentUser?.isLinePrechecker ? [PRECHECKER_ASSIGNEE_NAME] : []),
+    ...(currentUser?.isElecChecker ? [ELEC_ASSIGNEE_NAME] : []),
+  ].filter((v, i, a) => a.indexOf(v) === i);
 
   const statusOrder: Record<CallStatus, number> = {
     '完了': 0,
@@ -1874,6 +1888,7 @@ const App: React.FC = () => {
 
   // 回線前確コンテキストかどうか（ソートに使用するため早期定義）
   const isPrecheckContextForSort = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
+  const isElecContextForSort = viewMode === 'elec' || (viewMode === 'others' && selectedMember === ELEC_ASSIGNEE_NAME);
 
   const sortedCalls = [...calls].sort((a, b) => {
     const orderA = statusOrder[a.status] ?? 99;
@@ -1895,8 +1910,8 @@ const App: React.FC = () => {
       return timePriorityDiff;
     }
 
-    // 日時が同じ場合：回線前確は作成日時が古い順、それ以外はランク順
-    if (isPrecheckContextForSort) {
+    // 日時が同じ場合：回線前確・電気契確は作成日時が古い順、それ以外はランク順
+    if (isPrecheckContextForSort || isElecContextForSort) {
       const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return tA - tB;
@@ -1932,12 +1947,17 @@ const App: React.FC = () => {
       return call.assignee === currentUser?.name;
     } else if (viewMode === 'precheck') {
       return call.assignee === PRECHECKER_ASSIGNEE_NAME;
+    } else if (viewMode === 'elec') {
+      return call.assignee === ELEC_ASSIGNEE_NAME;
     } else { // viewMode === 'others'
       if (call.assignee === currentUser?.name) {
         return false;
       }
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
         return call.assignee === PRECHECKER_ASSIGNEE_NAME;
+      }
+      if (selectedMember === ELEC_ASSIGNEE_NAME) {
+        return call.assignee === ELEC_ASSIGNEE_NAME;
       }
       // 「新規依頼」: previewMember プレビュー用（案件は非表示）
       if (selectedMember === '新規依頼') return false;
@@ -1966,6 +1986,16 @@ const App: React.FC = () => {
       return new Set(
         calls
           .filter(c => c.assignee === PRECHECKER_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt) > lastViewedDate)
+          .map(c => c.id)
+      );
+    }
+    if (viewMode === 'elec') {
+      const lastViewed = lastViewedTimestamps[ELEC_ASSIGNEE_NAME];
+      if (!lastViewed) return new Set(calls.filter(c => c.assignee === ELEC_ASSIGNEE_NAME).map(c => c.id));
+      const lastViewedDate = new Date(lastViewed);
+      return new Set(
+        calls
+          .filter(c => c.assignee === ELEC_ASSIGNEE_NAME && c.createdAt && new Date(c.createdAt) > lastViewedDate)
           .map(c => c.id)
       );
     }
@@ -2002,9 +2032,15 @@ const App: React.FC = () => {
     if (viewMode === 'precheck') {
       return PRECHECKER_ASSIGNEE_NAME;
     }
+    if (viewMode === 'elec') {
+      return ELEC_ASSIGNEE_NAME;
+    }
     if (viewMode === 'others') {
       if (selectedMember === PRECHECKER_ASSIGNEE_NAME) {
           return PRECHECKER_ASSIGNEE_NAME;
+      }
+      if (selectedMember === ELEC_ASSIGNEE_NAME) {
+          return ELEC_ASSIGNEE_NAME;
       }
       return selectedMember === '新規依頼' ? undefined : selectedMember;
     }
@@ -2013,7 +2049,9 @@ const App: React.FC = () => {
 
   const usersForForm = (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME)
       ? users.filter(u => u.isLinePrechecker)
-      : users;
+      : (viewMode === 'elec' || (viewMode === 'others' && selectedMember === ELEC_ASSIGNEE_NAME))
+        ? users.filter(u => u.isElecChecker)
+        : users;
 
   const unreadCountForMineTab = useMemo(() => {
     if (!currentUser) return 0;
@@ -2045,6 +2083,17 @@ const App: React.FC = () => {
 
     return precheckCalls.filter(call => 
         call.createdAt && new Date(call.createdAt) > lastViewedDate
+    ).length;
+  }, [calls, currentUser, lastViewedTimestamps]);
+
+  const unreadCountForElecTab = useMemo(() => {
+    if (!currentUser?.isElecChecker) return 0;
+    const lastViewed = lastViewedTimestamps[ELEC_ASSIGNEE_NAME];
+    const elecCalls = calls.filter(call => call.assignee === ELEC_ASSIGNEE_NAME);
+    if (!lastViewed) return elecCalls.length;
+    const lastViewedDate = new Date(lastViewed);
+    return elecCalls.filter(call =>
+      call.createdAt && new Date(call.createdAt) > lastViewedDate
     ).length;
   }, [calls, currentUser, lastViewedTimestamps]);
 
@@ -2113,13 +2162,16 @@ const App: React.FC = () => {
   // ヘッダー・フッターのテーマは displayViewMode ベース
   // （コンテンツのフェードと同期させるため）
   const isPrecheckModeActive = displayViewMode === 'precheck';
+  const isElecModeActive = displayViewMode === 'elec';
   const isMineModeActive = displayViewMode === 'mine';
-  const isDarkHeader = isPrecheckModeActive || isMineModeActive;
+  const isDarkHeader = isPrecheckModeActive || isMineModeActive || isElecModeActive;
 
   const isPrecheckContext = viewMode === 'precheck' || (viewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME);
   const isPrecheckTheme = viewMode === 'precheck';
+  const isElecContext = viewMode === 'elec' || (viewMode === 'others' && selectedMember === ELEC_ASSIGNEE_NAME);
+  const isElecTheme = viewMode === 'elec';
 
-  const headerBgClass = isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : (isDarkMode ? 'header-dark-fade border-b border-white/10' : 'header-white-fade border-b border-slate-200/80');
+  const headerBgClass = isElecModeActive ? 'header-gradient-pink' : isPrecheckModeActive ? 'header-gradient-teal' : isMineModeActive ? 'header-gradient-blue' : (isDarkMode ? 'header-dark-fade border-b border-white/10' : 'header-white-fade border-b border-slate-200/80');
   const headerTextClass = isDarkHeader ? 'text-white' : (isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]');
   
   const searchIconClass = isDarkHeader ? 'text-white/80 hover:text-white' : (isDarkMode ? 'text-[#0193be]/70 hover:text-[#0193be]' : 'text-[#0193be]/60 hover:text-[#0193be]');
@@ -2137,10 +2189,13 @@ const App: React.FC = () => {
   const footerClasses = isPrecheckModeActive 
     ? 'header-gradient-teal text-white border-white/20' 
     : isMineModeActive 
-    ? 'header-gradient-blue text-white border-white/20' 
+    ? 'header-gradient-blue text-white border-white/20'
+    : isElecModeActive
+    ? 'header-gradient-pink text-white border-white/20'
     : (isDarkMode ? 'header-dark-fade text-[#0193be]/80 border-white/10' : 'header-white-fade text-[#0193be]/80 border-slate-200');
   
-  const contentContainerClasses = currentUser.isLinePrechecker
+  const hasExtraTab = !!(currentUser.isLinePrechecker || currentUser.isElecChecker);
+  const contentContainerClasses = hasExtraTab
     ? `transition-colors duration-500 ${isDarkMode ? 'bg-[#1a1f2e] border-white/8' : 'bg-white/95'} backdrop-blur-sm shadow-md border-x border-b ${isDarkMode ? 'border-white/8' : 'border-slate-200/80'} rounded-b-xl ${
         viewMode === 'mine' ? 'rounded-tr-xl' : (viewMode === 'others' ? 'rounded-tl-xl' : '')
       }`
@@ -2164,6 +2219,8 @@ const App: React.FC = () => {
           <div className="absolute inset-0 header-gradient-blue transition-opacity duration-500" style={{ opacity: displayViewMode === 'mine' ? 1 : 0 }} />
           {/* teal（precheck） */}
           <div className="absolute inset-0 header-gradient-teal transition-opacity duration-500" style={{ opacity: displayViewMode === 'precheck' ? 1 : 0 }} />
+          {/* pink（elec） */}
+          <div className="absolute inset-0 header-gradient-pink transition-opacity duration-500" style={{ opacity: displayViewMode === 'elec' ? 1 : 0 }} />
           {/* グロー装飾（dark header 時） */}
           <div className="absolute inset-0 transition-opacity duration-500" style={{ opacity: isDarkHeader ? 0.15 : 0, background: 'radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.5) 0%, transparent 60%)' }} />
         </div>
@@ -2863,8 +2920,12 @@ const App: React.FC = () => {
         })()}
         <div>
           <nav className={`border-b-2 tab-nav ${isDarkMode ? 'border-white/10 tab-nav-dark' : 'border-slate-200/80 tab-nav-light'}`}>
-            {currentUser.isLinePrechecker ? (
-              <div className="grid grid-cols-3" role="tablist">
+            {(() => {
+              const hasPrecheck = !!currentUser.isLinePrechecker;
+              const hasElec = !!currentUser.isElecChecker;
+              const colCount = 2 + (hasPrecheck ? 1 : 0) + (hasElec ? 1 : 0);
+              return (
+              <div className={`grid grid-cols-${colCount}`} role="tablist">
                   {/* 自分タブ */}
                   <button
                     type="button"
@@ -2891,7 +2952,8 @@ const App: React.FC = () => {
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
 
-                  {/* 回線前確タブ */}
+                  {/* 回線前確タブ（権限ありのみ） */}
+                  {hasPrecheck && (
                   <button
                     type="button"
                     role="tab"
@@ -2915,51 +2977,37 @@ const App: React.FC = () => {
                     <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-500 ${viewMode === 'precheck' ? 'opacity-100' : 'opacity-0'}`}
                       style={{ background: 'linear-gradient(90deg, #118f82, #0d7a6f)' }} />
                   </button>
+                  )}
 
-                  {/* 自分以外タブ */}
+                  {/* 電気契確タブ（権限ありのみ） */}
+                  {hasElec && (
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={viewMode === 'others'}
-                    title="自分以外の案件一覧"
-                    onClick={() => handleViewModeChange('others')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tr-xl ${
-                        viewMode === 'others'
-                            ? 'text-[#0193be]'
-                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
-                    }`}
-                  >
-                    <UsersGroupIcon className={`h-6 w-auto transition-transform duration-500 ${viewMode === 'others' ? 'scale-110' : ''}`} />
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-500 ${viewMode === 'others' ? 'opacity-100' : 'opacity-0'}`}
-                      style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
-                  </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2" role="tablist">
-                  {/* 自分タブ */}
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={viewMode === 'mine'}
-                    title="自身の案件一覧"
-                    onClick={() => handleViewModeChange('mine')}
-                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0193be] rounded-tl-xl ${
-                        viewMode === 'mine'
-                            ? 'text-[#0193be]'
-                            : `text-slate-400 hover:text-[#0193be] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
+                    aria-selected={viewMode === 'elec'}
+                    title="電気契確"
+                    onClick={() => handleViewModeChange('elec')}
+                    className={`relative flex justify-center items-center py-3 font-medium transition-all duration-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#d9619e] ${
+                        viewMode === 'elec'
+                            ? 'text-[#d9619e]'
+                            : `text-slate-400 hover:text-[#d9619e] ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-white/60'}`
                     }`}
                   >
                     <div className="relative">
-                      <UserIcon className={`w-6 h-6 transition-transform duration-500 ${viewMode === 'mine' ? 'scale-110' : ''}`} />
-                      {unreadCountForMineTab > 0 && (
-                        <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white">
-                          {unreadCountForMineTab}
+                      {/* ◇ ダイヤモンドアイコン（SVGインライン） */}
+                      <svg className={`w-6 h-6 transition-transform duration-500 ${viewMode === 'elec' ? 'scale-110' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2 L22 12 L12 22 L2 12 Z" />
+                      </svg>
+                      {unreadCountForElecTab > 0 && (
+                        <span className="absolute -top-1.5 -right-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
+                          {unreadCountForElecTab}
                         </span>
                       )}
                     </div>
-                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-500 ${viewMode === 'mine' ? 'opacity-100' : 'opacity-0'}`}
-                      style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
+                    <span className={`absolute bottom-[-2px] left-0 right-0 h-[4px] rounded-t-full transition-all duration-500 ${viewMode === 'elec' ? 'opacity-100' : 'opacity-0'}`}
+                      style={{ background: 'linear-gradient(90deg, #d9619e, #b0336b)' }} />
                   </button>
+                  )}
 
                   {/* 自分以外タブ */}
                   <button
@@ -2979,7 +3027,8 @@ const App: React.FC = () => {
                       style={{ background: 'linear-gradient(90deg, #0193be, #0277a8)' }} />
                   </button>
               </div>
-            )}
+              );
+            })()}
           </nav>
           
           <div className={contentContainerClasses}>
@@ -3003,7 +3052,8 @@ const App: React.FC = () => {
                 )}
 
                 <div className="my-4">
-                  {displayViewMode === 'precheck' || (displayViewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME) ? (
+                  {displayViewMode === 'precheck' || (displayViewMode === 'others' && selectedMember === PRECHECKER_ASSIGNEE_NAME)
+                     || displayViewMode === 'elec' || (displayViewMode === 'others' && selectedMember === ELEC_ASSIGNEE_NAME) ? (
                       null
                   ) : displayViewMode === 'mine' ? (() => {
                       const mineStatus = currentUserWithData?.availabilityStatus || '受付可';
@@ -3406,10 +3456,10 @@ const App: React.FC = () => {
                           return !prev;
                         });
                       }}
-                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-500 ${
+                      className={`w-full flex items-center justify-between p-4 font-semibold text-left focus:outline-none focus:ring-2 focus:ring-offset-0 ${isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'} transition-colors duration-500 ${
                         isFormVisible
-                          ? `${isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
-                          : `${isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
+                          ? `${isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'} text-white rounded-t-lg`
+                          : `${isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]'} rounded-lg ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`
                       }`}
                       aria-expanded={isFormVisible}
                       aria-controls="new-request-form"
@@ -3433,7 +3483,7 @@ const App: React.FC = () => {
                             users={usersForForm}
                             formResetCounter={formResetCounter}
                             enableProductFiltering={false}
-                            isPrecheckMode={isPrecheckContext}
+                            isPrecheckMode={isPrecheckContext || isElecContext}
                             isPrecheckTheme={isPrecheckTheme}
                             prefilledDate={prefilledRequestDate}
                             prefilledAssignee={prefilledAssignee}
@@ -3519,7 +3569,7 @@ const App: React.FC = () => {
                                 }
                               }}
                               enableProductFiltering={true}
-                              isPrecheckTheme={isPrecheckTheme}
+                              isPrecheckTheme={isPrecheckTheme || isElecTheme}
                               prefilledDate={prefilledRequestDate}
                               prefilledAssignee={prefilledAssignee}
                               prefilledRequester={prefilledRequester}
@@ -3693,8 +3743,27 @@ const App: React.FC = () => {
                 ) : (
                   <CallList 
                     calls={filteredCalls}
-                    selectedMember={displayViewMode === 'mine' ? currentUser.name : (displayViewMode === 'precheck' ? PRECHECKER_ASSIGNEE_NAME : selectedMember)}
+                    selectedMember={
+                      displayViewMode === 'mine' ? currentUser.name
+                      : displayViewMode === 'precheck' ? PRECHECKER_ASSIGNEE_NAME
+                      : displayViewMode === 'elec' ? ELEC_ASSIGNEE_NAME
+                      : selectedMember
+                    }
                     onUpdateCall={handleUpdateCall}
+                    onCreateCall={(data) => {
+                      const now = new Date().toISOString();
+                      _createCall({
+                        customerId: data.customerId ?? '',
+                        requester: data.requester ?? currentUser.name,
+                        assignee: data.assignee ?? ELEC_ASSIGNEE_NAME,
+                        listType: data.listType ?? '回線',
+                        rank: data.rank ?? 'ジライフ契確',
+                        dateTime: data.dateTime ?? `${now.split('T')[0]}Tこのあと OK`,
+                        notes: data.notes ?? '',
+                        emoji: data.emoji ?? '',
+                        absenceCount: data.absenceCount ?? 0,
+                      });
+                    }}
                     onSelectCall={handleSelectCall}
                     highlightedCallId={highlightedCallId}
                     recentlyUpdatedCallId={recentlyUpdatedCallId}
@@ -3703,6 +3772,7 @@ const App: React.FC = () => {
                     members={assigneesForEditing}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
+                    isElecTheme={isElecTheme}
                     currentUser={currentUser}
                     normalDuplicateIds={normalDuplicateIds}
                     precheckDuplicateIds={precheckDuplicateIds}
@@ -3722,6 +3792,7 @@ const App: React.FC = () => {
           <div className="absolute inset-0 header-dark-fade transition-opacity duration-500" style={{ opacity: displayViewMode === 'others' && isDarkMode ? 1 : 0 }} />
           <div className="absolute inset-0 header-gradient-blue transition-opacity duration-500" style={{ opacity: displayViewMode === 'mine' ? 1 : 0 }} />
           <div className="absolute inset-0 header-gradient-teal transition-opacity duration-500" style={{ opacity: displayViewMode === 'precheck' ? 1 : 0 }} />
+          <div className="absolute inset-0 header-gradient-pink transition-opacity duration-500" style={{ opacity: displayViewMode === 'elec' ? 1 : 0 }} />
         </div>
         <p className="relative font-inconsolata">&copy; {new Date().getFullYear()} Mykonos. All rights reserved.</p>
       </footer>
@@ -3751,7 +3822,7 @@ const App: React.FC = () => {
         isDeletedSearch={isSearchDeleted}
         isConfirmingDuplicate={!!pendingDuplicate}
         onConfirmDuplicate={handleConfirmDuplicateCreation}
-        isPrecheckTheme={isPrecheckTheme}
+        isPrecheckTheme={isPrecheckTheme || isElecTheme}
         users={users}
       />
 

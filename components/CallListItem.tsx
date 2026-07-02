@@ -81,7 +81,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   }, [isRankDropdownOpen, isAbsenceDropdownOpen]);
 
   const { liStyle, dateTimeStyle, absenceCounterClass } = useMemo((): { liStyle: React.CSSProperties; dateTimeStyle: React.CSSProperties; absenceCounterClass: string; } => {
-    const defaultMainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+    const defaultMainTextClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
     if (call.status === '完了') {
       return {
         liStyle: {
@@ -296,9 +296,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
   // 全ランクで留守ボタン・カウンターを表示（完了案件は除く）
   const showAbsenceCount = !isCompleted;
 
-  const mainTextClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-  const mainRingClass = isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
-  const focusRingClass = isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const mainTextClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainRingClass = isElecTheme ? 'ring-[#d9619e]' : isPrecheckTheme ? 'ring-[#118f82]' : 'ring-[#0193be]';
+  const focusRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
 
   const liClasses = [
     'relative', 'transition-all', 'duration-200', 'rounded-lg',
@@ -357,8 +357,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
 
     const updateData: Partial<Omit<CallRequest, 'id'>> = { absenceCount: newCount, rank: newRank };
 
-    // 回線前確タブで0→1になるとき、架電時間を自動で「待機中」に変更
-    if (isPrecheckTheme && currentCount === 0) {
+    // 回線前確・電気契確タブで0→1になるとき、架電時間を自動で「待機中」に変更
+    if ((isPrecheckTheme || isElecTheme) && currentCount === 0) {
       const datePart = call.dateTime.split('T')[0];
       updateData.dateTime = `${datePart}T待機中`;
     }
@@ -433,7 +433,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           {/* 左端の縦帯 */}
           <div style={{
             position: 'absolute', top: 0, left: 0, bottom: 0, width: 4,
-            background: isPrecheckTheme ? '#118f82' : '#0193be',
+            background: isElecTheme ? '#d9619e' : isPrecheckTheme ? '#118f82' : '#0193be',
             borderRadius: '8px 0 0 8px',
             zIndex: 11,
             pointerEvents: 'none',
@@ -441,7 +441,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
           {/* NEW バッジ */}
           <div style={{
             position: 'absolute', top: 4, left: 6,
-            background: isPrecheckTheme ? '#118f82' : '#0193be',
+            background: isElecTheme ? '#d9619e' : isPrecheckTheme ? '#118f82' : '#0193be',
             color: 'white',
             fontSize: 9,
             fontWeight: 700,
@@ -460,7 +460,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
               <input
                   type="checkbox"
                   id={`call-item-checkbox-${call.id}`}
-                  className={`appearance-none cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 ${isPrecheckTheme ? 'checked:bg-[#118f82] focus:ring-[#118f82]' : 'checked:bg-[#0193be] focus:ring-[#0193be]'} disabled:opacity-50`}
+                  className={`appearance-none cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors checked:border-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 ${isElecTheme ? 'checked:bg-[#d9619e] focus:ring-[#d9619e]' : isPrecheckTheme ? 'checked:bg-[#118f82] focus:ring-[#118f82]' : 'checked:bg-[#0193be] focus:ring-[#0193be]'} disabled:opacity-50`}
                   checked={call.status === '完了'}
                   onClick={handleCheckboxClick}
                   onChange={handleCheckboxChange}
@@ -501,7 +501,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
               )}
           </div>
 
-          {isPrecheckTheme && (
+          {(isPrecheckTheme || isElecTheme) && (
             <div className="w-28 flex-shrink-0 flex items-center gap-1 group">
               <button
                 onClick={(e) => handleEditClick(e, 'applicationNumber')}
@@ -538,7 +538,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
              </button>
           </div>
 
-          {!isPrecheckTheme && (
+          {!isPrecheckTheme && !isElecTheme && (
             <div className={`w-12 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
               <button onClick={(e) => handleEditClick(e, 'listType')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="種別を編集">
                 {call.listType}
@@ -730,7 +730,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
               )}
             </div>
 
-          {isPrecheckTheme && (
+          {isPrecheckTheme && !isElecTheme && (
             <div className="w-14 flex-shrink-0 flex items-center justify-center">
               {call.imported ? (
                 <button
@@ -760,7 +760,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             </div>
           )}
 
-          {!isPrecheckTheme && (
+          {!isPrecheckTheme && !isElecTheme && (
             <div className={`flex-1 min-w-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
               <button 
                 onClick={(e) => {
@@ -777,16 +777,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             </div>
           )}
 
-          {isPrecheckTheme && (
+          {(isPrecheckTheme || isElecTheme) && (
             <div className="w-20 flex-shrink-0 flex items-center justify-center">
               {call.prechecker ? (
                 <button
                   onClick={handlePrecheckerClick}
-                  disabled={!hasPrecheckPermission || isCompleted}
+                  disabled={!(hasPrecheckPermission || hasElecPermission) || isCompleted}
                   className={`px-2 py-1 text-xs font-medium rounded transition ${
-                       !hasPrecheckPermission || isCompleted ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
+                       !(hasPrecheckPermission || hasElecPermission) || isCompleted ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
                   }`}
-                  title={hasPrecheckPermission ? "クリックして変更/解除" : ""}
+                  title={(hasPrecheckPermission || hasElecPermission) ? "クリックして変更/解除" : ""}
                 >
                   {call.prechecker}
                 </button>
@@ -794,9 +794,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                 <div className="relative h-5 w-5">
                   <button
                     className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
+                        isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={!hasPrecheckPermission || isCompleted}
+                    disabled={!(hasPrecheckPermission || hasElecPermission) || isCompleted}
                     onClick={handlePrecheckerClick}
                     aria-label={`Mark precheck for call ${call.customerId}`}
                   />
@@ -835,10 +835,12 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
                   <CallEditForm 
                       call={call}
                       onSave={handleSaveFull}
+                      onCreateCall={handleCreateCallFromEdit}
                       onCancel={() => setIsEditing(false)}
                       members={members}
                       users={users}
                       isPrecheckTheme={isPrecheckTheme}
+                      isElecTheme={isElecTheme}
                       currentUserName={currentUser.name}
                       isDarkMode={isDarkMode}
                   />
@@ -855,7 +857,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onSelec
             targetRect={editingState.targetRect}
             members={members}
             users={users}
-            isPrecheckTheme={isPrecheckTheme}
+            isPrecheckTheme={isPrecheckTheme || isElecTheme}
         />,
         document.body
       )}

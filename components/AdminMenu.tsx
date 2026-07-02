@@ -61,6 +61,7 @@ const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: bool
     const [isAdmin, setIsAdmin] = useState(false);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
     const [isLinePrechecker, setIsLinePrechecker] = useState(false);
+    const [isElecChecker, setIsElecChecker] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,7 +109,7 @@ const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: bool
             alert('ユーザー名を入力してください。');
             return;
         }
-        onAddUser({ name: name.trim(), furigana: furigana.trim() || undefined, profilePicture, availableProducts, isAdmin, isSuperAdmin, isLinePrechecker });
+        onAddUser({ name: name.trim(), furigana: furigana.trim() || undefined, profilePicture, availableProducts, isAdmin, isSuperAdmin, isLinePrechecker, isElecChecker });
     };
 
     return createPortal(
@@ -222,6 +223,15 @@ const AddUserModal: React.FC<NewUserModalProps & { currentUserIsSuperAdmin: bool
                                     className="h-4 w-4 rounded border-slate-300 text-[#0193be] focus:ring-[#0193be]"
                                 />
                                 回線前確者
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={isElecChecker}
+                                    onChange={(e) => setIsElecChecker(e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-[#d9619e] focus:ring-[#d9619e]"
+                                />
+                                電気契確者
                             </label>
                         </div>
                          {isSuperAdmin && <p className="text-xs text-slate-500 mt-2">SAは自動的に管理者権限を持ちます。</p>}
@@ -400,6 +410,10 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     const handleToggleLinePrechecker = (name: string) => {
       setLocalUsers(prev => prev.map(u => u.name === name ? { ...u, isLinePrechecker: !u.isLinePrechecker } : u));
+    };
+
+    const handleToggleElecChecker = (name: string) => {
+      setLocalUsers(prev => prev.map(u => u.name === name ? { ...u, isElecChecker: !u.isElecChecker } : u));
     };
     
     const handleSetProfilePicture = (userName: string, imageDataUrl: string | null) => {
@@ -879,6 +893,15 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                                   className="h-4 w-4 rounded border-slate-300 text-[#0193be] focus:ring-[#0193be] focus:ring-offset-1"
                                                               />
                                                               回線前確者
+                                                          </label>
+                                                          <label className="flex items-center gap-2 cursor-pointer hover:text-[#d9619e]">
+                                                              <input
+                                                                  type="checkbox"
+                                                                  checked={!!user.isElecChecker}
+                                                                  onChange={() => handleToggleElecChecker(user.name)}
+                                                                  className="h-4 w-4 rounded border-slate-300 text-[#d9619e] focus:ring-[#d9619e] focus:ring-offset-1"
+                                                              />
+                                                              電気契確者
                                                           </label>
                                                         </div>
                                                         <div className="flex items-center gap-1">

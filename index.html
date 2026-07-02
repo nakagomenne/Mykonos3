@@ -193,6 +193,15 @@
     --grad-c2: #0d7a6f;
     --grad-c3: #0a6560;
   }
+  .header-gradient-pink {
+    --grad-c1: #d9619e;
+    --grad-c2: #b0336b;
+    --grad-c3: #8f1f50;
+    background: linear-gradient(135deg, var(--grad-c1) 0%, var(--grad-c2) 60%, var(--grad-c3) 100%);
+    transition: --grad-c1 0.5s cubic-bezier(0.4,0,0.2,1),
+                --grad-c2 0.5s cubic-bezier(0.4,0,0.2,1),
+                --grad-c3 0.5s cubic-bezier(0.4,0,0.2,1);
+  }
 
   /* white/95 ← → gradient 切り替えもフェードで */
   .header-white-fade {

@@ -2,36 +2,66 @@ import React, { useState } from 'react';
 import { CallRequest, User } from '../types';
 import CallListItem from './CallListItem';
 import { CalendarIcon } from './icons';
-import { PRECHECKER_ASSIGNEE_NAME } from '../constants';
+import { PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_TRACKING_RANKS } from '../constants';
 
 interface CallListProps {
   calls: CallRequest[];
   selectedMember: string | undefined;
   onUpdateCall: (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => void;
+  onCreateCall?: (data: Partial<Omit<CallRequest, 'id'>>) => void;
   onSelectCall: (call: CallRequest) => void;
   highlightedCallId: string | null;
   recentlyUpdatedCallId?: string | null;
   recentlyAddedCallId?: string | null;
-  /** mine / precheck タブで未確認の新着案件IDセット */
+  /** mine / precheck / elec タブで未確認の新着案件IDセット */
   newCallIds?: Set<string>;
   members: string[];
   users: User[];
   isPrecheckTheme?: boolean;
+  isElecTheme?: boolean;
   currentUser: User;
   normalDuplicateIds: Set<string>;
   precheckDuplicateIds: Set<string>;
   isDarkMode?: boolean;
 }
 
-const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', onUpdateCall, onSelectCall, highlightedCallId, recentlyUpdatedCallId = null, recentlyAddedCallId = null, newCallIds, members, users, isPrecheckTheme = false, currentUser, normalDuplicateIds, precheckDuplicateIds, isDarkMode = false }) => {
+const CallList: React.FC<CallListProps> = ({
+  calls,
+  selectedMember = '全体',
+  onUpdateCall,
+  onCreateCall,
+  onSelectCall,
+  highlightedCallId,
+  recentlyUpdatedCallId = null,
+  recentlyAddedCallId = null,
+  newCallIds,
+  members,
+  users,
+  isPrecheckTheme = false,
+  isElecTheme = false,
+  currentUser,
+  normalDuplicateIds,
+  precheckDuplicateIds,
+  isDarkMode = false,
+}) => {
   const [hideCompleted, setHideCompleted] = useState(true);
+  const [hideTracking, setHideTracking] = useState(false);
 
-  if (calls.length === 0) {
-    const mainColorClass = isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
-    const mainColorClass60 = isPrecheckTheme ? 'text-[#118f82]/60' : 'text-[#0193be]/60';
-    const mainColorClass80 = isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const mainColor = isElecTheme ? '#d9619e' : isPrecheckTheme ? '#118f82' : '#0193be';
+  const mainColorClass = isElecTheme ? 'text-[#d9619e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
+  const mainColorClass60 = isElecTheme ? 'text-[#d9619e]/60' : isPrecheckTheme ? 'text-[#118f82]/60' : 'text-[#0193be]/60';
+  const mainColorClass80 = isElecTheme ? 'text-[#d9619e]/80' : isPrecheckTheme ? 'text-[#118f82]/80' : 'text-[#0193be]/80';
+  const focusRingClass = isElecTheme ? 'focus:ring-[#d9619e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]';
+  const activeBgClass = isElecTheme ? 'bg-[#d9619e]' : isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]';
 
+  // 電気契確タブの追跡案件フィルタリング
+  const filteredByTracking = isElecTheme && hideTracking
+    ? calls.filter(c => !ELEC_TRACKING_RANKS.includes(c.rank as any))
+    : calls;
+
+  if (filteredByTracking.length === 0 && calls.length === 0) {
     const isPrechecker = selectedMember === PRECHECKER_ASSIGNEE_NAME;
+    const isElecChecker = selectedMember === ELEC_ASSIGNEE_NAME;
 
     return (
       <div className={`text-center py-10 px-6 rounded-lg border-2 border-dashed ${isDarkMode ? 'bg-[#1a1f2e] border-slate-600' : 'bg-slate-50 border-slate-300'}`}>
@@ -39,54 +69,64 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
             <CalendarIcon />
         </div>
         <h3 className={`mt-2 text-lg font-medium ${mainColorClass}`}>
-          {isPrechecker
+          {isElecChecker
+            ? '電気契確依頼はありません'
+            : isPrechecker
             ? '回線前確依頼はありません'
             : selectedMember === '全体'
             ? '依頼はまだありません'
             : `${selectedMember}さんの依頼はありません`}
         </h3>
         <p className={`mt-1 text-sm ${mainColorClass80}`}>
-           {isPrechecker
+           {isElecChecker
+            ? '新しい依頼を作成してください。'
+            : isPrechecker
             ? '新しい依頼を作成してください。'
             : selectedMember === '全体'
             ? '上のフォームから新しい架電依頼を作成してください。'
             : '別のメンバーを選択するか、新しい依頼を作成してください。'}
         </p>
       </div>
-    )
+    );
   }
 
   const isAllMembersView = !selectedMember || selectedMember === '全体';
   const showRequesterColumn = !isAllMembersView && calls.some(call => call.requester !== call.assignee);
 
-  const displayedCalls = hideCompleted ? calls.filter(call => call.status !== '完了') : calls;
-  const hasCompletedCalls = calls.some(call => call.status === '完了');
-  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && calls.length > 0;
+  const displayedCalls = filteredByTracking.filter(call => !hideCompleted || call.status !== '完了');
+  const hasCompletedCalls = filteredByTracking.some(call => call.status === '完了');
+  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByTracking.length > 0;
+
+  const hasTrackingCalls = isElecTheme && calls.some(c => ELEC_TRACKING_RANKS.includes(c.rank as any));
 
   const listBg = isDarkMode
     ? 'linear-gradient(180deg, #0e1118 0%, #0b0e15 100%)'
     : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)';
 
+  const headerBg = isElecTheme
+    ? isDarkMode
+      ? 'bg-[#7c1a3f]/20 border-[#d9619e]/30'
+      : 'bg-gradient-to-r from-[#d9619e]/10 to-[#b0336b]/5 border-[#d9619e]/20'
+    : isPrecheckTheme
+    ? isDarkMode
+      ? 'bg-[#0d7a6f]/20 border-[#118f82]/30'
+      : 'bg-gradient-to-r from-[#0d7a6f]/10 to-[#118f82]/5 border-[#118f82]/20'
+    : isDarkMode
+    ? 'bg-[#0193be]/15 border-[#0193be]/25'
+    : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20';
+
   return (
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
         {/* Header */}
-        <div className={`px-4 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-          isPrecheckTheme
-            ? `${isDarkMode ? 'bg-[#0d7a6f]/20 border-[#118f82]/30' : 'bg-gradient-to-r from-[#0d7a6f]/10 to-[#118f82]/5 border-[#118f82]/20'} text-[#118f82]/70`
-            : `${isDarkMode ? 'bg-[#0193be]/15 border-[#0193be]/25' : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20'} text-[#0193be]/70`
-        }`}>
-            <div className="w-7 flex-shrink-0 flex justify-center">
+        <div className={`px-4 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
+            <div className="w-7 flex-shrink-0 flex justify-center gap-1">
               {hasCompletedCalls && (
                 <button
                   onClick={() => setHideCompleted(prev => !prev)}
                   title={hideCompleted ? '完了した案件を表示' : '完了した案件を非表示'}
                   aria-pressed={hideCompleted}
-                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${
-                    isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
-                  } ${
-                    hideCompleted
-                      ? isPrecheckTheme ? 'bg-[#118f82]' : 'bg-[#0193be]'
-                      : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                    hideCompleted ? activeBgClass : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
                   }`}
                 >
                   <span
@@ -99,15 +139,35 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
             </div>
             {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
             <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
-            {isPrecheckTheme && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
+            {(isPrecheckTheme || isElecTheme) && <div className="w-28 flex-shrink-0 text-center">申込番号</div>}
             <div className="w-24 flex-shrink-0 whitespace-nowrap text-center">日時</div>
-            {!isPrecheckTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
+            {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
             <div className="w-24 flex-shrink-0 text-center">ランク</div>
+            {/* 電気契確タブ: 追跡案件トグル */}
+            {isElecTheme && hasTrackingCalls && (
+              <div className="flex-shrink-0 flex items-center gap-1">
+                <button
+                  onClick={() => setHideTracking(prev => !prev)}
+                  title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
+                  aria-pressed={hideTracking}
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                    hideTracking ? activeBgClass : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                      hideTracking ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-[10px]">追跡非表示</span>
+              </div>
+            )}
             <div className="w-16 flex-shrink-0 text-center">留守</div>
             <div className="w-8 flex-shrink-0 text-center">★</div>
-            {isPrecheckTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
-            {!isPrecheckTheme && <div className="flex-1">備考</div>}
-            {isPrecheckTheme && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
+            {isPrecheckTheme && !isElecTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
+            {!isPrecheckTheme && !isElecTheme && <div className="flex-1">備考</div>}
+            {(isPrecheckTheme || isElecTheme) && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
             {showRequesterColumn && <div className="w-20 flex-shrink-0 text-center">依頼者</div>}
             <div className="w-8 flex-shrink-0" aria-hidden="true" />
         </div>
@@ -118,6 +178,7 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
                     key={call.id}
                     call={call}
                     onUpdateCall={onUpdateCall}
+                    onCreateCall={onCreateCall}
                     onSelectCall={onSelectCall}
                     selectedMember={selectedMember}
                     isHighlighted={highlightedCallId === call.id}
@@ -127,10 +188,12 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
                     members={members}
                     users={users}
                     isPrecheckTheme={isPrecheckTheme}
+                    isElecTheme={isElecTheme}
                     currentUser={currentUser}
-                    isDuplicate={call.assignee === PRECHECKER_ASSIGNEE_NAME
-                      ? precheckDuplicateIds.has(call.customerId.trim().toLowerCase())
-                      : normalDuplicateIds.has(call.customerId.trim().toLowerCase())
+                    isDuplicate={
+                      call.assignee === PRECHECKER_ASSIGNEE_NAME || call.assignee === ELEC_ASSIGNEE_NAME
+                        ? precheckDuplicateIds.has(call.customerId.trim().toLowerCase())
+                        : normalDuplicateIds.has(call.customerId.trim().toLowerCase())
                     }
                     isDarkMode={isDarkMode}
                 />
@@ -139,6 +202,11 @@ const CallList: React.FC<CallListProps> = ({ calls, selectedMember = '全体', o
         {allCallsHidden && (
             <div className="text-center py-8 px-6" style={{ background: listBg }}>
                 <p className={`text-sm ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>完了した依頼はすべて非表示になっています。</p>
+            </div>
+        )}
+        {isElecTheme && hideTracking && filteredByTracking.length < calls.length && (
+            <div className="text-center py-2 px-6" style={{ background: listBg }}>
+                <p className={`text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>追跡案件（{calls.length - filteredByTracking.length}件）は非表示中</p>
             </div>
         )}
     </div>

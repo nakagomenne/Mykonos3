@@ -25,7 +25,13 @@ export type Rank =
   | '賃ね前確'
   | 'IMP依頼'
   | '決済待ち'
-  | 'ET待ち';
+  | 'ET待ち'
+  | '電気前確'
+  | '電気申込中'
+  | '電気完了'
+  | 'ジライフ契確'
+  | 'ジライフ同意追跡'
+  | 'ジライフ決済追跡';
 
 export type CallStatus = '追客中' | '完了';
 
@@ -71,6 +77,7 @@ export interface User {
   furigana?: string;
   isAdmin: boolean;
   isLinePrechecker?: boolean;
+  isElecChecker?: boolean;
   isSuperAdmin?: boolean;
   createdAt: string;
   isLoggedInAsAdmin?: boolean;

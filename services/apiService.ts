@@ -68,6 +68,7 @@ function rowToUser(row: any): User {
     furigana:              row.furigana ?? undefined,
     isAdmin:               row.is_admin,
     isLinePrechecker:      row.is_line_prechecker,
+    isElecChecker:         row.is_elec_checker ?? false,
     isSuperAdmin:          row.is_super_admin,
     password:              row.password,
     profilePicture:        row.profile_picture ?? null,
@@ -91,6 +92,7 @@ function userToRow(data: Partial<User>): Record<string, any> {
   if (data.furigana           !== undefined) row.furigana            = data.furigana || null;
   if (data.isAdmin            !== undefined) row.is_admin            = data.isAdmin;
   if (data.isLinePrechecker   !== undefined) row.is_line_prechecker  = data.isLinePrechecker;
+  if (data.isElecChecker      !== undefined) row.is_elec_checker     = data.isElecChecker;
   if (data.isSuperAdmin       !== undefined) row.is_super_admin      = data.isSuperAdmin;
   if (data.password           !== undefined) row.password            = data.password;
   if (data.profilePicture     !== undefined) row.profile_picture     = data.profilePicture;
@@ -343,7 +345,7 @@ export async function createBulkCallRequests(
 /** 全ユーザーを取得する */
 // profile_picture を除いたカラム一覧（初期ロード高速化）
 const USER_COLUMNS_WITHOUT_PICTURE =
-  'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
+  'name,furigana,is_admin,is_line_prechecker,is_elec_checker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
 
 /** ユーザー一覧を取得する（profile_picture 除外で高速化） */
 export async function fetchUsers(): Promise<User[]> {
@@ -695,6 +697,7 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
                   furigana:             pick(newRow.furigana,                u.furigana),
                   isAdmin:              pick(newRow.is_admin,                u.isAdmin),
                   isLinePrechecker:     pick(newRow.is_line_prechecker,      u.isLinePrechecker),
+                  isElecChecker:        pick(newRow.is_elec_checker,         u.isElecChecker),
                   isSuperAdmin:         pick(newRow.is_super_admin,          u.isSuperAdmin),
                   password:             pick(newRow.password,                u.password),
                   // profile_picture はペイロードサイズ超過で欠落しやすいため既存値を優先

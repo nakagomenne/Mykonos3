@@ -402,7 +402,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           </div>
           <div className="md:col-span-2">
             <label className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>予定日時</label>
-            <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
+            <div className={`flex items-center border ${fieldBorder} rounded-md shadow-sm focus-within:ring-1 ${isElecTheme ? 'focus-within:ring-[#d9619e] focus-within:border-[#d9619e]' : isPrecheckTheme ? 'focus-within:ring-[#118f82] focus-within:border-[#118f82]' : 'focus-within:ring-[#0193be] focus-within:border-[#0193be]'} transition`}>
               <div ref={dateInputRef} className="relative w-1/2">
                 <button
                   type="button"
@@ -501,8 +501,8 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
           </div>
         </div>
 
-        {/* ── AP戻し / 回線受注 ── */}
-        {isPrecheckTheme && (
+        {/* ── AP戻し / 回線受注 / 電気受注チェック ── */}
+        {(isPrecheckTheme || isElecTheme) && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 cursor-pointer select-none`}>
               <input
@@ -511,12 +511,12 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
                 onChange={e => handleApReturnChange(e.target.checked)}
                 className="w-4 h-4 accent-[#0193be] cursor-pointer"
               />
-              <span className={`text-sm font-bold ${isDarkMode ? 'text-[#0193be]' : 'text-[#0193be]'}`}>AP戻し</span>
+              <span className={`text-sm font-bold text-[#0193be]`}>AP戻し</span>
             </label>
           </div>
         )}
 
-        {!isPrecheckTheme && listType === '回線' && (
+        {!isPrecheckTheme && !isElecTheme && listType === '回線' && (
           <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
             <label className={`flex items-center gap-2 cursor-pointer select-none`}>
               <input
@@ -527,6 +527,23 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCancel, mem
               />
               <span className={`text-sm font-bold text-[#118f82]`}>回線受注</span>
             </label>
+          </div>
+        )}
+
+        {isElecTheme && (
+          <div className={`border rounded-lg px-3 py-2.5 ${specialCheckBg}`}>
+            <label className={`flex items-center gap-2 cursor-pointer select-none`}>
+              <input
+                type="checkbox"
+                checked={isElecOrder}
+                onChange={e => handleElecOrderChange(e.target.checked)}
+                className="w-4 h-4 accent-[#d9619e] cursor-pointer"
+              />
+              <span className={`text-sm font-bold text-[#d9619e]`}>電気受注チェック</span>
+            </label>
+            {isElecOrder && (
+              <p className={`text-xs mt-1 ml-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>元案件は変更せず「電気契確」担当で新規作成します</p>
+            )}
           </div>
         )}
 
