@@ -328,7 +328,7 @@ const App: React.FC = () => {
           Notification.permission === 'granted' &&
           newCall.assignee === PRECHECKER_ASSIGNEE_NAME
         ) {
-          new Notification('🔔 回線前確 新規案件', {
+          new Notification('✨回線前確✨ 新規案件', {
             body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
             tag: `precheck_insert_${newCall.id}`,
             icon: '/favicon.ico',
@@ -342,7 +342,7 @@ const App: React.FC = () => {
           Notification.permission === 'granted' &&
           newCall.assignee === ELEC_ASSIGNEE_NAME
         ) {
-          new Notification('🔔 電気契確 新規案件', {
+          new Notification('⚡電気契確⚡ 新規案件', {
             body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
             tag: `elec_insert_${newCall.id}`,
             icon: '/favicon.ico',
@@ -934,7 +934,7 @@ const App: React.FC = () => {
                 const sessionKey = `notified_precheck_${call.id}_${timing}`;
                 if (!sessionStorage.getItem(sessionKey)) {
                   const label = timingToLabel(timing);
-                  new Notification('🔔 回線前確 架電時間のお知らせ', {
+                  new Notification('✨回線前確✨ 架電時間のお知らせ', {
                     body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
                     tag: `precheck_${call.id}_${timing}`,
                     icon: '/favicon.ico',
@@ -974,7 +974,7 @@ const App: React.FC = () => {
                 const sessionKey = `notified_elec_${call.id}_${timing}`;
                 if (!sessionStorage.getItem(sessionKey)) {
                   const label = timingToLabel(timing);
-                  new Notification('🔔 電気契確 架電時間のお知らせ', {
+                  new Notification('⚡電気契確⚡ 架電時間のお知らせ', {
                     body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
                     tag: `elec_${call.id}_${timing}`,
                     icon: '/favicon.ico',
