@@ -20,6 +20,10 @@ export interface NotificationSettings {
   precheckCallNotifyTimings: NotifyTiming[];
   /** 担当案件（自分以外が依頼者）が新規追加されたら即時通知するか */
   assigneeInstantNotify: boolean;
+  /** 電気契確案件が追加されたら即時通知するか（isElecChecker のみ有効） */
+  elecInstantNotify: boolean;
+  /** 電気契確の架電時間通知タイミング（複数選択可） */
+  elecCallNotifyTimings: NotifyTiming[];
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -28,6 +32,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   precheckInstantNotify: false,
   precheckCallNotifyTimings: ['exact'],
   assigneeInstantNotify: false,
+  elecInstantNotify: false,
+  elecCallNotifyTimings: ['exact'],
 };
 
 const TIMING_LABELS: Record<NotifyTiming, string> = {
@@ -50,6 +56,7 @@ interface Props {
   settings: NotificationSettings;
   onChange: (next: NotificationSettings) => void;
   isLinePrechecker: boolean;
+  isElecChecker: boolean;
   /** 通知権限の状態を変更する（OFF→ON 時に requestPermission を呼ぶ） */
   onRequestPermission: () => Promise<boolean>;
   notificationPermission: NotificationPermission | 'unsupported';
@@ -61,6 +68,7 @@ const NotificationSettingsModal: React.FC<Props> = ({
   settings,
   onChange,
   isLinePrechecker,
+  isElecChecker,
   onRequestPermission,
   notificationPermission,
 }) => {
@@ -98,6 +106,15 @@ const NotificationSettingsModal: React.FC<Props> = ({
     }
   };
 
+  const handleElecToggle = async () => {
+    if (!settings.elecInstantNotify) {
+      if (!await ensurePermission()) return;
+      onChange({ ...settings, elecInstantNotify: true });
+    } else {
+      onChange({ ...settings, elecInstantNotify: false });
+    }
+  };
+
   const toggleTiming = (timing: NotifyTiming) => {
     const current = settings.callNotifyTimings;
     const next = current.includes(timing)
@@ -114,6 +131,15 @@ const NotificationSettingsModal: React.FC<Props> = ({
       : [...current, timing];
     if (next.length === 0) return;
     onChange({ ...settings, precheckCallNotifyTimings: next });
+  };
+
+  const toggleElecTiming = (timing: NotifyTiming) => {
+    const current = settings.elecCallNotifyTimings ?? ['exact'];
+    const next = current.includes(timing)
+      ? current.filter(t => t !== timing)
+      : [...current, timing];
+    if (next.length === 0) return;
+    onChange({ ...settings, elecCallNotifyTimings: next });
   };
 
   const permissionBadge = () => {
@@ -316,6 +342,48 @@ const NotificationSettingsModal: React.FC<Props> = ({
                   selectedTimings={settings.precheckCallNotifyTimings ?? ['exact']}
                   onToggle={togglePrecheckTiming}
                   accentColor="#118f82"
+                />
+              </div>
+            </section>
+          )}
+
+          {/* ── 電気契確セクション（isElecChecker のみ） ── */}
+          {isElecChecker && (
+            <section className="border-t border-slate-100 pt-5 space-y-4">
+              {/* 即時通知トグル */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-[#2d5a9e]">電気契確 即時通知</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    電気契確案件が新規追加されたとき即座に通知します
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleElecToggle}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#2d5a9e] focus:ring-offset-2 ${
+                    settings.elecInstantNotify ? 'bg-[#2d5a9e]' : 'bg-slate-200'
+                  }`}
+                  role="switch"
+                  aria-checked={settings.elecInstantNotify}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      settings.elecInstantNotify ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* 架電時間通知チェックボックス */}
+              <div>
+                <p className="font-semibold text-[#2d5a9e]">電気契確 架電時間通知</p>
+                <p className="text-xs text-slate-500 mt-0.5 mb-1">電気契確案件の架電予定時間をお知らせします</p>
+                <TimingCheckboxes
+                  selectedTimings={settings.elecCallNotifyTimings ?? ['exact']}
+                  onToggle={toggleElecTiming}
+                  accentColor="#2d5a9e"
                 />
               </div>
             </section>

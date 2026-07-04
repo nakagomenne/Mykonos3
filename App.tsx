@@ -335,6 +335,20 @@ const App: React.FC = () => {
           });
         }
 
+        // 電気契確案件の即時通知
+        if (
+          settings.elecInstantNotify &&
+          user?.isElecChecker &&
+          Notification.permission === 'granted' &&
+          newCall.assignee === ELEC_ASSIGNEE_NAME
+        ) {
+          new Notification('🔔 電気契確 新規案件', {
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            tag: `elec_insert_${newCall.id}`,
+            icon: '/favicon.ico',
+          });
+        }
+
         // 担当案件の即時通知
         if (
           settings.assigneeInstantNotify &&
@@ -430,7 +444,7 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('mykonosNotificationSettings', JSON.stringify(notificationSettings));
     // callNotifyEnabled / precheckInstantNotify / assigneeInstantNotify のいずれかが ON なら notificationsEnabled も ON に同期
-    const anyEnabled = notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify || notificationSettings.assigneeInstantNotify;
+    const anyEnabled = notificationSettings.callNotifyEnabled || notificationSettings.precheckInstantNotify || notificationSettings.assigneeInstantNotify || notificationSettings.elecInstantNotify;
     if (anyEnabled && !notificationsEnabled) setNotificationsEnabled(true);
     if (!anyEnabled && notificationsEnabled) setNotificationsEnabled(false);
   }, [notificationSettings]);
@@ -826,8 +840,9 @@ const App: React.FC = () => {
 
     const hasNormalNotify  = notificationSettings.callNotifyEnabled;
     const hasPrecheckNotify = (notificationSettings.precheckCallNotifyTimings ?? []).length > 0 && currentUser.isLinePrechecker;
+    const hasElecNotify = (notificationSettings.elecCallNotifyTimings ?? []).length > 0 && !!currentUser.isElecChecker;
 
-    if (!hasNormalNotify && !hasPrecheckNotify) {
+    if (!hasNormalNotify && !hasPrecheckNotify && !hasElecNotify) {
       return;
     }
 
@@ -922,6 +937,46 @@ const App: React.FC = () => {
                   new Notification('🔔 回線前確 架電時間のお知らせ', {
                     body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
                     tag: `precheck_${call.id}_${timing}`,
+                    icon: '/favicon.ico',
+                  });
+                  sessionStorage.setItem(sessionKey, 'true');
+                }
+              }
+            });
+          } catch {
+            // invalid date などを無視
+          }
+        });
+      }
+
+      // ── 電気契確案件（elecCallNotifyTimings）──
+      if (hasElecNotify) {
+        const elecTimings = notificationSettings.elecCallNotifyTimings ?? ['exact'];
+        const elecCalls = calls.filter(
+          call => call.assignee === ELEC_ASSIGNEE_NAME && call.status === '追客中'
+        );
+
+        elecCalls.forEach(call => {
+          try {
+            const [, timePart] = call.dateTime.split('T');
+            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+              return;
+            }
+
+            const callDateTime = new Date(call.dateTime);
+
+            elecTimings.forEach(timing => {
+              const offsetSec = timingToSeconds(timing);
+              const notifyAt = callDateTime.getTime() - offsetSec * 1000;
+              const diff = now.getTime() - notifyAt;
+
+              if (diff >= 0 && diff < 30000) {
+                const sessionKey = `notified_elec_${call.id}_${timing}`;
+                if (!sessionStorage.getItem(sessionKey)) {
+                  const label = timingToLabel(timing);
+                  new Notification('🔔 電気契確 架電時間のお知らせ', {
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    tag: `elec_${call.id}_${timing}`,
                     icon: '/favicon.ico',
                   });
                   sessionStorage.setItem(sessionKey, 'true');
