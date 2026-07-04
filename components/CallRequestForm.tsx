@@ -180,9 +180,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
   const timeOptions = isPrecheckMode ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
 
   // 電気契確モード時はELECランク、前確モード時は前確ランク、それ以外は通常ランク
-  const rankOptionsToDisplay = isPrecheckMode
-    ? (isElecTheme ? ELEC_RANK_OPTIONS : PRECHECK_RANK_OPTIONS)
-    : NON_PRECHECK_RANK_OPTIONS;
+  const rankOptionsToDisplay = isElecTheme
+    ? ELEC_RANK_OPTIONS
+    : isPrecheckMode
+      ? PRECHECK_RANK_OPTIONS
+      : NON_PRECHECK_RANK_OPTIONS;
 
   useEffect(() => {
     if (prefilledDate) {
