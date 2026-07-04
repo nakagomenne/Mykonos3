@@ -4097,6 +4097,7 @@ const App: React.FC = () => {
         settings={notificationSettings}
         onChange={handleNotificationSettingsChange}
         isLinePrechecker={!!currentUser?.isLinePrechecker}
+        isElecChecker={!!currentUser?.isElecChecker}
         onRequestPermission={handleRequestNotificationPermission}
         notificationPermission={
           !('Notification' in window)
