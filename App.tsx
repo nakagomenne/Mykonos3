@@ -121,7 +121,7 @@ const App: React.FC = () => {
   const [announcementPriority, setAnnouncementPriority] = useState<string>('medium');
   const [workRules, setWorkRules] = useState<string>('');
   const [isWorkRulesModalOpen, setIsWorkRulesModalOpen] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>('ver 3.0.0');
+  const [appVersion, setAppVersion] = useState<string>(`ver ${__APP_VERSION__}`);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [scheduleOpenedFromAdmin, setScheduleOpenedFromAdmin] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
