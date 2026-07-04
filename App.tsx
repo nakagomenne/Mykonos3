@@ -869,21 +869,12 @@ const App: React.FC = () => {
 
     const checkCalls = () => {
       const now = new Date();
-      console.debug('[通知チェック]', {
-        now: now.toISOString(),
-        hasNormalNotify,
-        hasPrecheckNotify,
-        hasElecNotify,
-        permission: Notification.permission,
-        callsCount: calls.length,
-      });
 
       // ── 通常担当案件（自分の案件）──
       if (hasNormalNotify) {
         const myCalls = calls.filter(
           call => call.assignee === currentUser.name && call.status === '追客中'
         );
-        console.debug('[通知チェック] 自分の案件:', myCalls.map(c => ({ id: c.id, dateTime: c.dateTime, status: c.status })));
 
         myCalls.forEach(call => {
           try {
@@ -999,10 +990,11 @@ const App: React.FC = () => {
       }
     };
 
-    // calls が更新されたタイミングで1回チェック（DBポーリング廃止・負荷削減）
+    // 即時1回チェック + 30秒ごとに定期チェック
     checkCalls();
+    const intervalId = setInterval(checkCalls, 30000);
 
-    return () => {};
+    return () => clearInterval(intervalId);
   }, [notificationSettings, calls, currentUser]);
 
   const [searchSuggestIndex, setSearchSuggestIndex] = useState(-1);
