@@ -3502,8 +3502,8 @@ const App: React.FC = () => {
                             formResetCounter={formResetCounter}
                             enableProductFiltering={false}
                             isPrecheckMode={isPrecheckContext || isElecContext}
-                            isPrecheckTheme={isPrecheckTheme}
-                            isElecTheme={isElecTheme}
+                            isPrecheckTheme={isPrecheckContext}
+                            isElecTheme={isElecContext}
                             prefilledDate={prefilledRequestDate}
                             prefilledAssignee={prefilledAssignee}
                             prefilledRequester={prefilledRequester}
