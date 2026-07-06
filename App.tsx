@@ -2568,7 +2568,7 @@ const App: React.FC = () => {
                                         }
                                         setIsCommentPopupOpen(false);
                                       }}
-                                      className="w-full text-left p-2 pr-8 hover:bg-white/10 transition-colors"
+                                      className="w-full text-left p-2 hover:bg-white/10 transition-colors"
                                     >
                                       <div className="flex items-center gap-3 mb-1">
                                         <div className="relative w-8 h-8 flex-shrink-0">
@@ -2590,54 +2590,52 @@ const App: React.FC = () => {
                                       </div>
                                       <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
                                     </button>
-                                    {/* ＋リアクションボタン（右上固定） */}
-                                    <div className="absolute top-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
-                                      <button
-                                        onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
-                                        className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
-                                        title="リアクションを追加"
-                                      >＋</button>
-                                      {isPaletteOpen && (
-                                        <div className="absolute top-full right-0 mt-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
-                                          {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
-                                            const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
-                                            return (
-                                              <button
-                                                key={em}
-                                                onClick={() => { handleToggleReaction(u.name, em); setReactionPaletteUser(null); }}
-                                                className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
-                                                title={isMine ? '取り消す' : em}
-                                              >{em}</button>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
-                                    </div>
                                     {/* リアクションエリア */}
                                     <div className="px-2 pb-1" onClick={e => e.stopPropagation()}>
-                                      {/* 既存リアクションバッジ */}
-                                      {Object.keys(reactionMap).length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mb-1">
-                                          {Object.entries(reactionMap).map(([em, reactors]) => {
-                                            const isMine = reactors.includes(currentUser.name);
-                                            return (
-                                              <button
-                                                key={em}
-                                                onClick={() => handleToggleReaction(u.name, em)}
-                                                title={reactors.join(', ')}
-                                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all ${
-                                                  isMine
-                                                    ? 'bg-white/40 ring-1 ring-white/70 font-semibold'
-                                                    : 'bg-white/20 hover:bg-white/30'
-                                                } text-white`}
-                                              >
-                                                <span>{em}</span>
-                                                <span className="opacity-80">{reactors.length}</span>
-                                              </button>
-                                            );
-                                          })}
+                                      {/* リアクションバッジ ＋ ＋ボタンを同じ行に並べる */}
+                                      <div className="flex flex-wrap gap-1 items-center mb-1">
+                                        {Object.entries(reactionMap).map(([em, reactors]) => {
+                                          const isMine = reactors.includes(currentUser.name);
+                                          return (
+                                            <button
+                                              key={em}
+                                              onClick={() => handleToggleReaction(u.name, em)}
+                                              title={reactors.join(', ')}
+                                              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all ${
+                                                isMine
+                                                  ? 'bg-white/40 ring-1 ring-white/70 font-semibold'
+                                                  : 'bg-white/20 hover:bg-white/30'
+                                              } text-white`}
+                                            >
+                                              <span>{em}</span>
+                                              <span className="opacity-80">{reactors.length}</span>
+                                            </button>
+                                          );
+                                        })}
+                                        {/* ＋ボタン：バッジ行末尾 */}
+                                        <div className="relative">
+                                          <button
+                                            onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
+                                            className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
+                                            title="リアクションを追加"
+                                          >＋</button>
+                                          {isPaletteOpen && (
+                                            <div className="absolute bottom-full left-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
+                                              {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
+                                                const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
+                                                return (
+                                                  <button
+                                                    key={em}
+                                                    onClick={() => { handleToggleReaction(u.name, em); setReactionPaletteUser(null); }}
+                                                    className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
+                                                    title={isMine ? '取り消す' : em}
+                                                  >{em}</button>
+                                                );
+                                              })}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
+                                      </div>
                                     </div>
                                     {/* リプライ一覧 */}
                                     {userReplies.length > 0 && (
