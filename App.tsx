@@ -2557,7 +2557,7 @@ const App: React.FC = () => {
                                 }, {});
                                 const isPaletteOpen = reactionPaletteUser === u.name;
                                 return (
-                                  <li key={u.name} className="relative rounded-lg overflow-hidden bg-white/10">
+                                  <li key={u.name} className="relative rounded-lg bg-white/10">
                                     {/* コメント本体 */}
                                     <button
                                       onClick={() => {
@@ -2568,7 +2568,7 @@ const App: React.FC = () => {
                                         }
                                         setIsCommentPopupOpen(false);
                                       }}
-                                      className="w-full text-left p-2 hover:bg-white/10 transition-colors"
+                                      className="w-full text-left p-2 pr-8 hover:bg-white/10 transition-colors"
                                     >
                                       <div className="flex items-center gap-3 mb-1">
                                         <div className="relative w-8 h-8 flex-shrink-0">
@@ -2591,10 +2591,10 @@ const App: React.FC = () => {
                                       <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
                                     </button>
                                     {/* ＋リアクションボタン（右上固定） */}
-                                    <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
+                                    <div className="absolute top-1.5 right-1.5 z-10" onClick={e => e.stopPropagation()}>
                                       <button
                                         onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
-                                        className="text-sm text-white/50 hover:text-white/90 transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
+                                        className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
                                         title="リアクションを追加"
                                       >＋</button>
                                       {isPaletteOpen && (
