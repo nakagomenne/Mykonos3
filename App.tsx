@@ -2544,7 +2544,12 @@ const App: React.FC = () => {
                                 const replyText = replyInputs[u.name] ?? '';
                                 // このユーザーへのリアクション集計 {emoji: [reactor, ...]}
                                 const REACTION_EMOJIS = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
-                                const userReactions = commentReactions.filter(r => r.userName === u.name);
+                                // コメント更新後のリアクションのみ表示（更新前のリアクションはリセット）
+                                const userReactions = commentReactions.filter(r => {
+                                  if (r.userName !== u.name) return false;
+                                  if (u.commentUpdatedAt && r.createdAt < u.commentUpdatedAt) return false;
+                                  return true;
+                                });
                                 const reactionMap = REACTION_EMOJIS.reduce<Record<string, string[]>>((acc, em) => {
                                   const reactors = userReactions.filter(r => r.emoji === em).map(r => r.reactor);
                                   if (reactors.length > 0) acc[em] = reactors;
@@ -2552,7 +2557,7 @@ const App: React.FC = () => {
                                 }, {});
                                 const isPaletteOpen = reactionPaletteUser === u.name;
                                 return (
-                                  <li key={u.name} className="rounded-lg overflow-hidden bg-white/10">
+                                  <li key={u.name} className="relative rounded-lg overflow-hidden bg-white/10">
                                     {/* コメント本体 */}
                                     <button
                                       onClick={() => {
@@ -2585,6 +2590,29 @@ const App: React.FC = () => {
                                       </div>
                                       <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
                                     </button>
+                                    {/* ＋リアクションボタン（右上固定） */}
+                                    <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
+                                      <button
+                                        onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
+                                        className="text-sm text-white/50 hover:text-white/90 transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
+                                        title="リアクションを追加"
+                                      >＋</button>
+                                      {isPaletteOpen && (
+                                        <div className="absolute top-full right-0 mt-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
+                                          {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
+                                            const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
+                                            return (
+                                              <button
+                                                key={em}
+                                                onClick={() => { handleToggleReaction(u.name, em); setReactionPaletteUser(null); }}
+                                                className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
+                                                title={isMine ? '取り消す' : em}
+                                              >{em}</button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
                                     {/* リアクションエリア */}
                                     <div className="px-2 pb-1" onClick={e => e.stopPropagation()}>
                                       {/* 既存リアクションバッジ */}
@@ -2610,29 +2638,6 @@ const App: React.FC = () => {
                                           })}
                                         </div>
                                       )}
-                                      {/* 絵文字追加ボタン & パレット */}
-                                      <div className="relative inline-block">
-                                        <button
-                                          onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
-                                          className="text-xs text-white/50 hover:text-white/90 transition-colors px-1 py-0.5 rounded"
-                                          title="リアクションを追加"
-                                        >＋ 😀</button>
-                                        {isPaletteOpen && (
-                                          <div className="absolute bottom-full left-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
-                                            {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
-                                              const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
-                                              return (
-                                                <button
-                                                  key={em}
-                                                  onClick={() => { handleToggleReaction(u.name, em); setReactionPaletteUser(null); }}
-                                                  className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
-                                                  title={isMine ? '取り消す' : em}
-                                                >{em}</button>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
                                     </div>
                                     {/* リプライ一覧 */}
                                     {userReplies.length > 0 && (
