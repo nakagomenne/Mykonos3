@@ -408,10 +408,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
     const newImportedStatus = !call.imported;
     const updateData: Partial<Omit<CallRequest, 'id'>> = { imported: newImportedStatus };
 
-    if (newImportedStatus && call.rank === 'IMP依頼') {
-      const datePart = call.dateTime.split('T')[0];
-      updateData.dateTime = `${datePart}T待機中`;
-    }
+    // 待機中への変更は留守回数0→1時のみ行う（handleAbsenceCountIncrementで処理）
+    // インポートチェックでは希望時間を変更しない
 
     onUpdateCall(call.id, updateData);
   };
