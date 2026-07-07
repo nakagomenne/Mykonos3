@@ -134,6 +134,7 @@ const App: React.FC = () => {
   const [expandedReplyUser, setExpandedReplyUser] = useState<string | null>(null);
   // リアクション絵文字パレットを表示しているユーザー名（null = 非表示）
   const [reactionPaletteUser, setReactionPaletteUser] = useState<string | null>(null);
+  const [reactionPaletteRect, setReactionPaletteRect] = useState<DOMRect | null>(null);
   // 最後にメンバータイムラインを開いた時刻（既読管理）
   const [lastReadCommentAt, setLastReadCommentAt] = useState<number>(() => {
     const stored = localStorage.getItem('lastReadCommentAt');
@@ -2613,28 +2614,19 @@ const App: React.FC = () => {
                                           );
                                         })}
                                         {/* ＋ボタン：バッジ行末尾 */}
-                                        <div className="relative">
-                                          <button
-                                            onClick={() => setReactionPaletteUser(isPaletteOpen ? null : u.name)}
-                                            className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
-                                            title="リアクションを追加"
-                                          >＋</button>
-                                          {isPaletteOpen && (
-                                            <div className="absolute bottom-full right-0 mb-1 z-50 bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1" style={{width: '228px'}}>
-                                              {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
-                                                const isMine = (reactionMap[em] ?? []).includes(currentUser.name);
-                                                return (
-                                                  <button
-                                                    key={em}
-                                                    onClick={() => { handleToggleReaction(u.name, em); setReactionPaletteUser(null); }}
-                                                    className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
-                                                    title={isMine ? '取り消す' : em}
-                                                  >{em}</button>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                        </div>
+                                        <button
+                                          onClick={(e) => {
+                                            if (isPaletteOpen) {
+                                              setReactionPaletteUser(null);
+                                              setReactionPaletteRect(null);
+                                            } else {
+                                              setReactionPaletteRect((e.currentTarget as HTMLButtonElement).getBoundingClientRect());
+                                              setReactionPaletteUser(u.name);
+                                            }
+                                          }}
+                                          className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
+                                          title="リアクションを追加"
+                                        >＋</button>
                                       </div>
                                     </div>
                                     {/* リプライ一覧 */}
@@ -2695,6 +2687,52 @@ const App: React.FC = () => {
                           ) : (
                             <p className="p-4 text-sm text-white/70 text-center">コメントを設定しているメンバーはいません。</p>
                           )}
+                          {/* リアクションパレット: fixed でビューポート内に確実表示 */}
+                          {reactionPaletteUser && reactionPaletteRect && (() => {
+                            const PALETTE_W = 228;
+                            const PALETTE_H = 148; // 絵文字3行分の概算高さ
+                            const vw = window.innerWidth;
+                            const vh = window.innerHeight;
+                            // 左右: ボタン右端を基準に左展開、はみ出すなら左端基準に右展開
+                            let left = reactionPaletteRect.right - PALETTE_W;
+                            if (left < 4) left = reactionPaletteRect.left;
+                            if (left + PALETTE_W > vw - 4) left = vw - PALETTE_W - 4;
+                            // 上下: ボタン上方に展開、はみ出すなら下方に展開
+                            let top = reactionPaletteRect.top - PALETTE_H - 4;
+                            if (top < 4) top = reactionPaletteRect.bottom + 4;
+                            const paletteReactionMap = commentReactions
+                              .filter(r => {
+                                if (r.userName !== reactionPaletteUser) return false;
+                                const pu = commentedUsers.find(u => u.name === reactionPaletteUser);
+                                if (pu?.commentUpdatedAt && r.createdAt < pu.commentUpdatedAt) return false;
+                                return true;
+                              })
+                              .reduce<Record<string, string[]>>((acc, r) => {
+                                if (!acc[r.emoji]) acc[r.emoji] = [];
+                                acc[r.emoji].push(r.reactor);
+                                return acc;
+                              }, {});
+                            return createPortal(
+                              <div
+                                className="fixed z-[9999] bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1"
+                                style={{ top, left, width: PALETTE_W }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
+                                  const isMine = (paletteReactionMap[em] ?? []).includes(currentUser.name);
+                                  return (
+                                    <button
+                                      key={em}
+                                      onClick={() => { handleToggleReaction(reactionPaletteUser, em); setReactionPaletteUser(null); setReactionPaletteRect(null); }}
+                                      className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
+                                      title={isMine ? '取り消す' : em}
+                                    >{em}</button>
+                                  );
+                                })}
+                              </div>,
+                              document.body
+                            );
+                          })()}
                         </div>
                       </div>,
                       document.body
