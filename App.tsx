@@ -128,6 +128,7 @@ const App: React.FC = () => {
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
+  const reactionPaletteRef = useRef<HTMLDivElement>(null);
   // リプライ入力状態管理（key: コメントオーナー名, value: 入力テキスト）
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   // リプライ入力欄を開いているユーザー名（null = 閉じている）
@@ -585,9 +586,12 @@ const App: React.FC = () => {
       }
       if (
         commentPopupRef.current && !commentPopupRef.current.contains(event.target as Node) &&
-        commentButtonRef.current && !commentButtonRef.current.contains(event.target as Node)
+        commentButtonRef.current && !commentButtonRef.current.contains(event.target as Node) &&
+        reactionPaletteRef.current && !reactionPaletteRef.current.contains(event.target as Node)
       ) {
         setIsCommentPopupOpen(false);
+        setReactionPaletteUser(null);
+        setReactionPaletteRect(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -2714,6 +2718,7 @@ const App: React.FC = () => {
                               }, {});
                             return createPortal(
                               <div
+                                ref={reactionPaletteRef}
                                 className="fixed z-[9999] bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1"
                                 style={{ top, left, width: PALETTE_W }}
                                 onClick={e => e.stopPropagation()}
