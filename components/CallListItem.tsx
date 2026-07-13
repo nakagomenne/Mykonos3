@@ -327,6 +327,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       if (effectiveAssignee !== currentUser.name && effectiveAssignee !== PRECHECKER_ASSIGNEE_NAME && effectiveAssignee !== ELEC_ASSIGNEE_NAME) {
           updatedData = { ...updatedData, requester: currentUser.name };
       }
+      // 回線前確タブで申込番号に値が入力された場合、インポート完了チェックを自動ON
+      if (isPrecheckTheme && updatedData.applicationNumber && updatedData.applicationNumber.trim() !== '') {
+          updatedData = { ...updatedData, imported: true };
+      }
       onUpdateCall(call.id, updatedData);
       setEditingState(null);
   };
