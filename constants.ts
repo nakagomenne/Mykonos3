@@ -46,8 +46,8 @@ export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '
 export const ADMIN_USER_NAME = '中込賢三';
 export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 export const ELEC_ASSIGNEE_NAME = '電気契確';
-export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡'];
-export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡'];
+export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡'];
+export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡'];
 // 電気タブでAP戻しチェック時のランク選択肢
 export const ELEC_AP_RETURN_RANK_OPTIONS: Rank[] = ['立ち上げ', 'キャッチ'];
 
@@ -116,6 +116,7 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'ジライフ契確':     { backgroundColor: '#2d5a9e', color: '#ffffff' },
   'ジラ同意追跡': { backgroundColor: '#ffffff', color: '#2d5a9e', border: '1px solid #2d5a9e' },
   'ジラ決済追跡': { backgroundColor: '#dde6f5', color: '#1e4080' },
+  'ジラ両方追跡': { backgroundColor: '#7a9fd4', color: '#ffffff' },
 
   // 既存電気系ランク（RANK_STYLES完全網羅用）
   '電気前確':   { backgroundColor: '#f0e6ff', color: '#7c3aed' },
