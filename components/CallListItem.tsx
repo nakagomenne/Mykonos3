@@ -599,7 +599,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                 style={{
                   top: `${dropdownPosition.top}px`,
                   left: `${dropdownPosition.left}px`,
-                  width: `${dropdownPosition.width}px`,
+                  minWidth: `${dropdownPosition.width}px`,
+                  width: 'max-content',
                 }}
               >
                 <ul className="p-1 space-y-1" role="listbox">
@@ -627,8 +628,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                             backgroundColor: style.backgroundColor,
                             color: style.color,
                             border: style.border || '1px solid transparent',
+                            fontSize: '10px',
                           }}
-                          className="w-full text-center px-2 py-1 text-xs font-bold rounded-md transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 ring-blue-400"
+                          className="w-full text-center px-2 py-1 font-bold rounded-md transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1 ring-blue-400 whitespace-nowrap"
                         >
                           {opt}
                         </button>
