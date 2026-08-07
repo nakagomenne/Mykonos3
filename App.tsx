@@ -837,6 +837,62 @@ const App: React.FC = () => {
   // workEnd/autoUnavailableOffset/availabilityStatus が変わったら再スケジュール
   }, [currentUser, users.map(u => `${u.name}:${u.workEnd}:${u.autoUnavailableOffset}:${u.availabilityStatus}`).join(',')]);
 
+  // ── 毎朝9時：回線前確・電気契確の「昨日以前+待機中」案件を当日待機中に自動更新 ──
+  useEffect(() => {
+    if (!calls.length) return;
+
+    const runDailyReset = async () => {
+      const now = new Date();
+      const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      const todayStr = localNow.toISOString().split('T')[0];
+
+      // 対象: 回線前確 or 電気契確、追客中、日付が昨日以前、時刻が待機中
+      const targets = calls.filter(call => {
+        if (call.status !== '追客中') return false;
+        if (call.assignee !== PRECHECKER_ASSIGNEE_NAME && call.assignee !== ELEC_ASSIGNEE_NAME) return false;
+        const [datePart, timePart] = call.dateTime.split('T');
+        if (timePart !== '待機中') return false;
+        if (!datePart || datePart >= todayStr) return false; // 当日・未来はスキップ
+        return true;
+      });
+
+      for (const call of targets) {
+        try {
+          await apiUpdateCallRequest(call.id, { dateTime: `${todayStr}T待機中` }, 'system', call);
+        } catch {
+          // 個別失敗は無視して続行
+        }
+      }
+
+      if (targets.length > 0) {
+        // ローカル状態も即時反映
+        setCalls(prev => prev.map(c => {
+          if (!targets.find(t => t.id === c.id)) return c;
+          return { ...c, dateTime: `${todayStr}T待機中` };
+        }));
+      }
+    };
+
+    // 次の午前9時までのミリ秒を計算
+    const msUntilNext9am = (() => {
+      const now = new Date();
+      const next9am = new Date(now);
+      next9am.setHours(9, 0, 0, 0);
+      if (now >= next9am) next9am.setDate(next9am.getDate() + 1); // 今日の9時を過ぎていれば翌日
+      return next9am.getTime() - now.getTime();
+    })();
+
+    // 9時ちょうどに1回実行 → 以降24時間ごとに繰り返す
+    const timeoutId = setTimeout(() => {
+      runDailyReset();
+      const intervalId = setInterval(runDailyReset, 24 * 60 * 60 * 1000);
+      return () => clearInterval(intervalId);
+    }, msUntilNext9am);
+
+    return () => clearTimeout(timeoutId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!calls.length]); // calls がロードされたら1回だけセットアップ
+
   // ── 架電時間通知（タイミング別）──────────────────────────────
   useEffect(() => {
     if (!currentUser || Notification.permission !== 'granted') {
