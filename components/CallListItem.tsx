@@ -436,6 +436,11 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       updateData.dateTime = `${datePart}T待機中`;
     }
 
+    // 回線前確・電気契確タブで留守回数が加算された際、対応者が入力されていれば空欄にリセット
+    if ((isPrecheckTheme || isElecTheme) && call.prechecker) {
+      updateData.prechecker = null;
+    }
+
     onUpdateCall(call.id, updateData);
   };
   
@@ -752,7 +757,12 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                                   onUpdateCall(call.id, { absenceCount: 0 });
                                 }
                               } else {
-                                onUpdateCall(call.id, { absenceCount: opt.value });
+                                const absenceUpdateData: Partial<Omit<CallRequest, 'id'>> = { absenceCount: opt.value };
+                                // 回線前確・電気契確タブで留守回数が加算された際、対応者が入力されていれば空欄にリセット
+                                if ((isPrecheckTheme || isElecTheme) && call.prechecker && opt.value > (call.absenceCount || 0)) {
+                                  absenceUpdateData.prechecker = null;
+                                }
+                                onUpdateCall(call.id, absenceUpdateData);
                               }
                               setIsAbsenceDropdownOpen(false);
                             }}
