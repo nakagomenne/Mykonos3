@@ -331,6 +331,26 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       if (isPrecheckTheme && updatedData.applicationNumber && updatedData.applicationNumber.trim() !== '') {
           updatedData = { ...updatedData, imported: true };
       }
+      // 回線前確タブでランクが「IMP依頼」の案件に申込番号が入力された場合：
+      //   ・日時を当日+待機中に変更
+      //   ・ランクを「ET待ち」に変更
+      //   ・対応者（prechecker）を未選択（空文字）にリセット
+      if (
+          isPrecheckTheme &&
+          call.rank === 'IMP依頼' &&
+          updatedData.applicationNumber &&
+          updatedData.applicationNumber.trim() !== ''
+      ) {
+          const now = new Date();
+          const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+          const todayStr = localNow.toISOString().split('T')[0];
+          updatedData = {
+              ...updatedData,
+              dateTime: `${todayStr}T待機中`,
+              rank: 'ET待ち',
+              ...(call.prechecker ? { prechecker: '' } : {}),
+          };
+      }
       // 電気契確タブでランクが「プラチナIMP」の案件に申込番号が入力された場合：
       //   ・日時を当日+待機中に変更
       //   ・ランクを「プラ両方追跡」に変更
