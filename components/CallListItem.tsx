@@ -331,6 +331,28 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       if (isPrecheckTheme && updatedData.applicationNumber && updatedData.applicationNumber.trim() !== '') {
           updatedData = { ...updatedData, imported: true };
       }
+      // 回線前確タブでランクが「賃ね前確」の案件に申込番号が入力された場合：
+      //   ・日時を当日+待機中に変更
+      //   ・ランクを「決済待ち」に変更
+      //   ・インポート完了チェックをON
+      //   ・対応者（prechecker）を未選択（空文字）にリセット
+      if (
+          isPrecheckTheme &&
+          call.rank === '賃ね前確' &&
+          updatedData.applicationNumber &&
+          updatedData.applicationNumber.trim() !== ''
+      ) {
+          const now = new Date();
+          const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+          const todayStr = localNow.toISOString().split('T')[0];
+          updatedData = {
+              ...updatedData,
+              dateTime: `${todayStr}T待機中`,
+              rank: '決済待ち',
+              imported: true,
+              ...(call.prechecker ? { prechecker: '' } : {}),
+          };
+      }
       // 回線前確タブでランクが「IMP依頼」の案件に申込番号が入力された場合：
       //   ・日時を当日+待機中に変更
       //   ・ランクを「ET待ち」に変更
