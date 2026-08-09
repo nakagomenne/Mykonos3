@@ -873,6 +873,16 @@ const App: React.FC = () => {
       }
     };
 
+    // 本日9時を既に過ぎている場合（＝アプリを開いた時点で未実行の可能性がある）は即時実行。
+    // runDailyReset は当日日付未満の待機中案件のみを対象にする冪等な処理なので、
+    // 同日中に複数回・複数タブから実行されても安全（既に当日化済みの案件は対象外になる）。
+    const now0 = new Date();
+    const today9am = new Date(now0);
+    today9am.setHours(9, 0, 0, 0);
+    if (now0 >= today9am) {
+      runDailyReset();
+    }
+
     // 次の午前9時までのミリ秒を計算
     const msUntilNext9am = (() => {
       const now = new Date();
