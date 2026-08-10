@@ -6,7 +6,7 @@ import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
 import EmojiPicker from './EmojiPicker';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
@@ -665,6 +665,22 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                             // 見込留守 → 見込SABC への変更時も留守回数リセット
                             if (isAbsenteeRank && Object.keys(mikomRanks).includes(opt)) {
                               updateData.absenceCount = 0;
+                            }
+                            // 電気契確タブでランクが「ジライフ契確」から追跡系ランクに変更された場合：
+                            //   ・日時を当日+待機中に変更
+                            //   ・対応者（prechecker）を未選択にリセット
+                            if (
+                              isElecTheme &&
+                              call.rank === 'ジライフ契確' &&
+                              JIRA_TRACKING_TARGET_RANKS.includes(opt as Rank)
+                            ) {
+                              const now = new Date();
+                              const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+                              const todayStr = localNow.toISOString().split('T')[0];
+                              updateData.dateTime = `${todayStr}T待機中`;
+                              if (call.prechecker) {
+                                updateData.prechecker = null;
+                              }
                             }
                             onUpdateCall(call.id, updateData);
                             setIsRankDropdownOpen(false);

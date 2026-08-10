@@ -48,6 +48,8 @@ export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 export const ELEC_ASSIGNEE_NAME = '電気契確';
 export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラチナIMP', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡'];
 export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡'];
+// 電気契確タブで「ジライフ契確」から変更された際に日時自動更新・対応者リセットの対象となるランク
+export const JIRA_TRACKING_TARGET_RANKS: Rank[] = ['ジラ両方追跡', 'ジラ同意追跡', 'ジラ決済追跡'];
 // 電気タブでAP戻しチェック時のランク選択肢
 export const ELEC_AP_RETURN_RANK_OPTIONS: Rank[] = ['立ち上げ', 'キャッチ'];
 
