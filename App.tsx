@@ -3917,6 +3917,7 @@ const App: React.FC = () => {
                               normalDuplicateIds={normalDuplicateIds}
                               precheckDuplicateIds={precheckDuplicateIds}
                               isDarkMode={isDarkMode}
+                              allCallsForPrecheckerCheck={calls}
                             />
                           </div>
                         );
@@ -3964,6 +3965,7 @@ const App: React.FC = () => {
                     normalDuplicateIds={normalDuplicateIds}
                     precheckDuplicateIds={precheckDuplicateIds}
                     isDarkMode={isDarkMode}
+                    allCallsForPrecheckerCheck={calls}
                   />
                 )}
             </div>

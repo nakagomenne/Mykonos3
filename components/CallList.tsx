@@ -23,6 +23,8 @@ interface CallListProps {
   normalDuplicateIds: Set<string>;
   precheckDuplicateIds: Set<string>;
   isDarkMode?: boolean;
+  /** 回線前確・電気契確タブ横断で対応者の重複チェックを行うための全案件一覧（任意） */
+  allCallsForPrecheckerCheck?: CallRequest[];
 }
 
 const CallList: React.FC<CallListProps> = ({
@@ -43,6 +45,7 @@ const CallList: React.FC<CallListProps> = ({
   normalDuplicateIds,
   precheckDuplicateIds,
   isDarkMode = false,
+  allCallsForPrecheckerCheck,
 }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
   const [hideTracking, setHideTracking] = useState(false);
@@ -210,6 +213,7 @@ const CallList: React.FC<CallListProps> = ({
                         : normalDuplicateIds.has(call.customerId.trim().toLowerCase())
                     }
                     isDarkMode={isDarkMode}
+                    allCallsForPrecheckerCheck={allCallsForPrecheckerCheck}
                 />
             ))}
         </ul>

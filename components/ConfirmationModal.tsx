@@ -8,9 +8,11 @@ interface ConfirmationModalProps {
   onConfirm: () => void;
   title: string;
   children: React.ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, children }) => {
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, children, confirmLabel = 'OK', cancelLabel = 'キャンセル' }) => {
   if (!isOpen) return null;
 
   return createPortal(
@@ -38,13 +40,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
               onClick={onClose} 
               className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition"
             >
-                キャンセル
+                {cancelLabel}
             </button>
             <button 
               onClick={onConfirm} 
               className="bg-[#0193be] text-white font-bold py-2 px-5 rounded-lg hover:bg-[#017a9a] transition"
             >
-                OK
+                {confirmLabel}
             </button>
         </div>
       </div>
