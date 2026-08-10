@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_AP_RETURN_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME } from '../constants';
+import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_AP_RETURN_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
@@ -341,13 +341,29 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
       return;
     }
 
+    // 電気契確タブでランクが「ジライフ契確」から追跡系ランクに変更された場合：
+    //   ・日時を当日+待機中に変更
+    //   ・対応者（prechecker）を未選択にリセット
+    const isJiraTrackingTransition =
+      isElecTheme &&
+      call.rank === 'ジライフ契確' &&
+      JIRA_TRACKING_TARGET_RANKS.includes(rank) &&
+      rank !== call.rank;
+    const jiraTrackingDateTime = (() => {
+      if (!isJiraTrackingTransition) return null;
+      const now = new Date();
+      const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      const todayStr = localNow.toISOString().split('T')[0];
+      return `${todayStr}T待機中`;
+    })();
+
     onSave({
       customerId,
       assignee,
       requester,
       listType,
       rank,
-      dateTime: `${date}T${time}`,
+      dateTime: jiraTrackingDateTime ?? `${date}T${time}`,
       notes,
       emoji,
       isStrict,
@@ -357,6 +373,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         absenceCount: 0,
         createdAt: new Date().toISOString(),
       } : {}),
+      ...(isJiraTrackingTransition && call.prechecker ? { prechecker: '' } : {}),
     });
   };
   
