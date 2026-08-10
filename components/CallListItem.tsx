@@ -26,6 +26,8 @@ interface CallListItemProps {
   currentUser: User;
   isDuplicate: boolean;
   isDarkMode?: boolean;
+  /** 回線前確・電気契確タブ横断で対応者の重複チェックを行うための全案件一覧（任意） */
+  allCallsForPrecheckerCheck?: CallRequest[];
 }
 
 type EditableField = 'dateTime' | 'listType' | 'notes' | 'assignee' | 'requester' | 'applicationNumber';
@@ -34,7 +36,7 @@ interface EditingState {
   targetRect: DOMRect;
 }
 
-const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, isElecTheme = false, currentUser, isDuplicate, isDarkMode = false }) => {
+const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, isElecTheme = false, currentUser, isDuplicate, isDarkMode = false, allCallsForPrecheckerCheck }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isAppNumCopied, setIsAppNumCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
@@ -435,9 +437,19 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   const hasPrecheckPermission = currentUser.isLinePrechecker;
   const hasElecPermission = currentUser.isElecChecker;
 
+  // 対応者重複チェック用モーダルの状態
+  const [precheckerConflictCall, setPrecheckerConflictCall] = useState<CallRequest | null>(null);
+
+  const assignPrechecker = (targetCall: CallRequest, releaseOther?: CallRequest) => {
+    if (releaseOther) {
+      onUpdateCall(releaseOther.id, { prechecker: null });
+    }
+    onUpdateCall(targetCall.id, { prechecker: currentUser.name });
+  };
+
   const handlePrecheckerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!hasPrecheckPermission || isCompleted) return;
+    if (!(hasPrecheckPermission || hasElecPermission) || isCompleted) return;
 
     if (call.prechecker) {
       if (call.prechecker === currentUser.name) {
@@ -445,9 +457,24 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       } else {
         onUpdateCall(call.id, { prechecker: currentUser.name });
       }
-    } else {
-      onUpdateCall(call.id, { prechecker: currentUser.name });
+      return;
     }
+
+    // 回線前確・電気契確タブを横断して、自分が既に対応者になっている別案件がないかチェック
+    if ((isPrecheckTheme || isElecTheme) && allCallsForPrecheckerCheck) {
+      const otherCall = allCallsForPrecheckerCheck.find(c =>
+        c.id !== call.id &&
+        c.prechecker === currentUser.name &&
+        c.status !== '完了' &&
+        (c.assignee === PRECHECKER_ASSIGNEE_NAME || c.assignee === ELEC_ASSIGNEE_NAME)
+      );
+      if (otherCall) {
+        setPrecheckerConflictCall(otherCall);
+        return;
+      }
+    }
+
+    assignPrechecker(call);
   };
 
   const handleImportClick = (e: React.MouseEvent) => {
@@ -953,6 +980,34 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         title="完了確認"
       >
         <p>顧客ID: <strong className="text-slate-800">{call.customerId}</strong> を完了しますか？</p>
+      </ConfirmationModal>
+
+      <ConfirmationModal
+        isOpen={!!precheckerConflictCall}
+        onClose={() => setPrecheckerConflictCall(null)}
+        onConfirm={() => {
+          if (precheckerConflictCall) {
+            assignPrechecker(call, precheckerConflictCall);
+          }
+          setPrecheckerConflictCall(null);
+        }}
+        title="対応者の重複"
+        confirmLabel="この案件に切り替える"
+        cancelLabel="キャンセル"
+      >
+        <p>
+          既に別の案件（
+          <strong className="text-slate-800">
+            {precheckerConflictCall?.assignee === PRECHECKER_ASSIGNEE_NAME ? '回線前確' : '電気契確'}
+            ・顧客ID: {precheckerConflictCall?.customerId}
+          </strong>
+          ）で対応者になっています。
+        </p>
+        <p className="mt-2">
+          こちらの顧客ID: <strong className="text-slate-800">{call.customerId}</strong> の対応者に切り替えますか？
+          <br />
+          （切り替えると、元の案件の対応者は解除されます）
+        </p>
       </ConfirmationModal>
     </li>
   );
