@@ -980,8 +980,21 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         onClose={() => setConfirmationModalOpen(false)}
         onConfirm={handleConfirmComplete}
         title="完了確認"
+        confirmLabel="完了"
+        cancelLabel="キャンセル"
       >
-        <p>顧客ID: <strong className="text-slate-800">{call.customerId}</strong> を完了しますか？</p>
+        {isElecTheme && call.rank === 'プラチナIMP' ? (
+          <p>
+            この案件を完了してよろしいですか？<br />
+            追跡案件ではないかご確認ください。
+            <br />
+            <span className="text-sm text-slate-500">
+              顧客ID: <strong className="text-slate-800">{call.customerId}</strong>
+            </span>
+          </p>
+        ) : (
+          <p>顧客ID: <strong className="text-slate-800">{call.customerId}</strong> を完了しますか？</p>
+        )}
       </ConfirmationModal>
 
       <ConfirmationModal
