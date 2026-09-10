@@ -49,6 +49,7 @@ const CallList: React.FC<CallListProps> = ({
 }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
   const [hideTracking, setHideTracking] = useState(false);
+  const [hideWaiting, setHideWaiting] = useState(false);
 
   const mainColor = isElecTheme ? '#2d5a9e' : isPrecheckTheme ? '#118f82' : '#0193be';
   const mainColorClass = isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
@@ -62,7 +63,12 @@ const CallList: React.FC<CallListProps> = ({
     ? calls.filter(c => !ELEC_TRACKING_RANKS.includes(c.rank as any))
     : calls;
 
-  if (filteredByTracking.length === 0 && calls.length === 0) {
+  // 電気契確タブの「待機中」案件フィルタリング（日時の時刻部分が「待機中」のもの）
+  const filteredByWaiting = isElecTheme && hideWaiting
+    ? filteredByTracking.filter(c => c.dateTime.split('T')[1] !== '待機中')
+    : filteredByTracking;
+
+  if (filteredByWaiting.length === 0 && calls.length === 0) {
     const isPrechecker = selectedMember === PRECHECKER_ASSIGNEE_NAME;
     const isElecChecker = selectedMember === ELEC_ASSIGNEE_NAME;
 
@@ -96,9 +102,9 @@ const CallList: React.FC<CallListProps> = ({
   const isAllMembersView = !selectedMember || selectedMember === '全体';
   const showRequesterColumn = !isAllMembersView && calls.some(call => call.requester !== call.assignee);
 
-  const displayedCalls = filteredByTracking.filter(call => !hideCompleted || call.status !== '完了');
-  const hasCompletedCalls = filteredByTracking.some(call => call.status === '完了');
-  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByTracking.length > 0;
+  const displayedCalls = filteredByWaiting.filter(call => !hideCompleted || call.status !== '完了');
+  const hasCompletedCalls = filteredByWaiting.some(call => call.status === '完了');
+  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByWaiting.length > 0;
 
   const hasTrackingCalls = isElecTheme && calls.some(c => ELEC_TRACKING_RANKS.includes(c.rank as any));
 
@@ -159,6 +165,23 @@ const CallList: React.FC<CallListProps> = ({
                 />
               </button>
             )}
+            {/* col-2b(電気タブのみ): 待機中トグル — データ行の対応スペーサーと幅を一致 */}
+            {isElecTheme && (
+              <button
+                onClick={() => setHideWaiting(prev => !prev)}
+                title={hideWaiting ? '待機中の案件を表示' : '待機中の案件を非表示'}
+                aria-pressed={hideWaiting}
+                className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                  hideWaiting ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                    hideWaiting ? 'translate-x-3' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            )}
             {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
             {/* col-3(電気タブ以外はcol-2): 顧客ID */}
             <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
@@ -184,6 +207,20 @@ const CallList: React.FC<CallListProps> = ({
             >
               <span className="text-white text-xs font-bold">
                 追跡案件（{calls.length - filteredByTracking.length}件）は非表示中
+              </span>
+              <span className="text-white/80 text-xs">— クリックして表示</span>
+            </div>
+        )}
+        {/* 待機中案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
+        {isElecTheme && hideWaiting && filteredByWaiting.length < filteredByTracking.length && (
+            <div
+              className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
+              style={{ backgroundColor: '#2d5a9e' }}
+              onClick={() => setHideWaiting(false)}
+              title="クリックして待機中の案件を表示"
+            >
+              <span className="text-white text-xs font-bold">
+                待機中の案件（{filteredByTracking.length - filteredByWaiting.length}件）は非表示中
               </span>
               <span className="text-white/80 text-xs">— クリックして表示</span>
             </div>
