@@ -984,13 +984,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         cancelLabel="キャンセル"
       >
         {isElecTheme && call.rank === 'プラチナIMP' ? (
-          <p>
-            この案件を完了してよろしいですか？<br />
+          <p className="text-red-600">
+            <strong>警告！</strong> この案件を完了してよろしいですか？
             追跡案件ではないかご確認ください。
-            <br />
-            <span className="text-sm text-slate-500">
-              顧客ID: <strong className="text-slate-800">{call.customerId}</strong>
-            </span>
+            顧客ID: {call.customerId}
           </p>
         ) : (
           <p>顧客ID: <strong className="text-slate-800">{call.customerId}</strong> を完了しますか？</p>
