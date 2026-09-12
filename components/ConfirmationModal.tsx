@@ -7,12 +7,13 @@ interface ConfirmationModalProps {
   onClose: () => void;
   onConfirm: () => void;
   title: string;
+  titleClassName?: string;
   children: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, children, confirmLabel = 'OK', cancelLabel = 'キャンセル' }) => {
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, titleClassName = 'text-slate-800', children, confirmLabel = 'OK', cancelLabel = 'キャンセル' }) => {
   if (!isOpen) return null;
 
   return createPortal(
@@ -25,7 +26,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
         onClick={e => e.stopPropagation()}
       >
         <div className="p-5 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+          <h2 className={`text-lg font-bold ${titleClassName}`}>{title}</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-800 transition">
             <XMarkIcon className="w-6 h-6" />
           </button>
