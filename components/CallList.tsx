@@ -124,14 +124,15 @@ const CallList: React.FC<CallListProps> = ({
     ? 'bg-[#0193be]/15 border-[#0193be]/25'
     : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20';
 
+  const showToggleRow = hasCompletedCalls || isElecTheme;
+
   return (
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
-        {/* Header */}
-        {/* ヘッダーとデータ行(px-2 gap-1.5)の縦軸を揃えるため px-2 gap-1.5 を使用 */}
-        <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
-            {/* col-1: w-7 固定 — データ行チェックボックス列と幅を一致 */}
-            <div className="w-7 flex-shrink-0 flex items-center justify-center">
-              {hasCompletedCalls && (
+        {/* トグル行 — 見出し行の上に独立した行として配置（列幅と無関係のためデータ行との整合を気にしなくてよい） */}
+        {showToggleRow && (
+          <div className={`px-2 pt-1.5 pb-1 border-b flex items-center gap-3 ${headerBg}`}>
+            {hasCompletedCalls && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
                 <button
                   onClick={() => setHideCompleted(prev => !prev)}
                   title={hideCompleted ? '完了した案件を表示' : '完了した案件を非表示'}
@@ -146,42 +147,54 @@ const CallList: React.FC<CallListProps> = ({
                     }`}
                   />
                 </button>
-              )}
-            </div>
-            {/* col-2(電気タブのみ): 追跡トグル — データ行の対応スペーサーと幅を一致 */}
-            {isElecTheme && (
-              <button
-                onClick={() => setHideTracking(prev => !prev)}
-                title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
-                aria-pressed={hideTracking}
-                className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
-                  hideTracking ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                    hideTracking ? 'translate-x-3' : 'translate-x-0'
-                  }`}
-                />
-              </button>
+                <span className={`text-[10px] font-bold ${mainColorClass80}`}>完了非表示</span>
+              </label>
             )}
-            {/* col-2b(電気タブのみ): 待機中トグル — データ行の対応スペーサーと幅を一致 */}
             {isElecTheme && (
-              <button
-                onClick={() => setHideWaiting(prev => !prev)}
-                title={hideWaiting ? '待機中の案件を表示' : '待機中の案件を非表示'}
-                aria-pressed={hideWaiting}
-                className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
-                  hideWaiting ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
-                    hideWaiting ? 'translate-x-3' : 'translate-x-0'
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <button
+                  onClick={() => setHideTracking(prev => !prev)}
+                  title={hideTracking ? '追跡案件を表示' : '追跡案件を非表示'}
+                  aria-pressed={hideTracking}
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                    hideTracking ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                      hideTracking ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold ${mainColorClass80}`}>追跡非表示</span>
+              </label>
             )}
+            {isElecTheme && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <button
+                  onClick={() => setHideWaiting(prev => !prev)}
+                  title={hideWaiting ? '待機中の案件を表示' : '待機中の案件を非表示'}
+                  aria-pressed={hideWaiting}
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                    hideWaiting ? 'bg-[#2d5a9e]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                      hideWaiting ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold ${mainColorClass80}`}>待機中非表示</span>
+              </label>
+            )}
+          </div>
+        )}
+        {/* Header */}
+        {/* ヘッダーとデータ行(px-2 gap-1.5)の縦軸を揃えるため px-2 gap-1.5 を使用 */}
+        <div className={`px-2 py-1.5 border-b text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${headerBg} ${mainColorClass60}`}>
+            {/* col-1: w-7 固定 — データ行チェックボックス列と幅を一致 */}
+            <div className="w-7 flex-shrink-0" aria-hidden="true" />
             {isAllMembersView && <div className="w-20 flex-shrink-0 text-center">担当者</div>}
             {/* col-3(電気タブ以外はcol-2): 顧客ID */}
             <div className="w-28 flex-shrink-0 text-center">顧客ID</div>
