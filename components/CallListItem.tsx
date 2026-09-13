@@ -554,11 +554,6 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
               )}
             </div>
           </div>
-          {/* col-2(電気タブのみ): 追跡トグルヘッダーと幅を一致させるスペーサー */}
-          {isElecTheme && <div className="w-7 flex-shrink-0" aria-hidden="true" />}
-          {/* col-2b(電気タブのみ): 待機中トグルヘッダーと幅を一致させるスペーサー */}
-          {isElecTheme && <div className="w-7 flex-shrink-0" aria-hidden="true" />}
-
           {isAllMembersView && (
             <div className={`w-20 flex-shrink-0 truncate ${isCompleted ? 'line-through' : 'text-current/80'}`}>
                 <button onClick={(e) => handleEditClick(e, 'assignee')} disabled={isFieldDisabled} className={`${editableFieldClasses} text-center`} title="担当者を編集">
