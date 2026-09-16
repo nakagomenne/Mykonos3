@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply, CommentReaction } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -56,7 +56,7 @@ import {
   addCommentReply,
   deleteRepliesByUserName,
   fetchCommentReactions,
-  toggleCommentReaction,
+  toggleCommentLike,
   deleteReactionsByUserName,
   searchDeletedCallRequests,
 } from './services/apiService';
@@ -128,14 +128,10 @@ const App: React.FC = () => {
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
-  const reactionPaletteRef = useRef<HTMLDivElement>(null);
   // リプライ入力状態管理（key: コメントオーナー名, value: 入力テキスト）
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   // リプライ入力欄を開いているユーザー名（null = 閉じている）
   const [expandedReplyUser, setExpandedReplyUser] = useState<string | null>(null);
-  // リアクション絵文字パレットを表示しているユーザー名（null = 非表示）
-  const [reactionPaletteUser, setReactionPaletteUser] = useState<string | null>(null);
-  const [reactionPaletteRect, setReactionPaletteRect] = useState<DOMRect | null>(null);
   // 最後にメンバータイムラインを開いた時刻（既読管理）
   const [lastReadCommentAt, setLastReadCommentAt] = useState<number>(() => {
     const stored = localStorage.getItem('lastReadCommentAt');
@@ -586,12 +582,9 @@ const App: React.FC = () => {
       }
       if (
         commentPopupRef.current && !commentPopupRef.current.contains(event.target as Node) &&
-        commentButtonRef.current && !commentButtonRef.current.contains(event.target as Node) &&
-        reactionPaletteRef.current && !reactionPaletteRef.current.contains(event.target as Node)
+        commentButtonRef.current && !commentButtonRef.current.contains(event.target as Node)
       ) {
         setIsCommentPopupOpen(false);
-        setReactionPaletteUser(null);
-        setReactionPaletteRect(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -1928,19 +1921,18 @@ const App: React.FC = () => {
     }
   };
 
-  const handleToggleReaction = async (userName: string, emoji: string) => {
+  // シンプルな「いいね」ボタン用トグル（絵文字スタンプ機能を廃止し、いいね1種類のみに統一）
+  const handleToggleLike = async (userName: string) => {
     if (!currentUser) return;
     try {
-      const result = await toggleCommentReaction({ userName, reactor: currentUser.name, emoji });
+      const result = await toggleCommentLike({ userName, reactor: currentUser.name });
       if (result.action === 'added' && result.reaction) {
-        setCommentReactions(prev => [...prev, result.reaction!]);
+        setCommentReactions(prev => [...prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)), result.reaction!]);
       } else {
-        setCommentReactions(prev =>
-          prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name && r.emoji === emoji))
-        );
+        setCommentReactions(prev => prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)));
       }
     } catch (err: any) {
-      console.error('リアクションの更新に失敗しました:', err?.message ?? err);
+      console.error('いいねの更新に失敗しました:', err?.message ?? err);
     }
   };
 
@@ -2613,20 +2605,15 @@ const App: React.FC = () => {
                                 });
                                 const isReplyOpen = expandedReplyUser === u.name;
                                 const replyText = replyInputs[u.name] ?? '';
-                                // このユーザーへのリアクション集計 {emoji: [reactor, ...]}
-                                const REACTION_EMOJIS = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
-                                // コメント更新後のリアクションのみ表示（更新前のリアクションはリセット）
-                                const userReactions = commentReactions.filter(r => {
-                                  if (r.userName !== u.name) return false;
-                                  if (u.commentUpdatedAt && r.createdAt < u.commentUpdatedAt) return false;
-                                  return true;
-                                });
-                                const reactionMap = REACTION_EMOJIS.reduce<Record<string, string[]>>((acc, em) => {
-                                  const reactors = userReactions.filter(r => r.emoji === em).map(r => r.reactor);
-                                  if (reactors.length > 0) acc[em] = reactors;
-                                  return acc;
-                                }, {});
-                                const isPaletteOpen = reactionPaletteUser === u.name;
+                                // このユーザーへの「いいね」集計（コメント更新後のもののみ表示。更新前は無効化）
+                                const likers = commentReactions
+                                  .filter(r => {
+                                    if (r.userName !== u.name) return false;
+                                    if (u.commentUpdatedAt && r.createdAt < u.commentUpdatedAt) return false;
+                                    return true;
+                                  })
+                                  .map(r => r.reactor);
+                                const isLikedByMe = likers.includes(currentUser.name);
                                 return (
                                   <li key={u.name} className="relative rounded-lg bg-white/10">
                                     {/* コメント本体 */}
@@ -2661,43 +2648,24 @@ const App: React.FC = () => {
                                       </div>
                                       <p className="text-sm px-2 py-1.5 rounded bg-white/15 text-white/90">{u.comment}</p>
                                     </button>
-                                    {/* リアクションエリア */}
+                                    {/* いいねボタン */}
                                     <div className="px-2 pb-1" onClick={e => e.stopPropagation()}>
-                                      {/* リアクションバッジ ＋ ＋ボタンを同じ行に並べる */}
-                                      <div className="flex flex-wrap gap-1 items-center mb-1">
-                                        {Object.entries(reactionMap).map(([em, reactors]) => {
-                                          const isMine = reactors.includes(currentUser.name);
-                                          return (
-                                            <button
-                                              key={em}
-                                              onClick={() => handleToggleReaction(u.name, em)}
-                                              title={reactors.join(', ')}
-                                              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs transition-all ${
-                                                isMine
-                                                  ? 'bg-white/40 ring-1 ring-white/70 font-semibold'
-                                                  : 'bg-white/20 hover:bg-white/30'
-                                              } text-white`}
-                                            >
-                                              <span>{em}</span>
-                                              <span className="opacity-80">{reactors.length}</span>
-                                            </button>
-                                          );
-                                        })}
-                                        {/* ＋ボタン：バッジ行末尾 */}
-                                        <button
-                                          onClick={(e) => {
-                                            if (isPaletteOpen) {
-                                              setReactionPaletteUser(null);
-                                              setReactionPaletteRect(null);
-                                            } else {
-                                              setReactionPaletteRect((e.currentTarget as HTMLButtonElement).getBoundingClientRect());
-                                              setReactionPaletteUser(u.name);
-                                            }
-                                          }}
-                                          className="text-base font-bold text-white/60 hover:text-white transition-colors w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20"
-                                          title="リアクションを追加"
-                                        >＋</button>
-                                      </div>
+                                      <button
+                                        onClick={() => handleToggleLike(u.name)}
+                                        title={likers.length > 0 ? likers.join(', ') : 'いいね'}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
+                                          isLikedByMe
+                                            ? 'bg-white/40 ring-1 ring-white/70 font-semibold'
+                                            : 'bg-white/20 hover:bg-white/30'
+                                        } text-white`}
+                                      >
+                                        {isLikedByMe ? (
+                                          <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                        ) : (
+                                          <ThumbUpIcon className="w-3.5 h-3.5" />
+                                        )}
+                                        {likers.length > 0 && <span className="opacity-80">{likers.length}</span>}
+                                      </button>
                                     </div>
                                     {/* リプライ一覧 */}
                                     {userReplies.length > 0 && (
@@ -2757,53 +2725,6 @@ const App: React.FC = () => {
                           ) : (
                             <p className="p-4 text-sm text-white/70 text-center">コメントを設定しているメンバーはいません。</p>
                           )}
-                          {/* リアクションパレット: fixed でビューポート内に確実表示 */}
-                          {reactionPaletteUser && reactionPaletteRect && (() => {
-                            const PALETTE_W = 228;
-                            const PALETTE_H = 148; // 絵文字3行分の概算高さ
-                            const vw = window.innerWidth;
-                            const vh = window.innerHeight;
-                            // 左右: ボタン右端を基準に左展開、はみ出すなら左端基準に右展開
-                            let left = reactionPaletteRect.right - PALETTE_W;
-                            if (left < 4) left = reactionPaletteRect.left;
-                            if (left + PALETTE_W > vw - 4) left = vw - PALETTE_W - 4;
-                            // 上下: ボタン上方に展開、はみ出すなら下方に展開
-                            let top = reactionPaletteRect.top - PALETTE_H - 4;
-                            if (top < 4) top = reactionPaletteRect.bottom + 4;
-                            const paletteReactionMap = commentReactions
-                              .filter(r => {
-                                if (r.userName !== reactionPaletteUser) return false;
-                                const pu = commentedUsers.find(u => u.name === reactionPaletteUser);
-                                if (pu?.commentUpdatedAt && r.createdAt < pu.commentUpdatedAt) return false;
-                                return true;
-                              })
-                              .reduce<Record<string, string[]>>((acc, r) => {
-                                if (!acc[r.emoji]) acc[r.emoji] = [];
-                                acc[r.emoji].push(r.reactor);
-                                return acc;
-                              }, {});
-                            return createPortal(
-                              <div
-                                ref={reactionPaletteRef}
-                                className="fixed z-[9999] bg-[#015f88] border border-white/20 rounded-xl shadow-xl p-1.5 flex flex-wrap gap-1"
-                                style={{ top, left, width: PALETTE_W }}
-                                onClick={e => e.stopPropagation()}
-                              >
-                                {['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'].map(em => {
-                                  const isMine = (paletteReactionMap[em] ?? []).includes(currentUser.name);
-                                  return (
-                                    <button
-                                      key={em}
-                                      onClick={() => { handleToggleReaction(reactionPaletteUser, em); setReactionPaletteUser(null); setReactionPaletteRect(null); }}
-                                      className={`text-base w-8 h-8 flex items-center justify-center rounded-lg transition-all hover:scale-125 ${isMine ? 'bg-white/30 ring-1 ring-white/60' : 'hover:bg-white/20'}`}
-                                      title={isMine ? '取り消す' : em}
-                                    >{em}</button>
-                                  );
-                                })}
-                              </div>,
-                              document.body
-                            );
-                          })()}
                         </div>
                       </div>,
                       document.body
@@ -3351,28 +3272,28 @@ const App: React.FC = () => {
                                               </button>
                                               <div className="absolute top-full left-6 w-0 h-0 border-r-[12px] border-r-transparent" style={{ borderTopWidth: '6px', borderTopColor: mineStatusBgHex }}></div>
                                           </div>
-                                          {/* 自分のコメントへのリアクション表示 */}
+                                          {/* 自分のコメントへのいいね表示 */}
                                           {(() => {
-                                            const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
-                                            const myReactions = commentReactions.filter(r => r.userName === currentUser.name);
-                                            const rMap = REACTION_EMOJIS_LIST.reduce<Record<string, string[]>>((acc, em) => {
-                                              const rs = myReactions.filter(r => r.emoji === em).map(r => r.reactor);
-                                              if (rs.length > 0) acc[em] = rs;
-                                              return acc;
-                                            }, {});
-                                            if (Object.keys(rMap).length === 0) return null;
+                                            const myLikers = commentReactions.filter(r => r.userName === currentUser.name).map(r => r.reactor);
+                                            const isLikedByMe = myLikers.includes(currentUser.name);
                                             return (
                                               <div className="flex flex-wrap gap-1 mt-1">
-                                                {Object.entries(rMap).map(([em, reactors]) => (
-                                                  <span
-                                                    key={em}
-                                                    title={reactors.join(', ')}
-                                                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs ${mineIsAvailable ? 'bg-slate-100 text-slate-700' : 'bg-white/20 text-white'}`}
-                                                  >
-                                                    <span>{em}</span>
-                                                    <span className="opacity-70">{reactors.length}</span>
-                                                  </span>
-                                                ))}
+                                                <button
+                                                  onClick={() => handleToggleLike(currentUser.name)}
+                                                  title={myLikers.length > 0 ? myLikers.join(', ') : 'いいね'}
+                                                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all ${
+                                                    isLikedByMe
+                                                      ? (mineIsAvailable ? 'bg-[#0193be]/15 text-[#0193be] ring-1 ring-[#0193be]/40' : 'bg-white/40 ring-1 ring-white/70')
+                                                      : (mineIsAvailable ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/20 text-white hover:bg-white/30')
+                                                  }`}
+                                                >
+                                                  {isLikedByMe ? (
+                                                    <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                                  ) : (
+                                                    <ThumbUpIcon className="w-3.5 h-3.5" />
+                                                  )}
+                                                  {myLikers.length > 0 && <span className="opacity-80">{myLikers.length}</span>}
+                                                </button>
                                               </div>
                                             );
                                           })()}
@@ -3548,28 +3469,29 @@ const App: React.FC = () => {
                                                       </div>
                                                       <div className="absolute top-full left-6 w-0 h-0 border-r-[12px] border-r-transparent" style={{ borderTopWidth: '6px', borderTopColor: statusBgHex }}></div>
                                                   </div>
-                                                  {/* 他者コメントへのリアクション表示 */}
+                                                  {/* 他者コメントへのいいね表示 */}
                                                   {(() => {
-                                                    const REACTION_EMOJIS_LIST = ['👍','👎','👌','❤️','💩','💀','🤣','😎','😍','🤬','🤮','😮'];
-                                                    const theirReactions = commentReactions.filter(r => r.userName === selectedMember);
-                                                    const rMap = REACTION_EMOJIS_LIST.reduce<Record<string, string[]>>((acc, em) => {
-                                                      const rs = theirReactions.filter(r => r.emoji === em).map(r => r.reactor);
-                                                      if (rs.length > 0) acc[em] = rs;
-                                                      return acc;
-                                                    }, {});
-                                                    if (Object.keys(rMap).length === 0) return null;
+                                                    const theirLikers = commentReactions.filter(r => r.userName === selectedMember).map(r => r.reactor);
+                                                    if (!selectedMember) return null;
+                                                    const isLikedByMe = theirLikers.includes(currentUser.name);
                                                     return (
                                                       <div className="flex flex-wrap gap-1 mt-1">
-                                                        {Object.entries(rMap).map(([em, reactors]) => (
-                                                          <span
-                                                            key={em}
-                                                            title={reactors.join(', ')}
-                                                            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs ${isAvailable ? 'bg-slate-100 text-slate-700' : 'bg-white/20 text-white'}`}
-                                                          >
-                                                            <span>{em}</span>
-                                                            <span className="opacity-70">{reactors.length}</span>
-                                                          </span>
-                                                        ))}
+                                                        <button
+                                                          onClick={() => handleToggleLike(selectedMember)}
+                                                          title={theirLikers.length > 0 ? theirLikers.join(', ') : 'いいね'}
+                                                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all ${
+                                                            isLikedByMe
+                                                              ? (isAvailable ? 'bg-[#0193be]/15 text-[#0193be] ring-1 ring-[#0193be]/40' : 'bg-white/40 ring-1 ring-white/70')
+                                                              : (isAvailable ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/20 text-white hover:bg-white/30')
+                                                          }`}
+                                                        >
+                                                          {isLikedByMe ? (
+                                                            <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                                          ) : (
+                                                            <ThumbUpIcon className="w-3.5 h-3.5" />
+                                                          )}
+                                                          {theirLikers.length > 0 && <span className="opacity-80">{theirLikers.length}</span>}
+                                                        </button>
                                                       </div>
                                                     );
                                                   })()}
