@@ -203,7 +203,8 @@ const CallList: React.FC<CallListProps> = ({
             {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
             <div className="w-24 flex-shrink-0 text-center">ランク</div>
             <div className="w-16 flex-shrink-0 text-center">留守</div>
-            <div className="w-8 flex-shrink-0 text-center">★</div>
+            {/* ヘッダー全体のtracking-widerは1文字の★だと右にズレて見えるためtracking-normalで打ち消す */}
+            <div className="w-8 flex-shrink-0 text-center tracking-normal">★</div>
             {isPrecheckTheme && !isElecTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
             {!isPrecheckTheme && !isElecTheme && <div className="flex-1">備考</div>}
             {(isPrecheckTheme || isElecTheme) && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
