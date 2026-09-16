@@ -396,7 +396,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
     setIsEditing(false);
   };
 
-  const editableFieldClasses = "w-full text-left rounded p-1 -m-1 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition decoration-dashed underline-offset-4 hover:enabled:underline";
+  // 注: text-left/text-center は各呼び出し側で明示的に付与する（後勝ちのクラス結合に依存しない）
+  const editableFieldClasses = "w-full rounded p-1 -m-1 disabled:cursor-not-allowed hover:enabled:bg-slate-200/60 transition decoration-dashed underline-offset-4 hover:enabled:underline";
   const isFieldDisabled = isCompleted || isEditing;
 
   const handleAbsenceCountIncrement = (e: React.MouseEvent) => {
@@ -874,7 +875,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                     onSelectCall(call);
                 }} 
                 disabled={isFieldDisabled} 
-                className={`${editableFieldClasses} cursor-pointer`} 
+                className={`${editableFieldClasses} text-left cursor-pointer`} 
                 title={call.notes}
               >
                 {call.notes || '-'}
