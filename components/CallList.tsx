@@ -203,8 +203,10 @@ const CallList: React.FC<CallListProps> = ({
             {!isPrecheckTheme && !isElecTheme && <div className="w-12 flex-shrink-0 text-center">種別</div>}
             <div className="w-24 flex-shrink-0 text-center">ランク</div>
             <div className="w-16 flex-shrink-0 text-center">留守</div>
-            {/* ヘッダー全体のtracking-widerは1文字の★だと右にズレて見えるためtracking-normalで打ち消す */}
-            <div className="w-8 flex-shrink-0 text-center tracking-normal">★</div>
+            {/* データ行の★アイコン(flex justify-center)と中央揃えの実装方式を完全一致させる。
+                text-center(text-align)とflex justify-centerは丸め誤差やtracking-widerの影響でズレるため、
+                同じflexベースの中央揃えに統一する。tracking-widerも打ち消す。 */}
+            <div className="w-8 flex-shrink-0 flex items-center justify-center tracking-normal">★</div>
             {isPrecheckTheme && !isElecTheme && <div className="w-14 flex-shrink-0 text-center">インポート</div>}
             {!isPrecheckTheme && !isElecTheme && <div className="flex-1">備考</div>}
             {(isPrecheckTheme || isElecTheme) && <div className="w-20 flex-shrink-0 text-center">対応者</div>}
