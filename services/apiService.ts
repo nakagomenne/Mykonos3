@@ -1102,6 +1102,40 @@ export async function toggleCommentReaction(
   }
 }
 
+/** シンプルな「いいね」をトグル（絵文字の種類は問わず、reactor×userNameの既存行を全て対象にする） */
+export async function toggleCommentLike(
+  params: { userName: string; reactor: string }
+): Promise<{ action: 'added' | 'removed'; reaction?: CommentReaction }> {
+  const { data: existingRows, error: fetchErr } = await supabase
+    .from('comment_reactions')
+    .select(REACTION_COLUMNS)
+    .eq('user_name', params.userName)
+    .eq('reactor', params.reactor);
+
+  if (fetchErr && !fetchErr.message?.includes('does not exist')) {
+    throw new Error(`いいねの確認に失敗しました: ${fetchErr.message}`);
+  }
+
+  if (existingRows && existingRows.length > 0) {
+    // 既存（旧スタンプ機能の絵文字含む）→ すべて削除していいね解除
+    const { error: delErr } = await supabase
+      .from('comment_reactions')
+      .delete()
+      .eq('user_name', params.userName)
+      .eq('reactor', params.reactor);
+    if (delErr) throw new Error(`いいねの解除に失敗しました: ${delErr.message}`);
+    return { action: 'removed' };
+  } else {
+    const { data, error: insErr } = await supabase
+      .from('comment_reactions')
+      .insert({ user_name: params.userName, reactor: params.reactor, emoji: '👍' })
+      .select(REACTION_COLUMNS)
+      .single();
+    if (insErr) throw new Error(`いいねの追加に失敗しました: ${insErr.message}`);
+    return { action: 'added', reaction: rowToReaction(data) };
+  }
+}
+
 /** 特定ユーザーへのリアクションをすべて削除（コメント削除時に呼ぶ） */
 export async function deleteReactionsByUserName(userName: string): Promise<void> {
   const { error } = await supabase
