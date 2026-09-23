@@ -242,7 +242,10 @@ const CallList: React.FC<CallListProps> = ({
             </div>
         )}
         {/* List */}
-        <ul className="space-y-1.5 p-2" style={{ background: listBg }}>
+        {/* 根本原因: ul に左右paddingがあると、ヘッダー(px-2のみ)とデータ行(ul の px-2 + li内側の px-2 で二重)の
+            基準点が8pxズレる。ヘッダーとデータ行の水平位置を完全一致させるため、ul の左右paddingは持たせず
+            縦方向のみ py-2 とする（左右の余白は各 li 内側の px-2 のみで持つ）。 */}
+        <ul className="space-y-1.5 py-2 px-0" style={{ background: listBg }}>
             {displayedCalls.map(call => (
                 <CallListItem
                     key={call.id}
