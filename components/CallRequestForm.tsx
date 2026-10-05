@@ -4,6 +4,7 @@ import { CallRequest, ListType, Rank, User } from '../types';
 import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_ASSIGNEE_NAME } from '../constants';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
+import ConfirmationModal from './ConfirmationModal';
 import RankSelector from './RankSelector';
 import EmojiPicker from './EmojiPicker';
 
@@ -132,6 +133,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [alertContent, setAlertContent] = useState({ title: '', message: '' });
+  // 担当者の対応可能商材外のリスト種別で依頼を作成しようとした際の確認待ちフラグ
+  const [isProductMismatchConfirmOpen, setIsProductMismatchConfirmOpen] = useState(false);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -210,17 +213,9 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         return users; // App.tsx will already have filtered to pre-checkers
     }
 
-    // 商材フィルター（リスト種別→対応商材を持つメンバーに絞る）
+    // 商材による絞り込みは行わない（対応可能商材外のメンバーも選択可能にし、
+    // 送信時に警告ダイアログで確認を取る方式に変更）。
     let base = users;
-    if (enableProductFiltering && listType) {
-      if (listType === '回線') {
-        base = users.filter(u => (u.availableProducts ?? []).includes('回線') || u.isLinePrechecker);
-      } else if (['MF', 'OK', 'NG'].includes(listType)) {
-        base = users.filter(u => (u.availableProducts ?? []).includes('水'));
-      } else if (listType === '保険') {
-        base = users.filter(u => (u.availableProducts ?? []).includes('保険'));
-      }
-    }
 
     if (!enableProductFiltering) {
       return base;
@@ -258,31 +253,35 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     });
   }, [users, calls, listType, date, enableProductFiltering, isPrecheckMode]);
   
+  // リスト種別の選択肢は商材で絞り込まず常に全種別を表示する
+  // （担当者が対応していない商材を選んだ場合は送信時に警告ダイアログで確認する）
   const filteredListTypeOptions = useMemo(() => {
     if (isPrecheckMode) {
         return ['回線'];
     }
-    if (!enableProductFiltering || !assignee) {
-      return LIST_TYPE_OPTIONS;
-    }
+    return LIST_TYPE_OPTIONS;
+  }, [isPrecheckMode]);
+
+  // リスト種別に対応する商材キーを返す
+  const requiredProductForListType = (lt: ListType | ''): string | null => {
+    if (!lt) return null;
+    if (lt === '回線') return '回線';
+    if (['MF', 'OK', 'NG'].includes(lt)) return '水';
+    if (lt === '保険') return '保険';
+    return null;
+  };
+
+  // 担当者が選択中のリスト種別の商材に対応しているか（対応可能商材フィルター対象フォームのみ判定）
+  const isAssigneeProductMismatch = useMemo(() => {
+    if (!enableProductFiltering || isPrecheckMode || !assignee || !listType) return false;
     const selectedUser = users.find(user => user.name === assignee);
-    // 商材なし（空配列）のユーザーは選択肢なし
-    if (!selectedUser || !(selectedUser.availableProducts ?? []).length) {
-      return [];
-    }
-    
-    const options: ListType[] = [];
-    if (selectedUser.availableProducts!.includes('回線')) {
-      options.push('回線');
-    }
-    if (selectedUser.availableProducts!.includes('水')) {
-      options.push('MF', 'OK', 'NG');
-    }
-    if (selectedUser.availableProducts!.includes('保険')) {
-      options.push('保険');
-    }
-    return options;
-  }, [assignee, users, enableProductFiltering, isPrecheckMode]);
+    if (!selectedUser) return false;
+    const requiredProduct = requiredProductForListType(listType);
+    if (!requiredProduct) return false;
+    // 回線は回線前確権限でも可とする
+    if (requiredProduct === '回線' && selectedUser.isLinePrechecker) return false;
+    return !(selectedUser.availableProducts ?? []).includes(requiredProduct);
+  }, [assignee, listType, users, enableProductFiltering, isPrecheckMode]);
 
   useEffect(() => {
     if (enableProductFiltering && assignee && !defaultAssignee) {
@@ -292,13 +291,6 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       }
     }
   }, [filteredUsers, assignee, defaultAssignee, enableProductFiltering]);
-
-  useEffect(() => {
-    if (enableProductFiltering && listType && !filteredListTypeOptions.includes(listType as ListType)) {
-        setListType('');
-    }
-  }, [assignee, listType, filteredListTypeOptions, enableProductFiltering]);
-
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -398,6 +390,25 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     }
   }, [assignee, users, enableProductFiltering, prefilledDate, isPrecheckMode]);
 
+  const submitCall = () => {
+    const success = onAddCall({
+      customerId,
+      requester: requesterOverride || currentUser,
+      assignee,
+      listType,
+      rank,
+      dateTime: `${date}T${time}`,
+      notes,
+      emoji,
+      isStrict,
+      isDetailedTime,
+    });
+
+    if (success) {
+      resetForm();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId || !assignee || !listType || !rank || !date || !time) {
@@ -412,23 +423,20 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         setIsAlertOpen(true);
         return;
     }
-      
-    const success = onAddCall({
-      customerId,
-      requester: requesterOverride || currentUser,
-      assignee,
-      listType,
-      rank,
-      dateTime: `${date}T${time}`,
-      notes,
-      emoji,
-      isStrict,
-      isDetailedTime,
-    });
-    
-    if (success) {
-      resetForm();
+
+    // 担当者が選択中のリスト種別の対応可能商材を持っていない場合は、
+    // 警告ダイアログで確認を取った上で作成できるようにする
+    if (isAssigneeProductMismatch) {
+      setIsProductMismatchConfirmOpen(true);
+      return;
     }
+
+    submitCall();
+  };
+
+  const handleConfirmProductMismatch = () => {
+    setIsProductMismatchConfirmOpen(false);
+    submitCall();
   };
   
   const showAssigneeField = defaultAssignee !== PRECHECKER_ASSIGNEE_NAME;
@@ -766,6 +774,20 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
       >
         <p>{alertContent.message}</p>
       </AlertModal>
+      <ConfirmationModal
+        isOpen={isProductMismatchConfirmOpen}
+        onClose={() => setIsProductMismatchConfirmOpen(false)}
+        onConfirm={handleConfirmProductMismatch}
+        title="対応可能商材外の確認"
+        confirmLabel="作成する"
+      >
+        <p>
+          <strong className="text-slate-800">{assignee}</strong>さんは
+          <strong className="text-slate-800 mx-1">「{listType}」</strong>
+          を対応可能商材として設定していません。
+        </p>
+        <p className="mt-2">このまま依頼を作成しますか？</p>
+      </ConfirmationModal>
     </>
   );
 };
