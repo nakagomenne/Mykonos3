@@ -2938,7 +2938,7 @@ const App: React.FC = () => {
                                           ? <HeartSolidIcon className="w-3.5 h-3.5" />
                                           : <HeartIcon className="w-3.5 h-3.5" />
                                         }
-                                        {likers.length > 0 ? likers.length : 'いいね'}
+                                        {likers.length > 0 && likers.length}
                                       </button>
                                       {/* 返信ボタン */}
                                       {!isReplyOpen && (
