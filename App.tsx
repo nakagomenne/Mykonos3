@@ -1925,7 +1925,7 @@ const App: React.FC = () => {
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
 
-    // ボタンバウンス
+    // ボタンバウンス（共通）
     buttonEl.classList.remove('post-pop');
     void buttonEl.offsetWidth;
     buttonEl.classList.add('post-pop');
@@ -1935,65 +1935,196 @@ const App: React.FC = () => {
       document.body.appendChild(el);
       setTimeout(() => el.remove(), ttl);
     };
+    const mk = () => {
+      const el = document.createElement('span');
+      el.classList.add('post-particle');
+      return el;
+    };
 
-    // 吹き出し絵文字 3個（ずらして上昇）
-    ['💬','🗨️','✨'].forEach((emoji, i) => {
-      const b = document.createElement('span');
-      b.classList.add('post-particle', 'pp-bubble');
-      b.textContent = emoji;
-      b.style.fontSize = `${26 - i * 5}px`;
-      b.style.left = `${cx + (i - 1) * 22}px`;
-      b.style.top = `${cy}px`;
-      b.style.animationDelay = `${i * 80}ms`;
-      spawn(b, 1000 + i * 80);
-    });
+    // ランダムでバリエーション選択
+    const variant = Math.floor(Math.random() * 4); // 0〜3
 
-    // リング 2重
-    ['#a855f7', '#f472b6'].forEach((color, i) => {
-      const r = document.createElement('span');
-      r.classList.add('pp-ring');
-      r.style.left = `${cx}px`;
-      r.style.top = `${cy}px`;
-      r.style.borderColor = color;
-      r.style.animationDelay = `${i * 100}ms`;
-      spawn(r, 700 + i * 100);
-    });
+    // ━━ Variant A：吹き出し＋紙吹雪＋星（パープル） ━━
+    if (variant === 0) {
+      // 吹き出し絵文字 3個（ずらして上昇）
+      ['💬','🗨️','✨'].forEach((emoji, i) => {
+        const b = mk();
+        b.classList.add('pp-bubble');
+        b.textContent = emoji;
+        b.style.fontSize = `${26 - i * 5}px`;
+        b.style.left = `${cx + (i - 1) * 22}px`;
+        b.style.top = `${cy}px`;
+        b.style.animationDelay = `${i * 80}ms`;
+        spawn(b, 1000 + i * 80);
+      });
+      // リング 2重
+      ['#a855f7', '#f472b6'].forEach((color, i) => {
+        const r = document.createElement('span');
+        r.classList.add('pp-ring');
+        r.style.left = `${cx}px`;
+        r.style.top = `${cy}px`;
+        r.style.borderColor = color;
+        r.style.animationDelay = `${i * 100}ms`;
+        spawn(r, 700 + i * 100);
+      });
+      // 紙吹雪 16個
+      const confettiColors = ['#f472b6','#a855f7','#6366f1','#34d399','#fbbf24','#fb7185','#60a5fa','#c084fc'];
+      const confettiChars = ['✦','★','●','▲','◆','✿','❋','✺'];
+      Array.from({ length: 16 }).forEach((_, i) => {
+        const angle = (i / 16) * Math.PI * 2;
+        const dist = 50 + Math.random() * 60;
+        const c = mk();
+        c.classList.add('pp-confetti');
+        c.textContent = confettiChars[i % confettiChars.length];
+        c.style.fontSize = `${8 + Math.random() * 9}px`;
+        c.style.color = confettiColors[i % confettiColors.length];
+        c.style.left = `${cx}px`;
+        c.style.top = `${cy}px`;
+        c.style.setProperty('--pdx', `${Math.cos(angle) * dist}px`);
+        c.style.setProperty('--pdy', `${Math.sin(angle) * dist}px`);
+        c.style.setProperty('--pdr', `${(Math.random() - 0.5) * 360}deg`);
+        c.style.animationDelay = `${i * 20}ms`;
+        spawn(c, 950 + i * 20);
+      });
+      // 星 8個
+      Array.from({ length: 8 }).forEach((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const dist = 35 + Math.random() * 30;
+        const s = mk();
+        s.classList.add('pp-star');
+        s.textContent = ['⭐','🌟','✨','💫'][i % 4];
+        s.style.fontSize = `${12 + Math.random() * 10}px`;
+        s.style.left = `${cx}px`;
+        s.style.top = `${cy}px`;
+        s.style.setProperty('--sdx', `${Math.cos(angle) * dist}px`);
+        s.style.setProperty('--sdy', `${Math.sin(angle) * dist}px`);
+        s.style.animationDelay = `${i * 35 + 60}ms`;
+        spawn(s, 900 + i * 35);
+      });
 
-    // 紙吹雪 16個
-    const confettiColors = ['#f472b6','#a855f7','#6366f1','#34d399','#fbbf24','#fb7185','#60a5fa','#c084fc'];
-    const confettiChars = ['✦','★','●','▲','◆','✿','❋','✺'];
-    Array.from({ length: 16 }).forEach((_, i) => {
-      const angle = (i / 16) * Math.PI * 2;
-      const dist = 50 + Math.random() * 60;
-      const c = document.createElement('span');
-      c.classList.add('post-particle', 'pp-confetti');
-      c.textContent = confettiChars[i % confettiChars.length];
-      c.style.fontSize = `${8 + Math.random() * 9}px`;
-      c.style.color = confettiColors[i % confettiColors.length];
-      c.style.left = `${cx}px`;
-      c.style.top = `${cy}px`;
-      c.style.setProperty('--pdx', `${Math.cos(angle) * dist}px`);
-      c.style.setProperty('--pdy', `${Math.sin(angle) * dist}px`);
-      c.style.setProperty('--pdr', `${(Math.random() - 0.5) * 360}deg`);
-      c.style.animationDelay = `${i * 20}ms`;
-      spawn(c, 950 + i * 20);
-    });
+    // ━━ Variant B：虹アーチ（文字が弧を描いて飛ぶ） ━━
+    } else if (variant === 1) {
+      // カラーバースト（pb-flash）2重
+      ['#f472b6','#a855f7'].forEach((color, i) => {
+        const fl = document.createElement('span');
+        fl.classList.add('pb-flash');
+        fl.style.left = `${cx}px`;
+        fl.style.top = `${cy}px`;
+        fl.style.background = color;
+        fl.style.animationDelay = `${i * 80}ms`;
+        spawn(fl, 500 + i * 80);
+      });
+      // 虹文字 14個（弧を描いて飛ぶ pb-arc）
+      const rainbowEmoji = ['🌈','💬','✨','🎉','🌸','⭐','💫','🎊','💜','🌟','✦','🎈','💕','✿'];
+      const rainbowColors = ['#f472b6','#fb923c','#facc15','#34d399','#60a5fa','#a855f7','#f472b6'];
+      rainbowEmoji.forEach((e, i) => {
+        const angle = (i / rainbowEmoji.length) * Math.PI * 2;
+        const dist = 55 + Math.random() * 55;
+        const br = `${(Math.random() - 0.5) * 300}deg`;
+        const b = mk();
+        b.classList.add('pb-arc');
+        b.textContent = e;
+        b.style.fontSize = `${10 + Math.random() * 10}px`;
+        b.style.color = rainbowColors[i % rainbowColors.length];
+        b.style.left = `${cx}px`;
+        b.style.top = `${cy}px`;
+        b.style.setProperty('--bx', `${Math.cos(angle) * dist}px`);
+        b.style.setProperty('--by', `${Math.sin(angle) * dist}px`);
+        b.style.setProperty('--br', br);
+        b.style.animationDelay = `${i * 40}ms`;
+        spawn(b, 1100 + i * 40);
+      });
+      // 中央に大きな吹き出し上昇
+      const center = mk();
+      center.classList.add('pp-bubble');
+      center.textContent = '🌈';
+      center.style.fontSize = '34px';
+      center.style.left = `${cx}px`;
+      center.style.top = `${cy}px`;
+      spawn(center, 1000);
 
-    // 星 8個
-    Array.from({ length: 8 }).forEach((_, i) => {
-      const angle = (i / 8) * Math.PI * 2;
-      const dist = 35 + Math.random() * 30;
-      const s = document.createElement('span');
-      s.classList.add('post-particle', 'pp-star');
-      s.textContent = ['⭐','🌟','✨','💫'][i % 4];
-      s.style.fontSize = `${12 + Math.random() * 10}px`;
-      s.style.left = `${cx}px`;
-      s.style.top = `${cy}px`;
-      s.style.setProperty('--sdx', `${Math.cos(angle) * dist}px`);
-      s.style.setProperty('--sdy', `${Math.sin(angle) * dist}px`);
-      s.style.animationDelay = `${i * 35 + 60}ms`;
-      spawn(s, 900 + i * 35);
-    });
+    // ━━ Variant C：花火爆発（縦長放射＋閃光） ━━
+    } else if (variant === 2) {
+      // 閃光（pc-flash-el）
+      const flash = document.createElement('span');
+      flash.classList.add('pc-flash-el');
+      flash.style.left = `${cx}px`;
+      flash.style.top = `${cy}px`;
+      flash.style.background = 'radial-gradient(circle, #fbbf24, #f472b6)';
+      spawn(flash, 500);
+      // 花火パーティクル 18個（放射状 pc-firework）
+      const fireworkEmoji = ['🎇','🎆','✨','⭐','🌟','💫','✦','🎉','🎊','🔥','💥','⚡','🌸','💜','💛','🧡','❤️','💚'];
+      fireworkEmoji.forEach((e, i) => {
+        const angle = (i / fireworkEmoji.length) * Math.PI * 2;
+        const dist = 45 + Math.random() * 65;
+        const fw = mk();
+        fw.classList.add('pc-firework');
+        fw.textContent = e;
+        fw.style.fontSize = `${9 + Math.random() * 11}px`;
+        fw.style.left = `${cx}px`;
+        fw.style.top = `${cy}px`;
+        fw.style.setProperty('--fx', `${Math.cos(angle) * dist}px`);
+        fw.style.setProperty('--fy', `${Math.sin(angle) * dist}px`);
+        fw.style.animationDelay = `${i * 25}ms`;
+        spawn(fw, 1000 + i * 25);
+      });
+      // 軌跡トレイル 8本（pc-tail）
+      Array.from({ length: 8 }).forEach((_, i) => {
+        const angle = (i / 8) * Math.PI * 2;
+        const dist = 30 + Math.random() * 30;
+        const tail = mk();
+        tail.classList.add('pc-tail');
+        tail.textContent = '|';
+        tail.style.fontSize = `${6 + Math.random() * 6}px`;
+        tail.style.color = `hsl(${40 + i * 20},100%,65%)`;
+        tail.style.left = `${cx}px`;
+        tail.style.top = `${cy}px`;
+        tail.style.setProperty('--fx', `${Math.cos(angle) * dist}px`);
+        tail.style.setProperty('--fy', `${Math.sin(angle) * dist}px`);
+        tail.style.animationDelay = `${i * 30}ms`;
+        spawn(tail, 600 + i * 30);
+      });
+
+    // ━━ Variant D：シャボン玉フワフワ ━━
+    } else {
+      // 中央にポストテキスト上昇（pd-text）
+      ['ポスト！','✦','💬'].forEach((txt, i) => {
+        const t = mk();
+        t.classList.add('pd-text');
+        t.textContent = txt;
+        t.style.fontSize = i === 0 ? '16px' : '22px';
+        t.style.fontWeight = 'bold';
+        t.style.color = `hsl(${270 + i * 30},80%,60%)`;
+        t.style.left = `${cx + (i - 1) * 28}px`;
+        t.style.top = `${cy}px`;
+        t.style.animationDelay = `${i * 120}ms`;
+        spawn(t, 1200 + i * 120);
+      });
+      // シャボン玉 14個（pd-bubble-el）
+      const bubbleEmoji = ['🫧','⭕','🔵','💜','💙','🟣','🫧','⭕','💜','🔵','🟣','💙','🫧','⭕'];
+      Array.from({ length: 14 }).forEach((_, i) => {
+        const startAngle = (i / 14) * Math.PI * 2;
+        const midDist  = 30 + Math.random() * 40;
+        const endDist  = 55 + Math.random() * 60;
+        const wobble   = (Math.random() - 0.5) * 25;
+        const bsx = Math.cos(startAngle) * midDist + wobble;
+        const bsy = Math.sin(startAngle) * midDist - 25;
+        const bex = Math.cos(startAngle) * endDist + wobble * 1.5;
+        const bey = Math.sin(startAngle) * endDist - 55 - Math.random() * 30;
+        const b = mk();
+        b.classList.add('pd-bubble-el');
+        b.textContent = bubbleEmoji[i % bubbleEmoji.length];
+        b.style.fontSize = `${8 + Math.random() * 12}px`;
+        b.style.left = `${cx}px`;
+        b.style.top = `${cy}px`;
+        b.style.setProperty('--bsx', `${bsx}px`);
+        b.style.setProperty('--bsy', `${bsy}px`);
+        b.style.setProperty('--bex', `${bex}px`);
+        b.style.setProperty('--bey', `${bey}px`);
+        b.style.animationDelay = `${i * 55}ms`;
+        spawn(b, 1300 + i * 55);
+      });
+    }
   };
 
   const handleSendReply = async (userName: string) => {
