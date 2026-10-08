@@ -2803,25 +2803,38 @@ const App: React.FC = () => {
                     return createPortal(
                       <div
                         ref={commentPopupRef}
-                        className="fixed z-[200] rounded-2xl shadow-2xl w-[22rem] max-h-[70vh] flex flex-col animate-fade-in-up overflow-hidden"
-                        style={{ top, right: 16 }}
+                        className="fixed z-[200] flex flex-col animate-fade-in-up"
+                        style={{
+                          top, right: 16,
+                          width: '26rem',
+                          maxHeight: '78vh',
+                          borderRadius: '24px',
+                          overflow: 'hidden',
+                          boxShadow: '0 24px 60px -8px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.1)',
+                          background: '#fff',
+                        }}
                       >
-                        {/* ── ヘッダー：メッシュグラデーション ── */}
-                        <div
-                          className="px-4 pt-4 pb-3 flex-shrink-0 relative overflow-hidden"
-                          style={{ background: 'linear-gradient(135deg, #f472b6 0%, #a855f7 45%, #3b82f6 100%)' }}
-                        >
-                          {/* 装飾円 */}
-                          <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
-                          <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
-                          <div className="flex justify-between items-center relative">
-                            <div>
-                              <h3 className="font-ribeye text-2xl text-white tracking-wide drop-shadow">Mikopos</h3>
-                              <p className="text-white/70 text-xs mt-0.5">{commentedUsers.length}件のコメント</p>
+                        {/* ── ヘッダー ── */}
+                        <div className="flex-shrink-0 relative overflow-hidden" style={{
+                          background: 'linear-gradient(135deg, #f472b6 0%, #a855f7 50%, #6366f1 100%)',
+                          padding: '16px 18px 14px',
+                        }}>
+                          <div className="absolute rounded-full" style={{ width: 120, height: 120, top: -45, right: -30, background: 'radial-gradient(circle, rgba(255,255,255,0.22) 0%, transparent 70%)' }} />
+                          <div className="absolute rounded-full" style={{ width: 70, height: 70, bottom: -28, left: -16, background: 'radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%)' }} />
+                          <div className="relative flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center justify-center rounded-xl flex-shrink-0" style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)' }}>
+                                <SpeechBubbleIcon className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <h3 className="font-ribeye text-xl text-white tracking-wide drop-shadow leading-tight">Mikopos</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 }}>{commentedUsers.length}件のミコ</p>
+                              </div>
                             </div>
                             <button
                               onClick={() => setIsCommentPopupOpen(false)}
-                              className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/35 text-white transition-all"
+                              className="flex items-center justify-center rounded-full text-white transition-colors"
+                              style={{ width: 32, height: 32, background: 'rgba(255,255,255,0.2)', flexShrink: 0 }}
                             >
                               <XMarkIcon className="w-4 h-4" />
                             </button>
@@ -2829,9 +2842,9 @@ const App: React.FC = () => {
                         </div>
 
                         {/* ── カードリスト ── */}
-                        <div className="overflow-y-auto bg-slate-50 dark:bg-slate-900" style={{ background: '#f8fafc' }}>
+                        <div className="overflow-y-auto flex-1" style={{ background: '#f0f2f8' }}>
                           {commentedUsers.length > 0 ? (
-                            <ul className="p-3 space-y-3">
+                            <ul style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                               {commentedUsers.map(u => {
                                 const userReplies = commentReplies.filter(r => {
                                   if (r.userName !== u.name) return false;
@@ -2849,8 +2862,14 @@ const App: React.FC = () => {
                                   .map(r => r.reactor);
                                 const isLikedByMe = likers.includes(currentUser.name);
                                 return (
-                                  <li key={u.name} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden transition-shadow hover:shadow-md">
-                                    {/* カード上部：ユーザー情報 + コメント */}
+                                  <li key={u.name} style={{
+                                    background: '#ffffff',
+                                    borderRadius: 18,
+                                    boxShadow: '0 2px 12px rgba(100,80,200,0.08)',
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(168,85,247,0.08)',
+                                  }}>
+                                    {/* ── カードヘッダー（クリックでプロフィールへ） ── */}
                                     <button
                                       onClick={() => {
                                         if (u.name === currentUser.name) {
@@ -2860,111 +2879,137 @@ const App: React.FC = () => {
                                         }
                                         setIsCommentPopupOpen(false);
                                       }}
-                                      className="w-full text-left px-3 pt-3 pb-2 hover:bg-slate-50 transition-colors"
+                                      className="w-full text-left transition-colors"
+                                      style={{ padding: '13px 14px 10px', display: 'block' }}
                                     >
-                                      {/* アバター行 */}
-                                      <div className="flex items-center gap-2.5 mb-2">
-                                        <div className="relative flex-shrink-0">
+                                      {/* アバター＋名前＋時刻 */}
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                                        <div style={{ position: 'relative', flexShrink: 0 }}>
                                           {u.profilePicture ? (
-                                            <img src={u.profilePicture} alt={u.name} className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100"/>
+                                            <img src={u.profilePicture} alt={u.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }} />
                                           ) : (
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-blue-400 flex items-center justify-center ring-2 ring-slate-100">
-                                              <UserIcon className="w-5 h-5 text-white"/>
+                                            <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#c084fc,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                                              <UserIcon className="w-5 h-5 text-white" />
                                             </div>
                                           )}
                                           <span className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                          <span className="font-bold text-sm text-slate-800 block truncate">{u.name}</span>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
                                           {u.commentUpdatedAt && (
-                                            <span className="text-xs text-slate-400">{formatRelativeTime(u.commentUpdatedAt)}</span>
+                                            <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatRelativeTime(u.commentUpdatedAt)}</span>
                                           )}
                                         </div>
+                                        {likers.length > 0 && (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff0f3', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>
+                                            <HeartSolidIcon className="w-3 h-3" style={{ color: '#fb7185' }} />
+                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#fb7185' }}>{likers.length}</span>
+                                          </div>
+                                        )}
                                       </div>
-                                      {/* コメント本文 */}
-                                      <div className="relative ml-1">
-                                        <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{u.comment}</p>
+                                      {/* ミコ本文 */}
+                                      <div style={{
+                                        background: 'linear-gradient(135deg, #fdf4ff 0%, #eff6ff 100%)',
+                                        borderRadius: 12,
+                                        padding: '10px 13px',
+                                        border: '1px solid rgba(168,85,247,0.12)',
+                                      }}>
+                                        <p style={{ fontSize: 13.5, color: '#1e293b', lineHeight: 1.7, wordBreak: 'break-all', margin: 0 }}>{u.comment}</p>
                                       </div>
                                     </button>
 
-                                    {/* アクションバー */}
-                                    <div className="flex items-center gap-2 px-3 pb-2 pt-1" onClick={e => e.stopPropagation()}>
+                                    {/* ── アクションバー ── */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px 10px' }} onClick={e => e.stopPropagation()}>
                                       {/* いいねボタン */}
                                       <button
                                         onClick={e => handleToggleLike(u.name, e.currentTarget)}
                                         title={likers.length > 0 ? likers.join(', ') : 'いいね'}
-                                        className={`relative flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
-                                          isLikedByMe || likingUsers.has(u.name)
-                                            ? 'bg-red-50 text-red-500 ring-1 ring-red-200'
-                                            : 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-400'
-                                        }`}
+                                        style={{
+                                          display: 'flex', alignItems: 'center', gap: 5,
+                                          padding: '5px 13px', borderRadius: 20,
+                                          fontSize: 12, fontWeight: 600,
+                                          background: isLikedByMe || likingUsers.has(u.name) ? '#fff0f3' : '#f1f5f9',
+                                          color: isLikedByMe || likingUsers.has(u.name) ? '#f43f5e' : '#64748b',
+                                          border: `1px solid ${isLikedByMe || likingUsers.has(u.name) ? 'rgba(244,63,94,0.25)' : 'transparent'}`,
+                                          transition: 'all 0.15s',
+                                        }}
                                       >
-                                        {isLikedByMe || likingUsers.has(u.name) ? (
-                                          <HeartSolidIcon className="w-3.5 h-3.5 text-red-500" />
-                                        ) : (
-                                          <HeartIcon className="w-3.5 h-3.5" />
-                                        )}
-                                        {likers.length > 0 ? (
-                                          <span className={`font-bold ${isLikedByMe || likingUsers.has(u.name) ? 'text-red-500' : 'text-slate-500'}`}>{likers.length}</span>
-                                        ) : (
-                                          <span>いいね</span>
-                                        )}
+                                        {isLikedByMe || likingUsers.has(u.name)
+                                          ? <HeartSolidIcon className="w-3.5 h-3.5" />
+                                          : <HeartIcon className="w-3.5 h-3.5" />
+                                        }
+                                        {likers.length > 0 ? likers.length : 'いいね'}
                                       </button>
                                       {/* 返信ボタン */}
                                       {!isReplyOpen && (
                                         <button
                                           onClick={e => { e.stopPropagation(); setExpandedReplyUser(u.name); }}
-                                          className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-500 hover:bg-violet-50 hover:text-violet-500 transition-all duration-200"
+                                          style={{
+                                            display: 'flex', alignItems: 'center', gap: 5,
+                                            padding: '5px 13px', borderRadius: 20,
+                                            fontSize: 12, fontWeight: 600,
+                                            background: '#f1f5f9', color: '#64748b',
+                                            transition: 'all 0.15s',
+                                          }}
                                         >
-                                          <SpeechBubbleIcon className="w-3.5 h-3.5"/>
-                                          返信{userReplies.length > 0 && <span className="font-bold ml-0.5">{userReplies.length}</span>}
+                                          <SpeechBubbleIcon className="w-3.5 h-3.5" />
+                                          返信{userReplies.length > 0 && <span style={{ fontWeight: 700, marginLeft: 2 }}>{userReplies.length}</span>}
                                         </button>
                                       )}
                                     </div>
 
-                                    {/* リプライ一覧 */}
+                                    {/* ── リプライ一覧 ── */}
                                     {userReplies.length > 0 && (
-                                      <div className="mx-3 mb-2 rounded-xl bg-slate-50 border border-slate-100 divide-y divide-slate-100 overflow-hidden">
-                                        {userReplies.map(reply => (
-                                          <div key={reply.id} className="flex items-start gap-2 px-3 py-2">
-                                            <div className="w-1 self-stretch rounded-full bg-gradient-to-b from-violet-400 to-blue-400 flex-shrink-0 mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                              <div className="flex items-baseline gap-1.5 mb-0.5">
-                                                <span className="text-xs font-bold text-slate-700">{reply.author}</span>
-                                                <span className="text-xs text-slate-400">{formatRelativeTime(reply.createdAt)}</span>
+                                      <div style={{ margin: '0 12px 10px', borderRadius: 12, background: '#f8f6ff', border: '1px solid rgba(168,85,247,0.1)', overflow: 'hidden' }}>
+                                        {userReplies.map((reply, idx) => (
+                                          <div key={reply.id} style={{
+                                            display: 'flex', alignItems: 'flex-start', gap: 10,
+                                            padding: '9px 12px',
+                                            borderTop: idx > 0 ? '1px solid rgba(168,85,247,0.08)' : 'none',
+                                          }}>
+                                            <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 4, flexShrink: 0, background: 'linear-gradient(180deg,#c084fc,#818cf8)', marginTop: 1 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#4c1d95' }}>{reply.author}</span>
+                                                <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatRelativeTime(reply.createdAt)}</span>
                                               </div>
-                                              <p className="text-xs text-slate-600 break-all leading-relaxed">{reply.body}</p>
+                                              <p style={{ fontSize: 12.5, color: '#3730a3', lineHeight: 1.6, wordBreak: 'break-all', margin: 0 }}>{reply.body}</p>
                                             </div>
                                           </div>
                                         ))}
                                       </div>
                                     )}
 
-                                    {/* リプライ入力 */}
+                                    {/* ── リプライ入力 ── */}
                                     {isReplyOpen && (
-                                      <div className="px-3 pb-3" onClick={e => e.stopPropagation()}>
-                                        <div className="flex gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
+                                      <div style={{ padding: '2px 12px 12px' }} onClick={e => e.stopPropagation()}>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#f8f6ff', border: '1.5px solid rgba(168,85,247,0.25)', borderRadius: 14, padding: '6px 8px 6px 12px' }}>
                                           <input
                                             type="text"
                                             value={replyText}
                                             onChange={e => setReplyInputs(prev => ({ ...prev, [u.name]: e.target.value }))}
                                             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleSendReply(u.name); } }}
                                             maxLength={100}
-                                            placeholder="返信を入力…"
-                                            className="flex-1 text-xs px-2 py-1 bg-transparent text-slate-700 placeholder-slate-400 outline-none"
+                                            placeholder="返信する…"
+                                            style={{ flex: 1, fontSize: 12.5, color: '#1e293b', background: 'transparent', outline: 'none', border: 'none' }}
                                             autoFocus
                                             onClick={e => e.stopPropagation()}
                                           />
                                           <button
                                             onClick={e => { e.stopPropagation(); handleSendReply(u.name); }}
                                             disabled={!replyText.trim()}
-                                            className="text-xs px-3 py-1 rounded-lg font-medium text-white disabled:opacity-40 transition-all"
-                                            style={{ background: 'linear-gradient(135deg, #a855f7, #3b82f6)' }}
+                                            style={{
+                                              fontSize: 12, fontWeight: 700, color: '#fff',
+                                              padding: '5px 12px', borderRadius: 10, flexShrink: 0,
+                                              background: replyText.trim() ? 'linear-gradient(135deg,#a855f7,#6366f1)' : '#cbd5e1',
+                                              boxShadow: replyText.trim() ? '0 2px 8px rgba(168,85,247,0.3)' : 'none',
+                                              transition: 'all 0.15s',
+                                            }}
                                           >送信</button>
                                           <button
                                             onClick={e => { e.stopPropagation(); setExpandedReplyUser(null); }}
-                                            className="flex items-center justify-center w-6 h-6 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all"
-                                          ><XMarkIcon className="w-3.5 h-3.5"/></button>
+                                            style={{ width: 26, height: 26, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', flexShrink: 0, background: 'transparent' }}
+                                          ><XMarkIcon className="w-3.5 h-3.5" /></button>
                                         </div>
                                       </div>
                                     )}
@@ -2973,9 +3018,10 @@ const App: React.FC = () => {
                               })}
                             </ul>
                           ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                              <SpeechBubbleIcon className="w-10 h-10 mb-3 opacity-30" />
-                              <p className="text-sm">まだミコはありません</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '52px 0', color: '#94a3b8' }}>
+                              <SpeechBubbleIcon className="w-10 h-10 mb-3 opacity-25" />
+                              <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>まだミコはありません</p>
+                              <p style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', margin: '4px 0 0' }}>最初のミコをポストしよう！</p>
                             </div>
                           )}
                         </div>
