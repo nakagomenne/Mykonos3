@@ -3073,6 +3073,7 @@ const App: React.FC = () => {
                             if (buttonEl) firePostAnimation(buttonEl);
                             setInlinePostSaving(true);
                             await handleSaveComment(inlinePostText);
+                            setInlinePostText('');  // ポスト後に入力欄をクリア
                             setInlinePostSaving(false);
                           };
                           return (
