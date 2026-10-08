@@ -2811,7 +2811,7 @@ const App: React.FC = () => {
                           borderRadius: '24px',
                           overflow: 'hidden',
                           boxShadow: '0 24px 60px -8px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.1)',
-                          background: '#fff',
+                          background: isDarkMode ? '#1e1b2e' : '#fff',
                         }}
                       >
                         {/* ── ヘッダー ── */}
@@ -2842,7 +2842,7 @@ const App: React.FC = () => {
                         </div>
 
                         {/* ── カードリスト ── */}
-                        <div className="overflow-y-auto flex-1" style={{ background: '#f0f2f8' }}>
+                        <div className="overflow-y-auto flex-1" style={{ background: isDarkMode ? '#16122a' : '#f0f2f8' }}>
                           {commentedUsers.length > 0 ? (
                             <ul style={{ padding: '14px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                               {commentedUsers.map(u => {
@@ -2863,11 +2863,11 @@ const App: React.FC = () => {
                                 const isLikedByMe = likers.includes(currentUser.name);
                                 return (
                                   <li key={u.name} style={{
-                                    background: '#ffffff',
+                                    background: isDarkMode ? '#2a2440' : '#ffffff',
                                     borderRadius: 18,
-                                    boxShadow: '0 2px 12px rgba(100,80,200,0.08)',
+                                    boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.3)' : '0 2px 12px rgba(100,80,200,0.08)',
                                     overflow: 'hidden',
-                                    border: '1px solid rgba(168,85,247,0.08)',
+                                    border: isDarkMode ? '1px solid rgba(168,85,247,0.18)' : '1px solid rgba(168,85,247,0.08)',
                                   }}>
                                     {/* ── カードヘッダー（クリックでプロフィールへ） ── */}
                                     <button
@@ -2895,7 +2895,7 @@ const App: React.FC = () => {
                                           <span className={`absolute bottom-0 right-0 block h-3 w-3 rounded-full ring-2 ring-white ${AVAILABILITY_STATUS_STYLES[u.availabilityStatus]?.bg ?? 'bg-slate-400'}`} />
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                          <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
+                                          <span style={{ display: 'block', fontWeight: 700, fontSize: 14, color: isDarkMode ? '#e2e8f0' : '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</span>
                                           {u.commentUpdatedAt && (
                                             <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatRelativeTime(u.commentUpdatedAt)}</span>
                                           )}
@@ -2909,12 +2909,12 @@ const App: React.FC = () => {
                                       </div>
                                       {/* ミコ本文 */}
                                       <div style={{
-                                        background: 'linear-gradient(135deg, #fdf4ff 0%, #eff6ff 100%)',
+                                        background: isDarkMode ? 'linear-gradient(135deg, #2d1f4a 0%, #1e2a4a 100%)' : 'linear-gradient(135deg, #fdf4ff 0%, #eff6ff 100%)',
                                         borderRadius: 12,
                                         padding: '10px 13px',
-                                        border: '1px solid rgba(168,85,247,0.12)',
+                                        border: isDarkMode ? '1px solid rgba(168,85,247,0.25)' : '1px solid rgba(168,85,247,0.12)',
                                       }}>
-                                        <p style={{ fontSize: 13.5, color: '#1e293b', lineHeight: 1.7, wordBreak: 'break-all', margin: 0 }}>{u.comment}</p>
+                                        <p style={{ fontSize: 13.5, color: isDarkMode ? '#d4c8f0' : '#1e293b', lineHeight: 1.7, wordBreak: 'break-all', margin: 0 }}>{u.comment}</p>
                                       </div>
                                     </button>
 
@@ -2928,8 +2928,8 @@ const App: React.FC = () => {
                                           display: 'flex', alignItems: 'center', gap: 5,
                                           padding: '5px 13px', borderRadius: 20,
                                           fontSize: 12, fontWeight: 600,
-                                          background: isLikedByMe || likingUsers.has(u.name) ? '#fff0f3' : '#f1f5f9',
-                                          color: isLikedByMe || likingUsers.has(u.name) ? '#f43f5e' : '#64748b',
+                                          background: isLikedByMe || likingUsers.has(u.name) ? '#fff0f3' : (isDarkMode ? '#2a2440' : '#f1f5f9'),
+                                          color: isLikedByMe || likingUsers.has(u.name) ? '#f43f5e' : (isDarkMode ? '#94a3b8' : '#64748b'),
                                           border: `1px solid ${isLikedByMe || likingUsers.has(u.name) ? 'rgba(244,63,94,0.25)' : 'transparent'}`,
                                           transition: 'all 0.15s',
                                         }}
@@ -2948,7 +2948,7 @@ const App: React.FC = () => {
                                             display: 'flex', alignItems: 'center', gap: 5,
                                             padding: '5px 13px', borderRadius: 20,
                                             fontSize: 12, fontWeight: 600,
-                                            background: '#f1f5f9', color: '#64748b',
+                                            background: isDarkMode ? '#2a2440' : '#f1f5f9', color: isDarkMode ? '#94a3b8' : '#64748b',
                                             transition: 'all 0.15s',
                                           }}
                                         >
@@ -2960,7 +2960,7 @@ const App: React.FC = () => {
 
                                     {/* ── リプライ一覧 ── */}
                                     {userReplies.length > 0 && (
-                                      <div style={{ margin: '0 12px 10px', borderRadius: 12, background: '#f8f6ff', border: '1px solid rgba(168,85,247,0.1)', overflow: 'hidden' }}>
+                                      <div style={{ margin: '0 12px 10px', borderRadius: 12, background: isDarkMode ? '#231b3a' : '#f8f6ff', border: isDarkMode ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(168,85,247,0.1)', overflow: 'hidden' }}>
                                         {userReplies.map((reply, idx) => (
                                           <div key={reply.id} style={{
                                             display: 'flex', alignItems: 'flex-start', gap: 10,
@@ -2970,10 +2970,10 @@ const App: React.FC = () => {
                                             <div style={{ width: 3, alignSelf: 'stretch', borderRadius: 4, flexShrink: 0, background: 'linear-gradient(180deg,#c084fc,#818cf8)', marginTop: 1 }} />
                                             <div style={{ flex: 1, minWidth: 0 }}>
                                               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 2 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 700, color: '#4c1d95' }}>{reply.author}</span>
+                                                <span style={{ fontSize: 12, fontWeight: 700, color: isDarkMode ? '#c4b5fd' : '#4c1d95' }}>{reply.author}</span>
                                                 <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatRelativeTime(reply.createdAt)}</span>
                                               </div>
-                                              <p style={{ fontSize: 12.5, color: '#3730a3', lineHeight: 1.6, wordBreak: 'break-all', margin: 0 }}>{reply.body}</p>
+                                              <p style={{ fontSize: 12.5, color: isDarkMode ? '#a5b4fc' : '#3730a3', lineHeight: 1.6, wordBreak: 'break-all', margin: 0 }}>{reply.body}</p>
                                             </div>
                                           </div>
                                         ))}
@@ -2983,7 +2983,7 @@ const App: React.FC = () => {
                                     {/* ── リプライ入力 ── */}
                                     {isReplyOpen && (
                                       <div style={{ padding: '2px 12px 12px' }} onClick={e => e.stopPropagation()}>
-                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#f8f6ff', border: '1.5px solid rgba(168,85,247,0.25)', borderRadius: 14, padding: '6px 8px 6px 12px' }}>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: isDarkMode ? '#1e1a30' : '#f8f6ff', border: isDarkMode ? '1.5px solid rgba(168,85,247,0.35)' : '1.5px solid rgba(168,85,247,0.25)', borderRadius: 14, padding: '6px 8px 6px 12px' }}>
                                           <input
                                             type="text"
                                             value={replyText}
@@ -2991,7 +2991,7 @@ const App: React.FC = () => {
                                             onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleSendReply(u.name); } }}
                                             maxLength={100}
                                             placeholder="返信する…"
-                                            style={{ flex: 1, fontSize: 12.5, color: '#1e293b', background: 'transparent', outline: 'none', border: 'none' }}
+                                            style={{ flex: 1, fontSize: 12.5, color: isDarkMode ? '#e2e8f0' : '#1e293b', background: 'transparent', outline: 'none', border: 'none' }}
                                             autoFocus
                                             onClick={e => e.stopPropagation()}
                                           />
@@ -3018,7 +3018,7 @@ const App: React.FC = () => {
                               })}
                             </ul>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '52px 0', color: '#94a3b8' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '52px 0', color: isDarkMode ? '#6b7280' : '#94a3b8' }}>
                               <SpeechBubbleIcon className="w-10 h-10 mb-3 opacity-25" />
                               <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>まだミコはありません</p>
                               <p style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', margin: '4px 0 0' }}>最初のミコをポストしよう！</p>
@@ -3283,8 +3283,10 @@ const App: React.FC = () => {
               }
             : {
                 // medium（デフォルト）
-                wrapperStyle: { background: 'linear-gradient(135deg, #fef9c3 0%, #fef3c7 50%, #fde68a 100%)', border: '1px solid rgba(251,191,36,0.4)', boxShadow: '0 2px 8px rgba(251,191,36,0.15)' },
-                spanClassName: 'font-semibold tracking-wider text-amber-800 px-12 flex-shrink-0',
+                wrapperStyle: isDarkMode
+                  ? { background: 'linear-gradient(135deg, #2d2500 0%, #3d3000 50%, #4a3800 100%)', border: '1px solid rgba(251,191,36,0.35)', boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }
+                  : { background: 'linear-gradient(135deg, #fef9c3 0%, #fef3c7 50%, #fde68a 100%)', border: '1px solid rgba(251,191,36,0.4)', boxShadow: '0 2px 8px rgba(251,191,36,0.15)' },
+                spanClassName: isDarkMode ? 'font-semibold tracking-wider text-yellow-300 px-12 flex-shrink-0' : 'font-semibold tracking-wider text-amber-800 px-12 flex-shrink-0',
                 spanStyle: {} as React.CSSProperties,
               };
 
