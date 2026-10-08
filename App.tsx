@@ -1944,86 +1944,203 @@ const App: React.FC = () => {
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
 
-      // ① ボタン本体：激しいバウンス
+      // ボタン本体：共通バウンス
       buttonEl.classList.remove('heart-pop');
       void buttonEl.offsetWidth;
       buttonEl.classList.add('heart-pop');
       setTimeout(() => buttonEl.classList.remove('heart-pop'), 700);
 
-      // ② 大きなハートがふわっと中央から出て上昇・消える
-      const bigHeart = document.createElement('span');
-      bigHeart.className = 'heart-big-burst';
-      bigHeart.textContent = '❤️';
-      bigHeart.style.fontSize = '38px';
-      bigHeart.style.left = `${cx}px`;
-      bigHeart.style.top = `${cy}px`;
-      document.body.appendChild(bigHeart);
-      setTimeout(() => bigHeart.remove(), 1000);
-
-      // ③ リングが外側に広がる（2重）
-      [0, 120].forEach((delay, i) => {
-        const ring = document.createElement('span');
-        ring.className = 'heart-ring-particle';
-        ring.style.left = `${cx}px`;
-        ring.style.top = `${cy}px`;
-        ring.style.borderColor = `hsl(${340 + i * 20}, 90%, 65%)`;
-        ring.style.animationDelay = `${delay}ms`;
-        document.body.appendChild(ring);
-        setTimeout(() => ring.remove(), 800 + delay);
-      });
-
-      // ④ ハート・星が放射状に飛び散る（12個）
-      const emojis = ['♡', '♥', '💕', '✦', '♡', '✧', '♥', '💗', '♡', '✦', '♥', '♡'];
-      emojis.forEach((emoji, i) => {
-        const angle = (i / emojis.length) * Math.PI * 2;
-        const dist = 45 + Math.random() * 55;
-        const dx = Math.cos(angle) * dist;
-        const dy = Math.sin(angle) * dist;
-        const dr = `${(Math.random() - 0.5) * 180}deg`;
-        const p = document.createElement('span');
-        p.className = 'heart-scatter-particle';
-        p.textContent = emoji;
-        p.style.fontSize = `${9 + Math.random() * 11}px`;
-        p.style.color = `hsl(${320 + Math.random() * 50}, 90%, ${55 + Math.random() * 20}%)`;
-        p.style.left = `${cx}px`;
-        p.style.top = `${cy}px`;
-        p.style.setProperty('--dx', `${dx}px`);
-        p.style.setProperty('--dy', `${dy}px`);
-        p.style.setProperty('--dr', dr);
-        p.style.animationDelay = `${i * 30}ms`;
-        document.body.appendChild(p);
-        setTimeout(() => p.remove(), 1100);
-      });
-
-      // ⑤ キラキラ星が周囲に広がる（8個）
-      const stars = ['✨', '⭐', '✦', '✧', '★', '✩', '✦', '✧'];
-      stars.forEach((star, i) => {
-        const angle = (i / stars.length) * Math.PI * 2 + 0.3;
-        const r1 = 30 + Math.random() * 25;
-        const r2 = 55 + Math.random() * 30;
-        const s = document.createElement('span');
-        s.className = 'star-sparkle-particle';
-        s.textContent = star;
-        s.style.fontSize = `${8 + Math.random() * 8}px`;
-        s.style.color = `hsl(${40 + Math.random() * 30}, 100%, 65%)`;
-        s.style.left = `${cx}px`;
-        s.style.top = `${cy}px`;
-        s.style.setProperty('--sx',  `${Math.cos(angle) * r1}px`);
-        s.style.setProperty('--sy',  `${Math.sin(angle) * r1}px`);
-        s.style.setProperty('--sx2', `${Math.cos(angle) * r2}px`);
-        s.style.setProperty('--sy2', `${Math.sin(angle) * r2}px`);
-        s.style.animationDelay = `${50 + i * 25}ms`;
-        document.body.appendChild(s);
-        setTimeout(() => s.remove(), 950);
-      });
-
-      // アニメーション中フラグ（ボタンの視覚的強調用）
+      // アニメーション中フラグ
       setLikingUsers(prev => new Set(prev).add(userName));
-      setTimeout(() => setLikingUsers(prev => {
-        const next = new Set(prev);
-        next.delete(userName);
-        return next;
-      }), 650);
+      setTimeout(() => setLikingUsers(prev => { const n = new Set(prev); n.delete(userName); return n; }), 700);
+
+      // ヘルパー
+      const mk = (tag = 'span') => {
+        const el = document.createElement(tag) as HTMLSpanElement;
+        el.classList.add('like-particle');
+        return el;
+      };
+      const spawn = (el: HTMLElement, ttl: number) => { document.body.appendChild(el); setTimeout(() => el.remove(), ttl); };
+
+      // ランダムでバリエーション選択
+      const variant = Math.floor(Math.random() * 4); // 0〜3
+
+      // ━━━━ Variant A：ハート放射 + キラキラ星 ━━━━
+      if (variant === 0) {
+        // 大きなハート上昇
+        const bh = mk(); bh.textContent = '❤️'; bh.style.fontSize = '40px';
+        bh.style.left = `${cx}px`; bh.style.top = `${cy}px`;
+        bh.classList.add('va-big-burst'); spawn(bh, 1000);
+        // リング 3重
+        [0, 100, 220].forEach((delay, i) => {
+          const r = document.createElement('span');
+          r.classList.add('va-ring');
+          r.style.left = `${cx}px`; r.style.top = `${cy}px`;
+          r.style.borderColor = `hsl(${340 + i * 15},90%,65%)`;
+          r.style.animationDelay = `${delay}ms`;
+          spawn(r, 750 + delay);
+        });
+        // 放射ハート 12個
+        ['♡','♥','💕','✦','♡','✧','♥','💗','♡','✦','♥','♡'].forEach((e, i) => {
+          const angle = (i / 12) * Math.PI * 2;
+          const dist = 48 + Math.random() * 52;
+          const p = mk(); p.textContent = e;
+          p.style.fontSize = `${10 + Math.random() * 10}px`;
+          p.style.color = `hsl(${320 + Math.random() * 50},90%,${55 + Math.random() * 20}%)`;
+          p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+          p.classList.add('va-scatter');
+          p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+          p.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+          p.style.setProperty('--dr', `${(Math.random() - 0.5) * 200}deg`);
+          p.style.animationDelay = `${i * 28}ms`;
+          spawn(p, 1100);
+        });
+        // キラキラ星 8個
+        ['✨','⭐','✦','✧','★','✩','✦','✧'].forEach((s, i) => {
+          const angle = (i / 8) * Math.PI * 2 + 0.3;
+          const r1 = 28 + Math.random() * 22; const r2 = 52 + Math.random() * 28;
+          const el = mk(); el.textContent = s;
+          el.style.fontSize = `${8 + Math.random() * 8}px`;
+          el.style.color = `hsl(${38 + Math.random() * 28},100%,65%)`;
+          el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+          el.classList.add('va-star');
+          el.style.setProperty('--sx',  `${Math.cos(angle) * r1}px`);
+          el.style.setProperty('--sy',  `${Math.sin(angle) * r1}px`);
+          el.style.setProperty('--sx2', `${Math.cos(angle) * r2}px`);
+          el.style.setProperty('--sy2', `${Math.sin(angle) * r2}px`);
+          el.style.animationDelay = `${45 + i * 22}ms`;
+          spawn(el, 980);
+        });
+
+      // ━━━━ Variant B：レインボー螺旋上昇 ━━━━
+      } else if (variant === 1) {
+        // 大きなレインボーハート
+        const rainbowColors = ['❤️','🧡','💛','💚','💙','💜','🩷','❤️'];
+        const bh = mk(); bh.textContent = rainbowColors[Math.floor(Math.random() * rainbowColors.length)];
+        bh.style.fontSize = '44px';
+        bh.style.left = `${cx}px`; bh.style.top = `${cy}px`;
+        bh.classList.add('vb-rainbow-heart'); spawn(bh, 1200);
+        // 螺旋トレイル（16個）
+        for (let i = 0; i < 16; i++) {
+          const angle = (i / 16) * Math.PI * 4; // 2周
+          const radius = 15 + i * 4;
+          const dx = Math.cos(angle) * radius;
+          const dy = -i * 8 - Math.sin(angle) * 10;
+          const dr = `${angle * (180 / Math.PI) + 90}deg`;
+          const hearts = ['♡','♥','💕','💗','🩷'];
+          const p = mk(); p.textContent = hearts[i % hearts.length];
+          p.style.fontSize = `${7 + Math.random() * 9}px`;
+          const hue = (i / 16) * 360;
+          p.style.color = `hsl(${hue},90%,60%)`;
+          p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+          p.classList.add('vb-spiral');
+          p.style.setProperty('--dx', `${dx}px`);
+          p.style.setProperty('--dy', `${dy}px`);
+          p.style.setProperty('--dr', dr);
+          p.style.animationDelay = `${i * 45}ms`;
+          spawn(p, 1200);
+        }
+        // 後追いトレイル（小さなハートが斜めに上昇）
+        for (let i = 0; i < 6; i++) {
+          const t = mk(); t.textContent = '✦';
+          t.style.fontSize = `${6 + Math.random() * 6}px`;
+          t.style.color = `hsl(${Math.random() * 360},90%,65%)`;
+          const tx = (Math.random() - 0.5) * 40; const ty = -(20 + Math.random() * 40);
+          t.style.left = `${cx + tx}px`; t.style.top = `${cy + ty + 20}px`;
+          t.classList.add('vb-trail');
+          t.style.setProperty('--tx', `${tx}px`); t.style.setProperty('--ty', `${ty}px`);
+          t.style.animationDelay = `${i * 80}ms`;
+          spawn(t, 900);
+        }
+
+      // ━━━━ Variant C：爆発 → 重力落下 ━━━━
+      } else if (variant === 2) {
+        // 中央フラッシュ
+        const flash = mk(); flash.textContent = '💥';
+        flash.style.fontSize = '32px';
+        flash.style.left = `${cx}px`; flash.style.top = `${cy}px`;
+        flash.classList.add('vc-flash'); spawn(flash, 600);
+        // ショックウェーブ 2重
+        [0, 150].forEach((delay, i) => {
+          const sw = document.createElement('span');
+          sw.classList.add('vc-shockwave');
+          sw.style.left = `${cx}px`; sw.style.top = `${cy}px`;
+          sw.style.borderColor = `hsl(${15 + i * 30},100%,60%)`;
+          sw.style.animationDelay = `${delay}ms`;
+          spawn(sw, 800 + delay);
+        });
+        // 爆発パーティクル 14個（上方向重め + 落下）
+        const expEmojis = ['💥','❤️','♥','♡','💗','🔥','✦','⭐','💕','♥','♡','🔥','✧','❤️'];
+        expEmojis.forEach((e, i) => {
+          const angle = (i / expEmojis.length) * Math.PI * 2;
+          const speed = 55 + Math.random() * 60;
+          const ex = Math.cos(angle) * speed;
+          const ey = Math.sin(angle) * speed - 20; // 上寄り
+          const er = `${(Math.random() - 0.5) * 360}deg`;
+          const p = mk(); p.textContent = e;
+          p.style.fontSize = `${10 + Math.random() * 14}px`;
+          p.style.color = `hsl(${Math.random() * 40},100%,${55 + Math.random() * 20}%)`;
+          p.style.left = `${cx}px`; p.style.top = `${cy}px`;
+          p.classList.add('vc-explode');
+          p.style.setProperty('--ex', `${ex}px`);
+          p.style.setProperty('--ey', `${ey}px`);
+          p.style.setProperty('--er', er);
+          p.style.animationDelay = `${i * 20}ms`;
+          spawn(p, 1050);
+        });
+
+      // ━━━━ Variant D：桜・花びら舞い ━━━━
+      } else {
+        // 中央に花が咲く
+        const bloom = mk(); bloom.textContent = '🌸';
+        bloom.style.fontSize = '42px';
+        bloom.style.left = `${cx}px`; bloom.style.top = `${cy}px`;
+        bloom.classList.add('vd-bloom'); spawn(bloom, 1100);
+        // 花びらが弧を描いて散る 12個
+        const petals = ['🌸','🌺','🌷','💮','🌸','🌼','🌹','🌸','💐','🌸','🌺','🌷'];
+        petals.forEach((p, i) => {
+          const angle = (i / petals.length) * Math.PI * 2;
+          const r = 30 + Math.random() * 40;
+          const px  = Math.cos(angle) * r;
+          const py1 = Math.sin(angle) * r * 0.5 - 20;
+          const py2 = Math.sin(angle) * r + 15;
+          const px2 = Math.cos(angle) * (r * 1.5);
+          const pr1 = `${(Math.random() - 0.5) * 60}deg`;
+          const pr2 = `${(Math.random() - 0.5) * 120}deg`;
+          const el = mk(); el.textContent = p;
+          el.style.fontSize = `${9 + Math.random() * 10}px`;
+          el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+          el.classList.add('vd-petal');
+          el.style.setProperty('--px',  `${px}px`);
+          el.style.setProperty('--py1', `${py1}px`);
+          el.style.setProperty('--py2', `${py2}px`);
+          el.style.setProperty('--px2', `${px2}px`);
+          el.style.setProperty('--pr1', pr1);
+          el.style.setProperty('--pr2', pr2);
+          el.style.animationDelay = `${i * 35}ms`;
+          spawn(el, 1300);
+        });
+        // ふわふわ舞い上がる小花 8個
+        ['🌸','✿','❀','🌸','✦','🌼','✿','🌸'].forEach((f, i) => {
+          const fx = (Math.random() - 0.5) * 60;
+          const fw = (Math.random() - 0.5) * 30;
+          const fr1 = `${(Math.random() - 0.5) * 40}deg`;
+          const fr2 = `${(Math.random() - 0.5) * 80}deg`;
+          const fr3 = `${(Math.random() - 0.5) * 120}deg`;
+          const el = mk(); el.textContent = f;
+          el.style.fontSize = `${7 + Math.random() * 7}px`;
+          el.style.color = `hsl(${320 + Math.random() * 60},85%,${60 + Math.random() * 20}%)`;
+          el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+          el.classList.add('vd-float-up');
+          el.style.setProperty('--fx',  `${fx}px`);
+          el.style.setProperty('--fw',  `${fw}px`);
+          el.style.setProperty('--fr1', fr1);
+          el.style.setProperty('--fr2', fr2);
+          el.style.setProperty('--fr3', fr3);
+          el.style.animationDelay = `${50 + i * 60}ms`;
+          spawn(el, 1400);
+        });
+      }
     }
 
     try {
