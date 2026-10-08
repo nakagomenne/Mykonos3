@@ -1940,29 +1940,82 @@ const App: React.FC = () => {
 
     // ── いいね追加の場合はAPI前に即アニメーション発火 ──
     if (!alreadyLiked && buttonEl) {
-      // ボタン自体のバウンス
+      const rect = buttonEl.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+
+      // ① ボタン本体：激しいバウンス
       buttonEl.classList.remove('heart-pop');
       void buttonEl.offsetWidth;
       buttonEl.classList.add('heart-pop');
-      setTimeout(() => buttonEl.classList.remove('heart-pop'), 500);
+      setTimeout(() => buttonEl.classList.remove('heart-pop'), 700);
 
-      // ♡パーティクルを fixed 座標で生成（スクロール位置に左右されない）
-      const rect = buttonEl.getBoundingClientRect();
-      for (let i = 0; i < 5; i++) {
+      // ② 大きなハートがふわっと中央から出て上昇・消える
+      const bigHeart = document.createElement('span');
+      bigHeart.className = 'heart-big-burst';
+      bigHeart.textContent = '❤️';
+      bigHeart.style.fontSize = '38px';
+      bigHeart.style.left = `${cx}px`;
+      bigHeart.style.top = `${cy}px`;
+      document.body.appendChild(bigHeart);
+      setTimeout(() => bigHeart.remove(), 1000);
+
+      // ③ リングが外側に広がる（2重）
+      [0, 120].forEach((delay, i) => {
+        const ring = document.createElement('span');
+        ring.className = 'heart-ring-particle';
+        ring.style.left = `${cx}px`;
+        ring.style.top = `${cy}px`;
+        ring.style.borderColor = `hsl(${340 + i * 20}, 90%, 65%)`;
+        ring.style.animationDelay = `${delay}ms`;
+        document.body.appendChild(ring);
+        setTimeout(() => ring.remove(), 800 + delay);
+      });
+
+      // ④ ハート・星が放射状に飛び散る（12個）
+      const emojis = ['♡', '♥', '💕', '✦', '♡', '✧', '♥', '💗', '♡', '✦', '♥', '♡'];
+      emojis.forEach((emoji, i) => {
+        const angle = (i / emojis.length) * Math.PI * 2;
+        const dist = 45 + Math.random() * 55;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const dr = `${(Math.random() - 0.5) * 180}deg`;
         const p = document.createElement('span');
-        p.className = 'heart-float-particle';
-        p.textContent = '♡';
-        p.style.position = 'fixed';
-        p.style.zIndex = '9999';
-        p.style.pointerEvents = 'none';
-        p.style.fontSize = `${10 + Math.random() * 6}px`;
-        p.style.color = `hsl(${335 + Math.random() * 25}, 90%, ${55 + Math.random() * 15}%)`;
-        p.style.left = `${rect.left + rect.width / 2 + (Math.random() - 0.5) * 24}px`;
-        p.style.top = `${rect.top - 2}px`;
-        p.style.animationDelay = `${i * 70}ms`;
+        p.className = 'heart-scatter-particle';
+        p.textContent = emoji;
+        p.style.fontSize = `${9 + Math.random() * 11}px`;
+        p.style.color = `hsl(${320 + Math.random() * 50}, 90%, ${55 + Math.random() * 20}%)`;
+        p.style.left = `${cx}px`;
+        p.style.top = `${cy}px`;
+        p.style.setProperty('--dx', `${dx}px`);
+        p.style.setProperty('--dy', `${dy}px`);
+        p.style.setProperty('--dr', dr);
+        p.style.animationDelay = `${i * 30}ms`;
         document.body.appendChild(p);
-        setTimeout(() => p.remove(), 1000);
-      }
+        setTimeout(() => p.remove(), 1100);
+      });
+
+      // ⑤ キラキラ星が周囲に広がる（8個）
+      const stars = ['✨', '⭐', '✦', '✧', '★', '✩', '✦', '✧'];
+      stars.forEach((star, i) => {
+        const angle = (i / stars.length) * Math.PI * 2 + 0.3;
+        const r1 = 30 + Math.random() * 25;
+        const r2 = 55 + Math.random() * 30;
+        const s = document.createElement('span');
+        s.className = 'star-sparkle-particle';
+        s.textContent = star;
+        s.style.fontSize = `${8 + Math.random() * 8}px`;
+        s.style.color = `hsl(${40 + Math.random() * 30}, 100%, 65%)`;
+        s.style.left = `${cx}px`;
+        s.style.top = `${cy}px`;
+        s.style.setProperty('--sx',  `${Math.cos(angle) * r1}px`);
+        s.style.setProperty('--sy',  `${Math.sin(angle) * r1}px`);
+        s.style.setProperty('--sx2', `${Math.cos(angle) * r2}px`);
+        s.style.setProperty('--sy2', `${Math.sin(angle) * r2}px`);
+        s.style.animationDelay = `${50 + i * 25}ms`;
+        document.body.appendChild(s);
+        setTimeout(() => s.remove(), 950);
+      });
 
       // アニメーション中フラグ（ボタンの視覚的強調用）
       setLikingUsers(prev => new Set(prev).add(userName));
@@ -1970,7 +2023,7 @@ const App: React.FC = () => {
         const next = new Set(prev);
         next.delete(userName);
         return next;
-      }), 450);
+      }), 650);
     }
 
     try {
