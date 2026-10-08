@@ -88,7 +88,14 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const savedUser = localStorage.getItem('mykonosUser');
     try {
-        return savedUser ? JSON.parse(savedUser) : null;
+      if (!savedUser) return null;
+      const parsed = JSON.parse(savedUser);
+      // isLoggedInAsAdmin はセキュリティ上 localStorage に保存しないが、
+      // isAdmin / isSuperAdmin フラグが立っていればリロード後も管理者として復元する
+      if (parsed && (parsed.isAdmin || parsed.isSuperAdmin)) {
+        parsed.isLoggedInAsAdmin = true;
+      }
+      return parsed;
     } catch {
         return null;
     }
