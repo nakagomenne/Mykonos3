@@ -1912,7 +1912,7 @@ const App: React.FC = () => {
         )
       );
     } catch (err: any) {
-      alert(`コメントの保存に失敗しました: ${err?.message ?? err}`);
+      alert(`ミコのポストに失敗しました: ${err?.message ?? err}`);
     }
   };
 
@@ -2975,7 +2975,7 @@ const App: React.FC = () => {
                           ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                               <SpeechBubbleIcon className="w-10 h-10 mb-3 opacity-30" />
-                              <p className="text-sm">まだコメントはありません</p>
+                              <p className="text-sm">まだミコはありません</p>
                             </div>
                           )}
                         </div>
@@ -3124,7 +3124,7 @@ const App: React.FC = () => {
                           role="menuitem"
                         >
                           <PencilIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-                          <span>コメント設定</span>
+                          <span>ミコをポスト</span>
                         </button>
                         {/* 稼働ルール（設定されている場合のみ表示） */}
                         {workRules && (
@@ -3511,7 +3511,7 @@ const App: React.FC = () => {
                                               <button
                                                   onClick={() => setIsCommentModalOpen(true)}
                                                   className={`group ${mineStatusBgColor} hover:opacity-90 px-3 py-1.5 rounded-lg shadow-sm flex items-baseline gap-2 transition-opacity`}
-                                                  title="コメントを編集"
+                                                  title="ミコを編集"
                                               >
                                                   <p className="text-sm font-bold text-white">
                                                       {currentUserWithData.comment}
@@ -3555,11 +3555,11 @@ const App: React.FC = () => {
                                       <button
                                           onClick={() => setIsCommentModalOpen(true)}
                                           className={`mb-2 ${mineTextColor} opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1`}
-                                          title="コメントを設定"
-                                          aria-label="コメントを設定"
+                                          title="ポストする"
+                                          aria-label="ポストする"
                                       >
                                           <SpeechBubbleIcon className="w-5 h-5" />
-                                          <span className="text-xs">コメントを設定</span>
+                                          <span className="text-xs">ポストする</span>
                                       </button>
                                   )}
                                   <div className="flex items-center gap-2 flex-wrap">

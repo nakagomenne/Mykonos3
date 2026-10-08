@@ -35,7 +35,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
         onClick={e => e.stopPropagation()}
       >
         <div className="p-5 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800">コメント設定</h2>
+          <h2 className="text-lg font-bold text-slate-800">ミコをポスト</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-800 transition">
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -44,7 +44,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
         <div className="p-6">
           <div className="flex justify-between items-center mb-2">
             <label htmlFor="user-comment" className="block text-sm font-medium text-slate-700">
-                コメント (30文字まで)
+                ミコ (30文字まで)
             </label>
             <button onClick={() => setComment('')} className="text-sm text-[#0193be] hover:underline">
               クリア
@@ -76,7 +76,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
               onClick={handleSave} 
               className="bg-[#0193be] text-white font-bold py-2 px-5 rounded-lg hover:bg-[#017a9a] transition"
             >
-                保存
+                ポスト
             </button>
         </div>
       </div>
