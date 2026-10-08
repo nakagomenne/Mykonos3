@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply, CommentReaction } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon } from './components/icons';
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -1929,12 +1929,33 @@ const App: React.FC = () => {
   };
 
   // シンプルな「いいね」ボタン用トグル（絵文字スタンプ機能を廃止し、いいね1種類のみに統一）
-  const handleToggleLike = async (userName: string) => {
+  const handleToggleLike = async (userName: string, buttonEl?: HTMLElement | null) => {
     if (!currentUser) return;
     try {
       const result = await toggleCommentLike({ userName, reactor: currentUser.name });
       if (result.action === 'added' && result.reaction) {
         setCommentReactions(prev => [...prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)), result.reaction!]);
+        // ── ハートアニメーション ──
+        if (buttonEl) {
+          // pop アニメーション
+          buttonEl.classList.remove('heart-pop');
+          void buttonEl.offsetWidth; // reflow でリセット
+          buttonEl.classList.add('heart-pop');
+          // ハートの浮き上がりパーティクル
+          const rect = buttonEl.getBoundingClientRect();
+          for (let i = 0; i < 4; i++) {
+            const p = document.createElement('span');
+            p.className = 'heart-float-particle';
+            p.textContent = '♡';
+            p.style.color = `hsl(${340 + Math.random() * 30}, 90%, 60%)`;
+            p.style.left = `${rect.left + rect.width / 2 + (Math.random() - 0.5) * 20}px`;
+            p.style.top = `${rect.top + window.scrollY - 4}px`;
+            p.style.animationDelay = `${i * 80}ms`;
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 900);
+          }
+          setTimeout(() => buttonEl.classList.remove('heart-pop'), 500);
+        }
       } else {
         setCommentReactions(prev => prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)));
       }
@@ -2658,18 +2679,18 @@ const App: React.FC = () => {
                                     {/* いいねボタン */}
                                     <div className="px-2 pb-1" onClick={e => e.stopPropagation()}>
                                       <button
-                                        onClick={() => handleToggleLike(u.name)}
+                                        onClick={e => handleToggleLike(u.name, e.currentTarget)}
                                         title={likers.length > 0 ? likers.join(', ') : 'いいね'}
-                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all ${
+                                        className={`relative flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all duration-200 ${
                                           isLikedByMe
-                                            ? 'bg-white/40 ring-1 ring-white/70 font-semibold'
-                                            : 'bg-white/20 hover:bg-white/30'
-                                        } text-white`}
+                                            ? 'bg-red-500/20 ring-1 ring-red-400/60 text-red-300 font-semibold'
+                                            : 'bg-white/20 hover:bg-red-500/15 hover:text-red-300 text-white'
+                                        }`}
                                       >
                                         {isLikedByMe ? (
-                                          <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                          <HeartSolidIcon className="w-3.5 h-3.5 text-red-400" />
                                         ) : (
-                                          <ThumbUpIcon className="w-3.5 h-3.5" />
+                                          <HeartIcon className="w-3.5 h-3.5" />
                                         )}
                                         {likers.length > 0 && <span className="opacity-80">{likers.length}</span>}
                                       </button>
@@ -3286,18 +3307,18 @@ const App: React.FC = () => {
                                             return (
                                               <div className="flex flex-wrap gap-1 mt-1">
                                                 <button
-                                                  onClick={() => handleToggleLike(currentUser.name)}
+                                                  onClick={e => handleToggleLike(currentUser.name, e.currentTarget)}
                                                   title={myLikers.length > 0 ? myLikers.join(', ') : 'いいね'}
-                                                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all ${
+                                                  className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all duration-200 ${
                                                     isLikedByMe
-                                                      ? (mineIsAvailable ? 'bg-[#0193be]/15 text-[#0193be] ring-1 ring-[#0193be]/40' : 'bg-white/40 ring-1 ring-white/70')
-                                                      : (mineIsAvailable ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/20 text-white hover:bg-white/30')
+                                                      ? 'bg-red-100 text-red-500 ring-1 ring-red-300'
+                                                      : (mineIsAvailable ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-400' : 'bg-white/20 text-white hover:bg-red-500/15 hover:text-red-300')
                                                   }`}
                                                 >
                                                   {isLikedByMe ? (
-                                                    <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                                    <HeartSolidIcon className="w-3.5 h-3.5 text-red-500" />
                                                   ) : (
-                                                    <ThumbUpIcon className="w-3.5 h-3.5" />
+                                                    <HeartIcon className="w-3.5 h-3.5" />
                                                   )}
                                                   {myLikers.length > 0 && <span className="opacity-80">{myLikers.length}</span>}
                                                 </button>
@@ -3484,18 +3505,18 @@ const App: React.FC = () => {
                                                     return (
                                                       <div className="flex flex-wrap gap-1 mt-1">
                                                         <button
-                                                          onClick={() => handleToggleLike(selectedMember)}
+                                                          onClick={e => handleToggleLike(selectedMember, e.currentTarget)}
                                                           title={theirLikers.length > 0 ? theirLikers.join(', ') : 'いいね'}
-                                                          className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all ${
+                                                          className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all duration-200 ${
                                                             isLikedByMe
-                                                              ? (isAvailable ? 'bg-[#0193be]/15 text-[#0193be] ring-1 ring-[#0193be]/40' : 'bg-white/40 ring-1 ring-white/70')
-                                                              : (isAvailable ? 'bg-slate-100 text-slate-700 hover:bg-slate-200' : 'bg-white/20 text-white hover:bg-white/30')
+                                                              ? 'bg-red-100 text-red-500 ring-1 ring-red-300'
+                                                              : (isAvailable ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-400' : 'bg-white/20 text-white hover:bg-red-500/15 hover:text-red-300')
                                                           }`}
                                                         >
                                                           {isLikedByMe ? (
-                                                            <ThumbUpSolidIcon className="w-3.5 h-3.5" />
+                                                            <HeartSolidIcon className="w-3.5 h-3.5 text-red-500" />
                                                           ) : (
-                                                            <ThumbUpIcon className="w-3.5 h-3.5" />
+                                                            <HeartIcon className="w-3.5 h-3.5" />
                                                           )}
                                                           {theirLikers.length > 0 && <span className="opacity-80">{theirLikers.length}</span>}
                                                         </button>
