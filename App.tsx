@@ -2998,10 +2998,13 @@ const App: React.FC = () => {
                     {/* 未読バッジ：前回既読後に更新されたコメント＋リプライの件数を表示 */}
                     {(() => {
                       const unreadComments = commentedUsers.filter(u =>
-                        u.commentUpdatedAt && new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt
+                        u.commentUpdatedAt &&
+                        new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt &&
+                        u.name !== currentUser?.name  // 自分のポストは未読にカウントしない
                       ).length;
                       const unreadReplies = commentReplies.filter(r => {
                         if (new Date(r.createdAt).getTime() <= lastReadCommentAt) return false;
+                        if (r.author === currentUser?.name) return false;  // 自分のリプライは除外
                         // 対象ユーザーのコメント更新日時より前のリプライは除外
                         const targetUser = commentedUsers.find(u => u.name === r.userName);
                         if (targetUser?.commentUpdatedAt && r.createdAt < targetUser.commentUpdatedAt) return false;
