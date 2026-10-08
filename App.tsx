@@ -187,6 +187,7 @@ const App: React.FC = () => {
   const [feedbackReports, setFeedbackReports] = useState<FeedbackReport[]>([]);
   const [commentReplies, setCommentReplies] = useState<CommentReply[]>([]);
   const [commentReactions, setCommentReactions] = useState<CommentReaction[]>([]);
+  const [likingUsers, setLikingUsers] = useState<Set<string>>(new Set()); // アニメーション中のユーザー名セット
   const [isLogoWaving, setIsLogoWaving] = useState(false);
   const [isLogoFlying, setIsLogoFlying] = useState(false);
   const logoClickCountRef = useRef(0);
@@ -1931,31 +1932,51 @@ const App: React.FC = () => {
   // シンプルな「いいね」ボタン用トグル（絵文字スタンプ機能を廃止し、いいね1種類のみに統一）
   const handleToggleLike = async (userName: string, buttonEl?: HTMLElement | null) => {
     if (!currentUser) return;
+
+    // 現在のいいね状態を先読み（API前に判定）
+    const alreadyLiked = commentReactions.some(
+      r => r.userName === userName && r.reactor === currentUser.name
+    );
+
+    // ── いいね追加の場合はAPI前に即アニメーション発火 ──
+    if (!alreadyLiked && buttonEl) {
+      // ボタン自体のバウンス
+      buttonEl.classList.remove('heart-pop');
+      void buttonEl.offsetWidth;
+      buttonEl.classList.add('heart-pop');
+      setTimeout(() => buttonEl.classList.remove('heart-pop'), 500);
+
+      // ♡パーティクルを fixed 座標で生成（スクロール位置に左右されない）
+      const rect = buttonEl.getBoundingClientRect();
+      for (let i = 0; i < 5; i++) {
+        const p = document.createElement('span');
+        p.className = 'heart-float-particle';
+        p.textContent = '♡';
+        p.style.position = 'fixed';
+        p.style.zIndex = '9999';
+        p.style.pointerEvents = 'none';
+        p.style.fontSize = `${10 + Math.random() * 6}px`;
+        p.style.color = `hsl(${335 + Math.random() * 25}, 90%, ${55 + Math.random() * 15}%)`;
+        p.style.left = `${rect.left + rect.width / 2 + (Math.random() - 0.5) * 24}px`;
+        p.style.top = `${rect.top - 2}px`;
+        p.style.animationDelay = `${i * 70}ms`;
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+      }
+
+      // アニメーション中フラグ（ボタンの視覚的強調用）
+      setLikingUsers(prev => new Set(prev).add(userName));
+      setTimeout(() => setLikingUsers(prev => {
+        const next = new Set(prev);
+        next.delete(userName);
+        return next;
+      }), 450);
+    }
+
     try {
       const result = await toggleCommentLike({ userName, reactor: currentUser.name });
       if (result.action === 'added' && result.reaction) {
         setCommentReactions(prev => [...prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)), result.reaction!]);
-        // ── ハートアニメーション ──
-        if (buttonEl) {
-          // pop アニメーション
-          buttonEl.classList.remove('heart-pop');
-          void buttonEl.offsetWidth; // reflow でリセット
-          buttonEl.classList.add('heart-pop');
-          // ハートの浮き上がりパーティクル
-          const rect = buttonEl.getBoundingClientRect();
-          for (let i = 0; i < 4; i++) {
-            const p = document.createElement('span');
-            p.className = 'heart-float-particle';
-            p.textContent = '♡';
-            p.style.color = `hsl(${340 + Math.random() * 30}, 90%, 60%)`;
-            p.style.left = `${rect.left + rect.width / 2 + (Math.random() - 0.5) * 20}px`;
-            p.style.top = `${rect.top + window.scrollY - 4}px`;
-            p.style.animationDelay = `${i * 80}ms`;
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 900);
-          }
-          setTimeout(() => buttonEl.classList.remove('heart-pop'), 500);
-        }
       } else {
         setCommentReactions(prev => prev.filter(r => !(r.userName === userName && r.reactor === currentUser.name)));
       }
@@ -2682,12 +2703,12 @@ const App: React.FC = () => {
                                         onClick={e => handleToggleLike(u.name, e.currentTarget)}
                                         title={likers.length > 0 ? likers.join(', ') : 'いいね'}
                                         className={`relative flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all duration-200 ${
-                                          isLikedByMe
+                                          isLikedByMe || likingUsers.has(u.name)
                                             ? 'bg-red-500/20 ring-1 ring-red-400/60 text-red-300 font-semibold'
                                             : 'bg-white/20 hover:bg-red-500/15 hover:text-red-300 text-white'
                                         }`}
                                       >
-                                        {isLikedByMe ? (
+                                        {isLikedByMe || likingUsers.has(u.name) ? (
                                           <HeartSolidIcon className="w-3.5 h-3.5 text-red-400" />
                                         ) : (
                                           <HeartIcon className="w-3.5 h-3.5" />
@@ -3310,12 +3331,12 @@ const App: React.FC = () => {
                                                   onClick={e => handleToggleLike(currentUser.name, e.currentTarget)}
                                                   title={myLikers.length > 0 ? myLikers.join(', ') : 'いいね'}
                                                   className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all duration-200 ${
-                                                    isLikedByMe
+                                                    isLikedByMe || likingUsers.has(currentUser.name)
                                                       ? 'bg-red-100 text-red-500 ring-1 ring-red-300'
                                                       : (mineIsAvailable ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-400' : 'bg-white/20 text-white hover:bg-red-500/15 hover:text-red-300')
                                                   }`}
                                                 >
-                                                  {isLikedByMe ? (
+                                                  {isLikedByMe || likingUsers.has(currentUser.name) ? (
                                                     <HeartSolidIcon className="w-3.5 h-3.5 text-red-500" />
                                                   ) : (
                                                     <HeartIcon className="w-3.5 h-3.5" />
@@ -3508,12 +3529,12 @@ const App: React.FC = () => {
                                                           onClick={e => handleToggleLike(selectedMember, e.currentTarget)}
                                                           title={theirLikers.length > 0 ? theirLikers.join(', ') : 'いいね'}
                                                           className={`relative flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs transition-all duration-200 ${
-                                                            isLikedByMe
+                                                            isLikedByMe || likingUsers.has(selectedMember)
                                                               ? 'bg-red-100 text-red-500 ring-1 ring-red-300'
                                                               : (isAvailable ? 'bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-400' : 'bg-white/20 text-white hover:bg-red-500/15 hover:text-red-300')
                                                           }`}
                                                         >
-                                                          {isLikedByMe ? (
+                                                          {isLikedByMe || likingUsers.has(selectedMember) ? (
                                                             <HeartSolidIcon className="w-3.5 h-3.5 text-red-500" />
                                                           ) : (
                                                             <HeartIcon className="w-3.5 h-3.5" />

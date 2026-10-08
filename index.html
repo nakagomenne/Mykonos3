@@ -498,27 +498,24 @@
   /* ── ハートいいねアニメーション ── */
   @keyframes heart-pop {
     0%   { transform: scale(1); }
-    25%  { transform: scale(1.5); }
-    50%  { transform: scale(0.9); }
-    70%  { transform: scale(1.2); }
+    20%  { transform: scale(1.55); }
+    45%  { transform: scale(0.88); }
+    65%  { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
   @keyframes heart-float {
-    0%   { opacity: 1; transform: translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateY(-28px) scale(0.7); }
-  }
-  @keyframes heart-burst-dot {
-    0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-    100% { opacity: 0; transform: var(--tx, 0) var(--ty, 0) scale(0); }
+    0%   { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    60%  { opacity: 0.8; }
+    100% { opacity: 0; transform: translateY(-36px) scale(0.5) rotate(15deg); }
   }
   .heart-pop {
-    animation: heart-pop 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+    animation: heart-pop 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
   }
   .heart-float-particle {
-    position: absolute;
+    position: fixed;
     pointer-events: none;
-    font-size: 10px;
-    animation: heart-float 0.7s ease-out forwards;
+    z-index: 9999;
+    animation: heart-float 0.75s ease-out forwards;
   }
 </style>
 </head>
