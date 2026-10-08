@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 supabase/.temp/
+
+# Cloudflare / Wrangler（Vercel本番環境では不要）
+wrangler.toml
+.wrangler/
