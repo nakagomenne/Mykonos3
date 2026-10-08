@@ -3014,7 +3014,7 @@ const App: React.FC = () => {
                                         </div>
                                         {likers.length > 0 && (
                                           <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff0f3', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>
-                                            <HeartSolidIcon className="w-3 h-3" style={{ color: '#fb7185' }} />
+                                            <HeartIcon className="w-3 h-3" style={{ color: '#fb7185' }} />
                                             <span style={{ fontSize: 11, fontWeight: 700, color: '#fb7185' }}>{likers.length}</span>
                                           </div>
                                         )}
