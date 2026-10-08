@@ -1919,6 +1919,83 @@ const App: React.FC = () => {
     }
   };
 
+  // ── ポストアニメーション ──
+  const firePostAnimation = (buttonEl: HTMLElement) => {
+    const rect = buttonEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    // ボタンバウンス
+    buttonEl.classList.remove('post-pop');
+    void buttonEl.offsetWidth;
+    buttonEl.classList.add('post-pop');
+    setTimeout(() => buttonEl.classList.remove('post-pop'), 650);
+
+    const spawn = (el: HTMLElement, ttl: number) => {
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), ttl);
+    };
+
+    // 吹き出し絵文字 3個（ずらして上昇）
+    ['💬','🗨️','✨'].forEach((emoji, i) => {
+      const b = document.createElement('span');
+      b.classList.add('post-particle', 'pp-bubble');
+      b.textContent = emoji;
+      b.style.fontSize = `${26 - i * 5}px`;
+      b.style.left = `${cx + (i - 1) * 22}px`;
+      b.style.top = `${cy}px`;
+      b.style.animationDelay = `${i * 80}ms`;
+      spawn(b, 1000 + i * 80);
+    });
+
+    // リング 2重
+    ['#a855f7', '#f472b6'].forEach((color, i) => {
+      const r = document.createElement('span');
+      r.classList.add('pp-ring');
+      r.style.left = `${cx}px`;
+      r.style.top = `${cy}px`;
+      r.style.borderColor = color;
+      r.style.animationDelay = `${i * 100}ms`;
+      spawn(r, 700 + i * 100);
+    });
+
+    // 紙吹雪 16個
+    const confettiColors = ['#f472b6','#a855f7','#6366f1','#34d399','#fbbf24','#fb7185','#60a5fa','#c084fc'];
+    const confettiChars = ['✦','★','●','▲','◆','✿','❋','✺'];
+    Array.from({ length: 16 }).forEach((_, i) => {
+      const angle = (i / 16) * Math.PI * 2;
+      const dist = 50 + Math.random() * 60;
+      const c = document.createElement('span');
+      c.classList.add('post-particle', 'pp-confetti');
+      c.textContent = confettiChars[i % confettiChars.length];
+      c.style.fontSize = `${8 + Math.random() * 9}px`;
+      c.style.color = confettiColors[i % confettiColors.length];
+      c.style.left = `${cx}px`;
+      c.style.top = `${cy}px`;
+      c.style.setProperty('--pdx', `${Math.cos(angle) * dist}px`);
+      c.style.setProperty('--pdy', `${Math.sin(angle) * dist}px`);
+      c.style.setProperty('--pdr', `${(Math.random() - 0.5) * 360}deg`);
+      c.style.animationDelay = `${i * 20}ms`;
+      spawn(c, 950 + i * 20);
+    });
+
+    // 星 8個
+    Array.from({ length: 8 }).forEach((_, i) => {
+      const angle = (i / 8) * Math.PI * 2;
+      const dist = 35 + Math.random() * 30;
+      const s = document.createElement('span');
+      s.classList.add('post-particle', 'pp-star');
+      s.textContent = ['⭐','🌟','✨','💫'][i % 4];
+      s.style.fontSize = `${12 + Math.random() * 10}px`;
+      s.style.left = `${cx}px`;
+      s.style.top = `${cy}px`;
+      s.style.setProperty('--sdx', `${Math.cos(angle) * dist}px`);
+      s.style.setProperty('--sdy', `${Math.sin(angle) * dist}px`);
+      s.style.animationDelay = `${i * 35 + 60}ms`;
+      spawn(s, 900 + i * 35);
+    });
+  };
+
   const handleSendReply = async (userName: string) => {
     if (!currentUser) return;
     const body = (replyInputs[userName] ?? '').trim();
@@ -2857,8 +2934,9 @@ const App: React.FC = () => {
                           const remaining = 120 - inlinePostText.length;
                           const isNear = remaining <= 20;
                           const isOver = remaining < 0;
-                          const handleInlinePost = async () => {
+                          const handleInlinePost = async (buttonEl?: HTMLElement | null) => {
                             if (inlinePostSaving || isOver) return;
+                            if (buttonEl) firePostAnimation(buttonEl);
                             setInlinePostSaving(true);
                             await handleSaveComment(inlinePostText);
                             setInlinePostSaving(false);
@@ -2930,7 +3008,7 @@ const App: React.FC = () => {
                                     <div style={{ flex: 1 }} />
                                     {/* ポストボタン */}
                                     <button
-                                      onClick={handleInlinePost}
+                                      onClick={e => handleInlinePost(e.currentTarget)}
                                       disabled={inlinePostSaving || isOver || inlinePostText.trim() === myComment.trim()}
                                       style={{
                                         display: 'flex', alignItems: 'center', gap: 5,

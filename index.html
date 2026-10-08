@@ -612,6 +612,59 @@
   .vd-petal     { animation: vd-petal     1.1s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
   .vd-bloom     { animation: vd-bloom     1.0s cubic-bezier(0.22,1,0.36,1) forwards; }
   .vd-float-up  { animation: vd-float-up  1.2s ease-in-out forwards; }
+
+  /* ── POST アニメーション ── */
+  .post-particle {
+    position: fixed; pointer-events: none; z-index: 9999;
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+
+  /* 吹き出しバースト：上へ大きく飛ぶ */
+  @keyframes pp-bubble {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(0.2) rotate(-10deg); }
+    40%  { opacity: 1; transform: translate(-50%, calc(-50% - 60px)) scale(1.4) rotate(8deg); }
+    70%  { opacity: 0.8; transform: translate(-50%, calc(-50% - 90px)) scale(1.1) rotate(-4deg); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 130px)) scale(0.7) rotate(5deg); }
+  }
+  .pp-bubble { animation: pp-bubble 0.9s cubic-bezier(0.22,1,0.36,1) forwards; }
+
+  /* 紙吹雪：放射状に飛び散る */
+  @keyframes pp-confetti {
+    0%   { opacity: 1; transform: translate(-50%,-50%) translate(0,0) rotate(0deg) scale(1); }
+    100% { opacity: 0; transform: translate(-50%,-50%) translate(var(--pdx),var(--pdy)) rotate(var(--pdr)) scale(0.4); }
+  }
+  .pp-confetti { animation: pp-confetti 0.85s cubic-bezier(0.22,1,0.36,1) forwards; }
+
+  /* 星：外に弾ける */
+  @keyframes pp-star {
+    0%   { opacity: 1; transform: translate(-50%,-50%) scale(0.5); }
+    50%  { opacity: 1; transform: translate(-50%,-50%) translate(var(--sdx),var(--sdy)) scale(1.3); }
+    100% { opacity: 0; transform: translate(-50%,-50%) translate(calc(var(--sdx)*1.6),calc(var(--sdy)*1.6)) scale(0.3); }
+  }
+  .pp-star { animation: pp-star 0.75s ease-out forwards; }
+
+  /* リング：外に広がる */
+  @keyframes pp-ring {
+    0%   { opacity: 0.8; transform: translate(-50%,-50%) scale(0.2); }
+    100% { opacity: 0;   transform: translate(-50%,-50%) scale(2.8); }
+  }
+  .pp-ring {
+    position: fixed; pointer-events: none; z-index: 9999;
+    border-radius: 50%; border: 2px solid;
+    width: 40px; height: 40px;
+    animation: pp-ring 0.6s ease-out forwards;
+  }
+
+  /* ボタン本体バウンス */
+  @keyframes post-pop {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.35) rotate(-4deg); }
+    55%  { transform: scale(0.9) rotate(3deg); }
+    75%  { transform: scale(1.12) rotate(-2deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .post-pop { animation: post-pop 0.6s cubic-bezier(0.36,0.07,0.19,0.97) forwards; }
 </style>
 </head>
   <body>
