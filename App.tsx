@@ -2807,7 +2807,7 @@ const App: React.FC = () => {
                         style={{ top, right: 16, background: 'linear-gradient(135deg, #0193be 0%, #0277a8 60%, #015f88 100%)' }}
                       >
                         <div className="p-3 border-b border-white/20 flex justify-between items-center flex-shrink-0">
-                          <h3 className="text-base font-bold text-white">Micoment</h3>
+                          <h3 className="font-ribeye text-2xl text-white tracking-wide">Micoment</h3>
                           <button onClick={() => setIsCommentPopupOpen(false)} className="p-1 text-white/70 hover:text-white rounded-full transition-colors">
                             <XMarkIcon className="w-5 h-5" />
                           </button>
