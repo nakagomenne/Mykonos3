@@ -2776,7 +2776,7 @@ const App: React.FC = () => {
                     title="ミコポス"
                     aria-expanded={isCommentPopupOpen}
                   >
-                    <SpeechBubbleGradientIcon className="w-6 h-6" />
+                    <SpeechBubbleIcon className="w-6 h-6" />
                     {/* 未読バッジ：前回既読後に更新されたコメント＋リプライの件数を表示 */}
                     {(() => {
                       const unreadComments = commentedUsers.filter(u =>
