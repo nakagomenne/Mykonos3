@@ -44,7 +44,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
         <div className="p-6">
           <div className="flex justify-between items-center mb-2">
             <label htmlFor="user-comment" className="block text-sm font-medium text-slate-700">
-                ミコ (30文字まで)
+                内容 (120文字まで)
             </label>
             <button onClick={() => setComment('')} className="text-sm text-[#0193be] hover:underline">
               クリア
@@ -56,11 +56,11 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
                   id="user-comment"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  maxLength={30}
+                  maxLength={120}
                   className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:ring-[#0193be] focus:border-[#0193be] transition"
               />
               <div className="absolute bottom-2 right-2 text-xs text-slate-400 pointer-events-none">
-                  {comment.length} / 30
+                  {comment.length} / 120
               </div>
           </div>
         </div>
