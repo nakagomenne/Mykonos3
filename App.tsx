@@ -2773,7 +2773,7 @@ const App: React.FC = () => {
                       setIsCommentPopupOpen(prev => !prev);
                     }}
                     className={`relative p-2 rounded-full transition-colors duration-500 ${adminButtonClass}`}
-                    title="メンバーコメント一覧"
+                    title="ミコポス"
                     aria-expanded={isCommentPopupOpen}
                   >
                     <SpeechBubbleIcon className="w-6 h-6" />
@@ -2816,7 +2816,7 @@ const App: React.FC = () => {
                           <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
                           <div className="flex justify-between items-center relative">
                             <div>
-                              <h3 className="font-ribeye text-2xl text-white tracking-wide drop-shadow">Micoment</h3>
+                              <h3 className="font-ribeye text-2xl text-white tracking-wide drop-shadow">Mikopos</h3>
                               <p className="text-white/70 text-xs mt-0.5">{commentedUsers.length}件のコメント</p>
                             </div>
                             <button
