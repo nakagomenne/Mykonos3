@@ -135,6 +135,9 @@ const App: React.FC = () => {
   const [isCommentPopupOpen, setIsCommentPopupOpen] = useState(false);
   const commentButtonRef = useRef<HTMLButtonElement>(null);
   const commentPopupRef = useRef<HTMLDivElement>(null);
+  // タイムラインインライン投稿入力
+  const [inlinePostText, setInlinePostText] = useState('');
+  const [inlinePostSaving, setInlinePostSaving] = useState(false);
   // リプライ入力状態管理（key: コメントオーナー名, value: 入力テキスト）
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   // リプライ入力欄を開いているユーザー名（null = 閉じている）
@@ -2770,7 +2773,14 @@ const App: React.FC = () => {
                       const now = Date.now();
                       setLastReadCommentAt(now);
                       localStorage.setItem('lastReadCommentAt', String(now));
-                      setIsCommentPopupOpen(prev => !prev);
+                      setIsCommentPopupOpen(prev => {
+                        if (!prev) {
+                          // 開くときに自分の現在ミコをセット
+                          const me = users.find(u => u.name === currentUser.name);
+                          setInlinePostText(me?.comment ?? '');
+                        }
+                        return !prev;
+                      });
                     }}
                     className={`relative p-2 rounded-full transition-colors duration-500 ${adminButtonClass}`}
                     title="ミコポス"
@@ -2840,6 +2850,108 @@ const App: React.FC = () => {
                             </button>
                           </div>
                         </div>
+
+                        {/* ── インライン投稿エリア ── */}
+                        {(() => {
+                          const myComment = users.find(u => u.name === currentUser.name)?.comment ?? '';
+                          const remaining = 120 - inlinePostText.length;
+                          const isNear = remaining <= 20;
+                          const isOver = remaining < 0;
+                          const handleInlinePost = async () => {
+                            if (inlinePostSaving || isOver) return;
+                            setInlinePostSaving(true);
+                            await handleSaveComment(inlinePostText);
+                            setInlinePostSaving(false);
+                          };
+                          return (
+                            <div style={{
+                              padding: '12px 14px',
+                              background: isDarkMode ? '#1a1630' : '#fff',
+                              borderBottom: isDarkMode ? '1px solid rgba(168,85,247,0.15)' : '1px solid rgba(168,85,247,0.1)',
+                            }}>
+                              {/* アバター＋入力欄 横並び */}
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                                {/* アバター */}
+                                <div style={{ flexShrink: 0, marginTop: 2 }}>
+                                  {currentUserWithData?.profilePicture ? (
+                                    <img src={currentUserWithData.profilePicture} alt={currentUser.name}
+                                      style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }} />
+                                  ) : (
+                                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#c084fc,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }}>
+                                      <UserIcon className="w-4 h-4 text-white" />
+                                    </div>
+                                  )}
+                                </div>
+                                {/* テキストエリア＋送信 */}
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{
+                                    position: 'relative',
+                                    background: isDarkMode ? '#231b3a' : '#f8f6ff',
+                                    border: isDarkMode ? '1.5px solid rgba(168,85,247,0.3)' : '1.5px solid rgba(168,85,247,0.2)',
+                                    borderRadius: 14,
+                                    overflow: 'hidden',
+                                  }}>
+                                    <textarea
+                                      value={inlinePostText}
+                                      onChange={e => setInlinePostText(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); handleInlinePost(); }
+                                      }}
+                                      maxLength={120}
+                                      rows={2}
+                                      placeholder={myComment ? myComment : 'ミコをポスト…'}
+                                      style={{
+                                        width: '100%', display: 'block',
+                                        padding: '8px 10px 24px',
+                                        fontSize: 13, lineHeight: 1.6,
+                                        color: isDarkMode ? '#e2e8f0' : '#1e293b',
+                                        background: 'transparent',
+                                        outline: 'none', border: 'none', resize: 'none',
+                                        fontFamily: 'inherit',
+                                      }}
+                                    />
+                                    {/* 文字カウンター */}
+                                    <span style={{
+                                      position: 'absolute', bottom: 6, right: 10,
+                                      fontSize: 10, fontWeight: 600,
+                                      color: isOver ? '#ef4444' : isNear ? '#f59e0b' : (isDarkMode ? '#6b7280' : '#94a3b8'),
+                                      pointerEvents: 'none',
+                                    }}>{remaining}</span>
+                                  </div>
+                                  {/* ボタン行 */}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
+                                    {/* クリアボタン（現在のミコがある場合） */}
+                                    {myComment && (
+                                      <button
+                                        onClick={() => handleSaveComment('')}
+                                        style={{ fontSize: 11, color: isDarkMode ? '#6b7280' : '#94a3b8', background: 'none' }}
+                                      >削除</button>
+                                    )}
+                                    <div style={{ flex: 1 }} />
+                                    {/* ポストボタン */}
+                                    <button
+                                      onClick={handleInlinePost}
+                                      disabled={inlinePostSaving || isOver || inlinePostText.trim() === myComment.trim()}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', gap: 5,
+                                        padding: '5px 14px', borderRadius: 20,
+                                        fontSize: 12, fontWeight: 700, color: '#fff',
+                                        background: (inlinePostSaving || isOver || inlinePostText.trim() === myComment.trim())
+                                          ? (isDarkMode ? '#3a3050' : '#d1d5db')
+                                          : 'linear-gradient(135deg,#f472b6,#a855f7,#6366f1)',
+                                        boxShadow: (inlinePostSaving || isOver || inlinePostText.trim() === myComment.trim())
+                                          ? 'none' : '0 2px 8px rgba(168,85,247,0.35)',
+                                        transition: 'all 0.15s',
+                                      }}
+                                    >
+                                      {inlinePostSaving ? '投稿中…' : 'ポスト'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         {/* ── カードリスト ── */}
                         <div className="overflow-y-auto flex-1" style={{ background: isDarkMode ? '#16122a' : '#f0f2f8' }}>
