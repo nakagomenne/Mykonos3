@@ -3221,12 +3221,7 @@ const App: React.FC = () => {
                                             <span style={{ fontSize: 11, color: '#94a3b8' }}>{formatRelativeTime(u.commentUpdatedAt)}</span>
                                           )}
                                         </div>
-                                        {likers.length > 0 && (
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#fff0f3', borderRadius: 20, padding: '2px 8px', flexShrink: 0 }}>
-                                            <HeartIcon className="w-3 h-3" style={{ color: '#fb7185' }} />
-                                            <span style={{ fontSize: 11, fontWeight: 700, color: '#fb7185' }}>{likers.length}</span>
-                                          </div>
-                                        )}
+
                                       </div>
                                       {/* ミコ本文 */}
                                       <div style={{
