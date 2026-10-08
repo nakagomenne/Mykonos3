@@ -736,7 +736,11 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
         const { eventType, new: newRow, old: oldRow } = payload;
         try {
           if (eventType === 'INSERT' && newRow) {
-            callbacks.onUsersChange(prev => [...prev, rowToUser(newRow)]);
+            callbacks.onUsersChange(prev => {
+              // 同名ユーザーがすでに存在する場合は重複追加しない
+              if (prev.some(u => u.name === newRow.name)) return prev;
+              return [...prev, rowToUser(newRow)];
+            });
           } else if (eventType === 'UPDATE' && newRow) {
             const name = newRow.name;
             if (!name) return;
