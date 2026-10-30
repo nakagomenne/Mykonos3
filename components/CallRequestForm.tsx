@@ -9,7 +9,7 @@ import RankSelector from './RankSelector';
 import EmojiPicker from './EmojiPicker';
 
 interface CallRequestFormProps {
-  onAddCall: (call: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => boolean;
+  onAddCall: (call: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => boolean | Promise<boolean>;
   defaultAssignee?: string;
   currentUser: string;
   users: User[];
@@ -390,8 +390,11 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     }
   }, [assignee, users, enableProductFiltering, prefilledDate, isPrecheckMode]);
 
-  const submitCall = () => {
-    const success = onAddCall({
+  const submitCall = async () => {
+    // onAddCall は async（Promise<boolean>）のため必ず await する。
+    // await しないと Promise が常に truthy となり、重複確認などのダイアログが出て
+    // false が返るケースでも resetForm() が走って入力内容が消えてしまう。
+    const success = await onAddCall({
       customerId,
       requester: requesterOverride || currentUser,
       assignee,

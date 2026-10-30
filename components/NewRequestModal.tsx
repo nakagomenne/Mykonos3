@@ -6,7 +6,7 @@ import { XMarkIcon, PhoneIcon } from './icons';
 interface NewRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddCall: (call: Omit<CallRequest, 'id' | 'status'>) => boolean;
+  onAddCall: (call: Omit<CallRequest, 'id' | 'status'>) => boolean | Promise<boolean>;
   currentUser: string;
   users: User[];
   formResetCounter: number;
