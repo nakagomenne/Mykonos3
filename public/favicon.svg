@@ -1,32 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inconsolata:wght@700&amp;display=swap');
-    </style>
-    <clipPath id="circle-clip">
-      <circle cx="32" cy="32" r="30"/>
-    </clipPath>
+    <linearGradient id="bg" x1="8" y1="2" x2="56" y2="62" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3dd5f3"/>
+      <stop offset="0.5" stop-color="#0193be"/>
+      <stop offset="1" stop-color="#0b4f9e"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9f3fb"/>
+    </linearGradient>
   </defs>
-  <!-- 白い円形背景 -->
-  <circle cx="32" cy="32" r="30" fill="white" stroke="#0193be" stroke-width="2.5"/>
-  <!-- 大文字 M（左上寄り） -->
-  <text
-    x="10"
-    y="36"
-    font-family="Inconsolata, monospace"
-    font-weight="700"
-    font-size="30"
-    fill="#0193be"
-    clip-path="url(#circle-clip)"
-  >M</text>
-  <!-- 小文字 y（右下寄り・斜め配置） -->
-  <text
-    x="33"
-    y="52"
-    font-family="Inconsolata, monospace"
-    font-weight="700"
-    font-size="26"
-    fill="#0193be"
-    clip-path="url(#circle-clip)"
-  >y</text>
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <path d="M0 15a15 15 0 0 1 15-15h34a15 15 0 0 1 15 15v14C46 36 18 36 0 29z" fill="url(#gloss)"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16.5 47V19.5L32 37l15.5-17.5V47" stroke="#05325f" stroke-opacity="0.28" stroke-width="7.5" transform="translate(0 1.6)"/>
+    <path d="M16.5 47V19.5L32 37l15.5-17.5V47" stroke="url(#mark)" stroke-width="7.5"/>
+  </g>
+  
 </svg>
