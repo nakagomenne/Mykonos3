@@ -528,6 +528,23 @@ const App: React.FC = () => {
         normalDups.add(customerId);
       }
     }
+
+    // 別メンバー間の重複：同一 customerId が2人以上の通常メンバーに存在する場合も重複とする
+    // ・回線前確・電気契確との重複は対象外（上のグループ分けで既に除外済み）
+    // ・一括の全体タスク（listType が空）は同じIDを複数メンバーに振る仕様のため対象外
+    const normalAssigneesPerId = new Map<string, Set<string>>(); // customerId → assignee Set
+    calls.forEach(call => {
+      if (call.status === '完了') return;
+      if (call.assignee === PRECHECKER_ASSIGNEE_NAME || call.assignee === ELEC_ASSIGNEE_NAME) return;
+      if (!call.listType) return;
+      const trimmedId = call.customerId.trim().toLowerCase();
+      if (!trimmedId) return;
+      if (!normalAssigneesPerId.has(trimmedId)) normalAssigneesPerId.set(trimmedId, new Set());
+      normalAssigneesPerId.get(trimmedId)!.add(call.assignee);
+    });
+    for (const [id, assignees] of normalAssigneesPerId.entries()) {
+      if (assignees.size > 1) normalDups.add(id);
+    }
     for (const [id, count] of precheckCounts.entries()) {
       if (count > 1) precheckDups.add(id);
     }
