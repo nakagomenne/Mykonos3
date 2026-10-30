@@ -5,7 +5,7 @@ import { XMarkIcon } from './icons';
 interface CommentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (comment: string) => void;
+  onSave: (comment: string, buttonEl?: HTMLElement | null) => void;
   initialComment: string;
 }
 
@@ -23,8 +23,9 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onSave(comment);
+  const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // ボタン要素を渡してポストアニメーションを発火させる（モーダルが閉じる前に位置を取得するため同期的に呼ぶ）
+    onSave(comment, e.currentTarget);
     onClose();
   };
 

@@ -2157,10 +2157,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSendReply = async (userName: string) => {
+  const handleSendReply = async (userName: string, buttonEl?: HTMLElement | null) => {
     if (!currentUser) return;
     const body = (replyInputs[userName] ?? '').trim();
     if (!body) return;
+    // 返信でもポストアニメーションを表示（API待ちで遅れないよう送信前に発火）
+    if (buttonEl) firePostAnimation(buttonEl);
     try {
       const newReply = await addCommentReply({ userName, author: currentUser.name, body });
       setCommentReplies(prev => [...prev, newReply]);
@@ -3138,7 +3140,7 @@ const App: React.FC = () => {
                                       value={inlinePostText}
                                       onChange={e => setInlinePostText(e.target.value)}
                                       onKeyDown={e => {
-                                        if (e.key === 'Enter' && e.metaKey) { e.preventDefault(); handleInlinePost(); }
+                                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleInlinePost(document.querySelector<HTMLElement>('[data-inline-post-btn]')); }
                                       }}
                                       maxLength={120}
                                       rows={2}
@@ -3173,6 +3175,7 @@ const App: React.FC = () => {
                                     <div style={{ flex: 1 }} />
                                     {/* ポストボタン */}
                                     <button
+                                      data-inline-post-btn=""
                                       onClick={e => handleInlinePost(e.currentTarget)}
                                       disabled={inlinePostSaving || isOver || inlinePostText.trim() === myComment.trim()}
                                       style={{
@@ -3338,7 +3341,7 @@ const App: React.FC = () => {
                                             type="text"
                                             value={replyText}
                                             onChange={e => setReplyInputs(prev => ({ ...prev, [u.name]: e.target.value }))}
-                                            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleSendReply(u.name); } }}
+                                            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); handleSendReply(u.name, e.currentTarget.parentElement?.querySelector<HTMLElement>('[data-reply-send]')); } }}
                                             maxLength={100}
                                             placeholder="返信する…"
                                             style={{ flex: 1, fontSize: 12.5, color: isDarkMode ? '#e2e8f0' : '#1e293b', background: 'transparent', outline: 'none', border: 'none' }}
@@ -3346,7 +3349,8 @@ const App: React.FC = () => {
                                             onClick={e => e.stopPropagation()}
                                           />
                                           <button
-                                            onClick={e => { e.stopPropagation(); handleSendReply(u.name); }}
+                                            data-reply-send=""
+                                            onClick={e => { e.stopPropagation(); handleSendReply(u.name, e.currentTarget); }}
                                             disabled={!replyText.trim()}
                                             style={{
                                               fontSize: 12, fontWeight: 700, color: '#fff',
@@ -4726,7 +4730,10 @@ const App: React.FC = () => {
         <CommentModal
           isOpen={isCommentModalOpen}
           onClose={() => setIsCommentModalOpen(false)}
-          onSave={handleSaveComment}
+          onSave={(comment, buttonEl) => {
+            if (buttonEl) firePostAnimation(buttonEl);
+            handleSaveComment(comment);
+          }}
           initialComment={currentUserWithData.comment || ''}
         />
       )}
