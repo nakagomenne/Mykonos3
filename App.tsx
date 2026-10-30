@@ -75,6 +75,19 @@ interface Alert {
   message: string;
 }
 
+// プッシュ通知本文に追加する「ランク」「備考」の行を組み立てる
+// 備考は改行を空白にまとめ、長い場合は切り詰める（空の場合は行ごと省略）
+const NOTIFY_NOTES_MAX_LENGTH = 80;
+const buildCallDetailLines = (call: { rank?: string; notes?: string }): string => {
+  const lines: string[] = [];
+  if (call.rank) lines.push(`ランク: ${call.rank}`);
+  const notes = (call.notes ?? '').replace(/\s+/g, ' ').trim();
+  if (notes) {
+    lines.push(`備考: ${notes.length > NOTIFY_NOTES_MAX_LENGTH ? notes.slice(0, NOTIFY_NOTES_MAX_LENGTH) + '…' : notes}`);
+  }
+  return lines.length > 0 ? '\n' + lines.join('\n') : '';
+};
+
 const App: React.FC = () => {
   // ──────────────────────────────────────────────────────────
   // ローディング・エラー状態
@@ -338,7 +351,7 @@ const App: React.FC = () => {
           newCall.assignee === PRECHECKER_ASSIGNEE_NAME
         ) {
           new Notification('✨回線前確✨ 新規案件', {
-            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}${buildCallDetailLines(newCall)}`,
             tag: `precheck_insert_${newCall.id}`,
             icon: '/favicon.ico',
           });
@@ -352,7 +365,7 @@ const App: React.FC = () => {
           newCall.assignee === ELEC_ASSIGNEE_NAME
         ) {
           new Notification('⚡電気契確⚡ 新規案件', {
-            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}${buildCallDetailLines(newCall)}`,
             tag: `elec_insert_${newCall.id}`,
             icon: '/favicon.ico',
           });
@@ -367,7 +380,7 @@ const App: React.FC = () => {
           newCall.requester !== user.name
         ) {
           new Notification('🔔 担当案件 新規追加', {
-            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}`,
+            body: `顧客ID: ${newCall.customerId}\n依頼者: ${newCall.requester}${buildCallDetailLines(newCall)}`,
             tag: `assignee_insert_${newCall.id}`,
             icon: '/favicon.ico',
           });
@@ -970,7 +983,7 @@ const App: React.FC = () => {
                 if (!sessionStorage.getItem(sessionKey)) {
                   const label = timingToLabel(timing);
                   new Notification('架電時間のお知らせ', {
-                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}${buildCallDetailLines(call)}`,
                     tag: `${call.id}_${timing}`,
                     icon: '/favicon.ico',
                   });
@@ -1010,7 +1023,7 @@ const App: React.FC = () => {
                 if (!sessionStorage.getItem(sessionKey)) {
                   const label = timingToLabel(timing);
                   new Notification('✨回線前確✨ 架電時間のお知らせ', {
-                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}${buildCallDetailLines(call)}`,
                     tag: `precheck_${call.id}_${timing}`,
                     icon: '/favicon.ico',
                   });
@@ -1050,7 +1063,7 @@ const App: React.FC = () => {
                 if (!sessionStorage.getItem(sessionKey)) {
                   const label = timingToLabel(timing);
                   new Notification('⚡電気契確⚡ 架電時間のお知らせ', {
-                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}`,
+                    body: `顧客ID: ${call.customerId}  [${label}]\n予定時間: ${timePart}${buildCallDetailLines(call)}`,
                     tag: `elec_${call.id}_${timing}`,
                     icon: '/favicon.ico',
                   });
