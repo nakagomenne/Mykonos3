@@ -1,25 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="bg" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3dd5f3"/>
-      <stop offset="0.5" stop-color="#0193be"/>
-      <stop offset="1" stop-color="#0b4f9e"/>
+    <linearGradient id="ring" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3dd5f3"/><stop offset="0.5" stop-color="#0193be"/><stop offset="1" stop-color="#0b4f9e"/>
     </linearGradient>
-    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff" stop-opacity="0.38"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e3f4fa"/>
     </linearGradient>
-    <linearGradient id="mark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#d9f3fb"/>
+    <linearGradient id="sq" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eaf7fb"/><stop offset="1" stop-color="#c5e4ef"/>
     </linearGradient>
-    <clipPath id="disc"><circle cx="32" cy="32" r="32"/></clipPath>
+    <linearGradient id="mk" x1="0" y1="20" x2="0" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0aa5d1"/><stop offset="1" stop-color="#0b6aa8"/>
+    </linearGradient>
   </defs>
-  <circle cx="32" cy="32" r="32" fill="url(#bg)"/>
-  <g clip-path="url(#disc)"><path d="M0 0h64v27C46 35 18 35 0 27z" fill="url(#gloss)"/></g>
-  <g transform="translate(32 33) scale(0.88) translate(-32 -33.2)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16.5 47V19.5L32 37l15.5-17.5V47" stroke="#05325f" stroke-opacity="0.28" stroke-width="7.5" transform="translate(0 1.6)"/>
-    <path d="M16.5 47V19.5L32 37l15.5-17.5V47" stroke="url(#mark)" stroke-width="7.5"/>
-  </g>
   
+  <circle cx="32" cy="32" r="27.8" fill="url(#inner)"/>
+  <circle cx="32" cy="32" r="29.75" fill="none" stroke="url(#ring)" stroke-width="4.5"/>
+  <g transform="translate(32 30.5) scale(1.17) translate(-32 -32)" fill="none" stroke="url(#mk)" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 41V22.5L22.5 33.5L30.5 22.5V41"/>
+    <path d="M35.5 28L41.5 40M48 28L39 48.5"/>
+  </g>
 </svg>
