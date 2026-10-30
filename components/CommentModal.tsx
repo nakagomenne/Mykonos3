@@ -58,7 +58,7 @@ const CommentModal: React.FC<CommentModalProps> = ({ isOpen, onClose, onSave, in
               </div>
               <div>
                 <p className="text-white font-bold text-base leading-tight tracking-wide" style={{ fontFamily: "'Ribeye Marrow', cursive" }}>Mikopos</p>
-                <p className="text-white/70 text-[11px] leading-tight">ミコをポスト</p>
+                <p className="text-white/70 text-[11px] leading-tight">ポストする</p>
               </div>
             </div>
             <button

@@ -1915,7 +1915,7 @@ const App: React.FC = () => {
         )
       );
     } catch (err: any) {
-      alert(`ミコのポストに失敗しました: ${err?.message ?? err}`);
+      alert(`ポストに失敗しました: ${err?.message ?? err}`);
     }
   };
 
@@ -2983,7 +2983,7 @@ const App: React.FC = () => {
                       localStorage.setItem('lastReadCommentAt', String(now));
                       setIsCommentPopupOpen(prev => {
                         if (!prev) {
-                          // 開くときに自分の現在ミコをセット
+                          // 開くときに自分の現在のポストをセット
                           const me = users.find(u => u.name === currentUser.name);
                           setInlinePostText(me?.comment ?? '');
                         }
@@ -3049,7 +3049,7 @@ const App: React.FC = () => {
                               </div>
                               <div>
                                 <h3 className="font-ribeye text-xl text-white tracking-wide drop-shadow leading-tight">Mikopos</h3>
-                                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 }}>{commentedUsers.length}件のミコ</p>
+                                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 }}>{commentedUsers.length}件のポスト</p>
                               </div>
                             </div>
                             <button
@@ -3112,7 +3112,7 @@ const App: React.FC = () => {
                                       }}
                                       maxLength={120}
                                       rows={2}
-                                      placeholder={myComment ? myComment : 'ミコをポスト…'}
+                                      placeholder={myComment ? myComment : 'ポストする…'}
                                       style={{
                                         width: '100%', display: 'block',
                                         padding: '8px 10px 24px',
@@ -3133,7 +3133,7 @@ const App: React.FC = () => {
                                   </div>
                                   {/* ボタン行 */}
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 7 }}>
-                                    {/* クリアボタン（現在のミコがある場合） */}
+                                    {/* クリアボタン（現在のポストがある場合） */}
                                     {myComment && (
                                       <button
                                         onClick={() => handleSaveComment('')}
@@ -3227,7 +3227,7 @@ const App: React.FC = () => {
                                         </div>
 
                                       </div>
-                                      {/* ミコ本文 */}
+                                      {/* ポスト本文 */}
                                       <div style={{
                                         background: isDarkMode ? 'linear-gradient(135deg, #2d1f4a 0%, #1e2a4a 100%)' : 'linear-gradient(135deg, #fdf4ff 0%, #eff6ff 100%)',
                                         borderRadius: 12,
@@ -3340,8 +3340,8 @@ const App: React.FC = () => {
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '52px 0', color: isDarkMode ? '#6b7280' : '#94a3b8' }}>
                               <SpeechBubbleIcon className="w-10 h-10 mb-3 opacity-25" />
-                              <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>まだミコはありません</p>
-                              <p style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', margin: '4px 0 0' }}>最初のミコをポストしよう！</p>
+                              <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>まだポストはありません</p>
+                              <p style={{ fontSize: 11, marginTop: 4, color: '#cbd5e1', margin: '4px 0 0' }}>最初のポストをしよう！</p>
                             </div>
                           )}
                         </div>
@@ -3490,7 +3490,7 @@ const App: React.FC = () => {
                           role="menuitem"
                         >
                           <PencilIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-                          <span>ミコをポスト</span>
+                          <span>ポストする</span>
                         </button>
                         {/* 稼働ルール（設定されている場合のみ表示） */}
                         {workRules && (
@@ -3879,7 +3879,7 @@ const App: React.FC = () => {
                                               <button
                                                   onClick={() => setIsCommentModalOpen(true)}
                                                   className={`group ${mineStatusBgColor} hover:opacity-90 px-3 py-1.5 rounded-lg shadow-sm flex items-baseline gap-2 transition-opacity`}
-                                                  title="ミコを編集"
+                                                  title="ポストを編集"
                                               >
                                                   <p className="text-sm font-bold text-white">
                                                       {currentUserWithData.comment}
