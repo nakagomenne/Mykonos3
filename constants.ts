@@ -2,7 +2,10 @@ import { ListType, Rank, CallStatus, User, AvailabilityStatus } from './types';
 
 export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG', '保険'];
 
-export const PRECHECK_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち'];
+// 回線前確専用ランク（通常ランクの選択肢からは除外される）
+export const PRECHECK_ONLY_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち', 'CB対応'];
+// 回線前確タブの選択肢（専用ランク + 通常ランクと共通の「対応」「共有」）
+export const PRECHECK_RANK_OPTIONS: Rank[] = [...PRECHECK_ONLY_RANK_OPTIONS, '対応', '共有'];
 
 export const RANK_OPTIONS: Rank[] = [
   '留守入電',
@@ -23,10 +26,10 @@ export const RANK_OPTIONS: Rank[] = [
   '立ち上げ',
   'トス',
   'クレーム',
-  ...PRECHECK_RANK_OPTIONS,
+  ...PRECHECK_ONLY_RANK_OPTIONS,
 ];
 
-export const NON_PRECHECK_RANK_OPTIONS: Rank[] = RANK_OPTIONS.filter(rank => !PRECHECK_RANK_OPTIONS.includes(rank));
+export const NON_PRECHECK_RANK_OPTIONS: Rank[] = RANK_OPTIONS.filter(rank => !PRECHECK_ONLY_RANK_OPTIONS.includes(rank));
 
 export const CALL_STATUS_OPTIONS: CallStatus[] = ['追客中', '完了'];
 
@@ -46,7 +49,7 @@ export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '
 export const ADMIN_USER_NAME = '中込賢三';
 export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 export const ELEC_ASSIGNEE_NAME = '電気契確';
-export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラチナIMP', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡'];
+export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラチナIMP', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡', '不備解消', '番号重複', '対応', '共有'];
 export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡'];
 // 電気契確タブで「ジライフ契確」から変更された際に日時自動更新・対応者リセットの対象となるランク
 export const JIRA_TRACKING_TARGET_RANKS: Rank[] = ['ジラ両方追跡', 'ジラ同意追跡', 'ジラ決済追跡'];
@@ -124,6 +127,11 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'プラ同意追跡': { backgroundColor: '#ffffff', color: '#b8860b', border: '1px solid #b8860b' },
   'プラ決済追跡': { backgroundColor: '#fef3cd', color: '#92650a' },
   'プラ両方追跡': { backgroundColor: '#f5cc5a', color: '#ffffff' },
+
+  // 追加ランク（電気契確: 不備解消・番号重複 / 回線前確: CB対応）
+  '不備解消': { backgroundColor: '#d1fae5', color: '#047857' },
+  '番号重複': { backgroundColor: '#fee2e2', color: '#b91c1c' },
+  'CB対応':   { backgroundColor: '#fde68a', color: '#92400e' },
 
   // 既存電気系ランク（RANK_STYLES完全網羅用）
   '電気前確':   { backgroundColor: '#f0e6ff', color: '#7c3aed' },
