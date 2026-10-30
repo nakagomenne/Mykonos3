@@ -421,7 +421,13 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
                     <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`} autoFocus></textarea>
                 );
             case 'assignee':
-                const assigneeOptions = getOptionsWithCurrent(members, call.assignee);
+                // 予定日が非稼働日のメンバーは候補から除外（現在の担当者・選択中のメンバーは残す）
+                const workingMembers = members.filter(name => {
+                    if (name === call.assignee || name === member) return true;
+                    const user = users.find(u => u.name === name);
+                    return !(user?.nonWorkingDays || []).includes(date);
+                });
+                const assigneeOptions = getOptionsWithCurrent(workingMembers, call.assignee);
                 return (
                      <select value={member} onChange={(e) => setMember(e.target.value)} className={`w-full px-2 py-1.5 border border-slate-300 rounded-md shadow-sm bg-white ${mainRingClass} ${mainBorderClass} transition ${mainColorClass}`}>
                         {assigneeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}

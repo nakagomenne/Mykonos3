@@ -258,7 +258,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
 
   // AP戻し・回線受注チェック時は担当者選択肢を拡張（回線前確 or 元の依頼者が含まれるよう）
   // 通常時はリスト種別の商材でフィルタリング
-  const assigneeOptions = useMemo(() => {
+  const baseAssigneeOptions = useMemo(() => {
     if (isApReturn || isLineOrder || isElecOrder) {
       const base = [...members];
       if (isApReturn && call.requester && !base.includes(call.requester)) {
@@ -296,6 +296,17 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
     }
     return [...members];
   }, [members, users, isApReturn, isLineOrder, isElecOrder, call.assignee, call.requester, requiredProduct]);
+
+  // 非稼働日フィルター：選択中の予定日が非稼働日のメンバーは担当者候補から除外する。
+  // ただし、現在選択中の担当者は選択肢から消えて値が不正にならないよう残す。
+  const assigneeOptions = useMemo(() => {
+    if (!date) return baseAssigneeOptions;
+    return baseAssigneeOptions.filter(name => {
+      if (name === assignee) return true;
+      const user = users.find(u => u.name === name);
+      return !(user?.nonWorkingDays || []).includes(date);
+    });
+  }, [baseAssigneeOptions, users, date, assignee]);
 
   // listType が変わったとき、現在の担当者がフィルタ後リストにいなければ先頭に切り替え
   // ただし担当者が回線前確の場合は自動切り替えしない（AP戻しチェック時のみ切り替わる）
