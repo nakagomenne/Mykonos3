@@ -893,7 +893,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
           {/* エディタ(ノートごとに作り直す) */}
           <div className={isEditing ? '' : `rounded-lg border ${border} ${surface2} p-4 min-h-[8rem]`}>
-            <NoteEditor
+            {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
               value={e ? e.body : n.body}
               editable={isEditing}
@@ -903,9 +903,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
               templates={isEditing ? templates : undefined}
               onError={setLocalError}
-            />
+            />}
             {!isEditing && !n.body && (
-              <div className={`text-sm ${muted}`}>本文はまだありません。{isOwner ? '「✏️ 編集」から書き込めます。' : ''}</div>
+              <div className={`text-sm text-left ${muted}`}>本文はまだありません。{isOwner ? '「✏️ 編集」から書き込めます。' : ''}</div>
             )}
           </div>
 
