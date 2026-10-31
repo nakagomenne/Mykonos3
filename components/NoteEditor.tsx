@@ -66,6 +66,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const uploadRef = useRef(onUploadImage);
   const errorRef = useRef(onError);
   const changeRef = useRef(onChange);
+  const lastHtmlRef = useRef(value);
   useEffect(() => { uploadRef.current = onUploadImage; }, [onUploadImage]);
   useEffect(() => { errorRef.current = onError; }, [onError]);
   useEffect(() => { changeRef.current = onChange; }, [onChange]);
@@ -118,7 +119,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     },
     onUpdate: ({ editor: ed }) => {
       // 空のときは <p></p> ではなく空文字で保存する
-      changeRef.current?.(ed.isEmpty ? '' : ed.getHTML());
+      const html = ed.isEmpty ? '' : ed.getHTML();
+      // 開いただけ(内容が変わっていない)ときは保存しない
+      if (html === lastHtmlRef.current) return;
+      lastHtmlRef.current = html;
+      changeRef.current?.(html);
     },
   });
 

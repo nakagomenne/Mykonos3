@@ -27,6 +27,17 @@ type FolderDlg =
   | { mode: 'create'; parent: NoteFolder | null }
   | { mode: 'edit'; folder: NoteFolder };
 
+/** 「新規ノート」で開く未保存の下書き(「保存」を押すまでDBには作られない) */
+interface NoteDraft {
+  title: string;
+  body: string;
+  folderId: string | null;
+  visibility: NoteVisibility;
+  sharedWith: string[];
+  tags: string[];
+  pinned: boolean;
+}
+
 interface NotesPanelProps {
   api: NotesApi;
   me: User;
@@ -70,6 +81,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [draft, setDraft] = useState<NoteDraft | null>(null);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   // 別のノートを開いたら、公開範囲の設定パネルは閉じる
   useEffect(() => { setSettingsOpen(false); }, [selectedId]);
@@ -88,6 +101,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (!initialNoteId) return;
     const t = notes.find(n => n.id === initialNoteId);
     if (!t) return;
+    setDraft(null);
     setSelectedId(initialNoteId);
     setSearch('');
     setView(t.owner === me.name ? { kind: 'mine' } : { kind: 'shared' });
@@ -184,20 +198,69 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     try { await fn(); } catch (e: any) { setLocalError(e?.message ?? '操作に失敗しました'); } finally { setBusy(false); }
   };
 
-  const handleNewNote = () => run(async () => {
+  /** 「新規ノート」: ここではまだ作成せず、空の下書きを開く */
+  const handleNewNote = () => {
+    if (draft) { setStep('note'); return; }
     const folder = view.kind === 'folder' ? myFolders.find(f => f.id === view.folderId) : undefined;
-    const note = await api.addNote({
+    setLocalError(null);
+    setSearch('');
+    setSettingsOpen(false);
+    setTagInput('');
+    if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
+    setSelectedId(null);
+    setDraft({
       title: '',
+      body: '',
       folderId: folder?.id ?? null,
       visibility: folder?.visibility ?? 'private',
       sharedWith: folder?.sharedWith ?? [],
+      tags: [],
       pinned: view.kind === 'pinned',
     });
+    setStep('note');
+  };
+
+  /** 「保存」: ここで初めてノートを作成する */
+  const handleSaveDraft = () => draft && run(async () => {
+    const pendingTag = tagInput.trim().replace(/^#/, '');
+    const tags = pendingTag && !draft.tags.includes(pendingTag) ? [...draft.tags, pendingTag] : draft.tags;
+    if (!draft.title.trim() && !draft.body) {
+      throw new Error('タイトルか本文を入力してから保存してください');
+    }
+    const note = await api.addNote({
+      title: draft.title,
+      body: draft.body,
+      folderId: draft.folderId,
+      visibility: draft.visibility,
+      sharedWith: draft.sharedWith,
+      tags,
+      pinned: draft.pinned,
+    });
+    setDraft(null);
+    setTagInput('');
     setSearch('');
-    if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
     setSelectedId(note.id);
     setStep('note');
   });
+
+  const draftDirty = !!draft && (
+    !!draft.title.trim() || !!draft.body || draft.tags.length > 0 || !!tagInput.trim()
+  );
+
+  /** 下書きを捨てて別の操作をする。内容があるときは確認する */
+  const guard = (fn: () => void) => {
+    if (draftDirty) { setPendingAction(() => fn); return; }
+    setDraft(null);
+    fn();
+  };
+  const requestClose = () => guard(onClose);
+
+  const addDraftTag = () => {
+    const t = tagInput.trim().replace(/^#/, '');
+    if (!t) return;
+    setDraft(dr => (dr && !dr.tags.includes(t) ? { ...dr, tags: [...dr.tags, t] } : dr));
+    setTagInput('');
+  };
 
   const handleCopy = () => selected && run(async () => {
     const created = await api.copyToMine(selected);
@@ -246,11 +309,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const isViewActive = (v: View) =>
     !search.trim() && v.kind === view.kind && (v.kind !== 'folder' || (view.kind === 'folder' && v.folderId === view.folderId));
 
-  const selectView = (v: View) => {
+  const selectView = (v: View) => guard(() => {
     setView(v);
     setSearch('');
     setStep('list');
-  };
+  });
 
   const SideItem: React.FC<{ v: View; icon: string; label: string; count?: number; badge?: number; depth?: number }> =
     ({ v, icon, label, count, badge, depth = 0 }) => (
@@ -309,7 +372,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = n.id === selectedId;
     return (
       <button
-        onClick={() => { setSelectedId(n.id); setStep('note'); }}
+        onClick={() => guard(() => { setSelectedId(n.id); setStep('note'); })}
         className={`w-full text-left px-3 py-2.5 border-b ${border} transition ${active ? (d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10') : hoverRow}`}
       >
         <div className="flex items-center gap-1.5">
@@ -330,7 +393,129 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   };
 
   // ── 本文ペイン ─────────────────────────────────────────
+  const renderDraftPane = (dr: NoteDraft) => {
+    const patch = (p: Partial<NoteDraft>) => setDraft(cur => (cur ? { ...cur, ...p } : cur));
+    return (
+      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        {/* 未保存バー */}
+        <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${d ? 'bg-amber-900/40 border-amber-700' : 'bg-amber-50 border-amber-300'}`}>
+          <span className="text-sm font-bold text-amber-600 flex-1 min-w-0 truncate">📝 新規ノート<span className={`ml-2 text-xs font-normal ${muted}`}>まだ保存されていません</span></span>
+          <button
+            onClick={() => guard(() => setStep('list'))}
+            disabled={busy}
+            className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
+          >キャンセル</button>
+          <button
+            onClick={handleSaveDraft}
+            disabled={busy}
+            className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
+          >{busy ? '保存中…' : '保存'}</button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <input
+              value={dr.title}
+              onChange={e => patch({ title: e.target.value })}
+              placeholder="タイトル"
+              autoFocus
+              className={`flex-1 text-xl font-bold bg-transparent border-b-2 ${border} focus:border-[#0193be] focus:outline-none py-1`}
+            />
+            <button
+              onClick={() => patch({ pinned: !dr.pinned })}
+              title={dr.pinned ? 'ピン留めを外す' : 'ピン留め'}
+              className={`text-xl px-1 ${dr.pinned ? 'text-amber-500' : muted}`}
+            >{dr.pinned ? '★' : '☆'}</button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <button
+              onClick={() => setSettingsOpen(o => !o)}
+              title="このノートを誰が見られるかを選びます"
+              className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition ${settingsOpen ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]' : `${border} ${hoverRow}`}`}
+            >
+              <span className={`text-xs ${muted}`}>公開範囲</span>
+              <span className="font-bold">{VISIBILITY_ICONS[dr.visibility]} {VISIBILITY_LABELS[dr.visibility]}{dr.visibility === 'members' ? `(${dr.sharedWith.length}名)` : ''}</span>
+              <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
+            </button>
+            <label className="inline-flex items-center gap-1.5">
+              <span className={`text-xs ${muted}`}>フォルダ</span>
+              <select
+                value={dr.folderId ?? ''}
+                onChange={e => patch({ folderId: e.target.value || null })}
+                className={inputCls}
+              >
+                <option value="">📥 未設定</option>
+                {flatFolders.map(({ folder, depth }) => (
+                  <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
+                ))}
+              </select>
+            </label>
+            <div className="inline-flex items-center gap-1 flex-wrap">
+              <span className={`text-xs ${muted}`}>タグ</span>
+              {dr.tags.map(t => (
+                <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                  #{t}
+                  <button onClick={() => patch({ tags: dr.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
+                </span>
+              ))}
+              <input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addDraftTag(); } }}
+                onBlur={addDraftTag}
+                placeholder="＋タグ"
+                className={`${inputCls} w-24 !py-0.5 text-xs`}
+              />
+            </div>
+          </div>
+
+          {settingsOpen && (
+            <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
+              <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。「保存」を押すと反映されます。</div>
+              <NoteVisibilityPicker
+                visibility={dr.visibility}
+                sharedWith={dr.sharedWith}
+                users={users}
+                owner={me.name}
+                isDarkMode={d}
+                onChange={(v: NoteVisibility, sh: string[]) => patch({ visibility: v, sharedWith: sh })}
+              />
+            </div>
+          )}
+
+          <div className={`text-xs ${muted}`}>※ 「周知」は、保存してから行えます。</div>
+
+          <NoteEditor
+            key="draft"
+            value={dr.body}
+            editable
+            isDarkMode={d}
+            onChange={html => patch({ body: html })}
+            onUploadImage={file => uploadNoteImage(file, me.name)}
+            templates={templates}
+            onError={setLocalError}
+          />
+
+          <div className="pt-2 flex justify-end gap-2">
+            <button
+              onClick={() => guard(() => setStep('list'))}
+              disabled={busy}
+              className={`text-sm px-4 py-2 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
+            >キャンセル</button>
+            <button
+              onClick={handleSaveDraft}
+              disabled={busy}
+              className="text-sm px-6 py-2 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
+            >{busy ? '保存中…' : '保存'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderNotePane = () => {
+    if (draft) return renderDraftPane(draft);
     if (!selected) {
       return (
         <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
@@ -539,14 +724,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const saveLabel = saveState === 'saving' ? '保存中…' : saveState === 'saved' ? '✓ 保存しました' : saveState === 'error' ? '⚠ 保存に失敗' : '';
 
   return createPortal(
-    <div className="fixed inset-0 z-[45] bg-black/60 flex items-stretch justify-center md:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[45] bg-black/60 flex items-stretch justify-center md:p-4" onClick={requestClose}>
       <div className={`${surface} w-full max-w-7xl md:rounded-xl shadow-2xl flex flex-col min-h-0 overflow-hidden`} onClick={e => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="px-3 md:px-4 py-2.5 flex items-center gap-2 md:gap-3 text-white" style={{ backgroundColor: '#0193be' }}>
           {step !== 'folders' && (
             <button
               className="md:hidden p-1 -ml-1"
-              onClick={() => setStep(step === 'note' ? 'list' : 'folders')}
+              onClick={() => (step === 'note' ? guard(() => setStep('list')) : setStep('folders'))}
               aria-label="戻る"
             ><ChevronLeftIcon className="w-5 h-5" /></button>
           )}
@@ -567,7 +752,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           ><PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">新規ノート</span><span className="sm:hidden">新規</span></button>
           <span className="hidden md:inline text-xs opacity-90 min-w-[88px] text-right whitespace-nowrap">{saveLabel}</span>
           <button onClick={() => setHelpOpen(true)} className="hidden sm:inline-flex items-center justify-center w-7 h-7 rounded-full border border-white/70 text-sm font-bold hover:bg-white/20" title="ノートの使い方" aria-label="ノートの使い方">?</button>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded" aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
+          <button onClick={requestClose} className="p-1 hover:bg-white/20 rounded" aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
         </div>
 
         {shownError && !unavailable && (
@@ -630,10 +815,22 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 <span className={`text-xs font-normal ${muted}`}>{visibleNotes.length}件</span>
               </div>
               <div className="flex-1 overflow-y-auto">
+                {draft && (
+                  <button
+                    onClick={() => setStep('note')}
+                    className={`w-full text-left px-3 py-2.5 border-b ${border} ${d ? 'bg-amber-900/30' : 'bg-amber-50'}`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={`truncate flex-1 text-sm font-semibold ${draft.title ? '' : muted}`}>{draft.title || '(無題)'}</span>
+                      <span className="bg-amber-500 text-white text-[10px] font-bold rounded-full px-1.5">未保存</span>
+                    </div>
+                    <div className={`text-xs mt-0.5 ${muted}`}>新規ノート — 「保存」を押すと作成されます</div>
+                  </button>
+                )}
                 {loading && notes.length === 0 ? (
                   <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
                 ) : visibleNotes.length === 0 ? (
-                  <div className={`p-4 text-sm ${muted}`}>
+                  draft ? null : <div className={`p-4 text-sm ${muted}`}>
                     {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
                 ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
@@ -677,6 +874,24 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           }}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={() => {
+          const fn = pendingAction;
+          setPendingAction(null);
+          setDraft(null);
+          setTagInput('');
+          fn?.();
+        }}
+        title="保存していない内容があります"
+        titleClassName="text-red-600"
+        confirmLabel="破棄して移動"
+        cancelLabel="編集に戻る"
+      >
+        <p>新規ノートはまだ保存されていません。このまま移動すると、入力した内容は破棄されます。</p>
+      </ConfirmationModal>
 
       <ConfirmationModal
         isOpen={!!deleteNoteTarget}
