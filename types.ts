@@ -132,3 +132,68 @@ export interface CommentReaction {
   emoji: string;     // 絵文字
   createdAt: string;
 }
+
+// ============================================================
+// ノート機能
+// ============================================================
+
+/** 公開範囲: 自分のみ / 全員 / 管理者のみ / 特定メンバー */
+export type NoteVisibility = 'private' | 'public' | 'admin' | 'members';
+
+export interface NoteFolder {
+  id: string;
+  owner: string;
+  name: string;
+  parentId: string | null;
+  visibility: NoteVisibility;
+  sharedWith: string[];
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 案件備考から作成したノートに残す元案件の控え */
+export interface NoteSourceSnapshot {
+  /** 顧客ID(「顧客IDを伏せる」を選んだ場合は null) */
+  customerId: string | null;
+  rank: string;
+  requester: string;
+  assignee: string;
+  dateTime: string;
+}
+
+export interface Note {
+  id: string;
+  owner: string;
+  folderId: string | null;
+  title: string;
+  /** 本文(HTML) */
+  body: string;
+  visibility: NoteVisibility;
+  sharedWith: string[];
+  pinned: boolean;
+  tags: string[];
+  isAnnouncement: boolean;
+  announcedAt: string | null;
+  sourceCallId: string | null;
+  sourceSnapshot: NoteSourceSnapshot | null;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: string | null;
+}
+
+export interface NoteRead {
+  noteId: string;
+  userName: string;
+  readAt: string;
+}
+
+export interface NoteTemplate {
+  id: string;
+  owner: string;
+  name: string;
+  body: string;
+  visibility: 'private' | 'public';
+  sortOrder: number;
+  createdAt: string;
+}

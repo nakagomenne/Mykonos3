@@ -7,6 +7,7 @@ import AlertModal from './AlertModal';
 import ConfirmationModal from './ConfirmationModal';
 import RankSelector from './RankSelector';
 import EmojiPicker from './EmojiPicker';
+import NoteTemplatePicker from './NoteTemplatePicker';
 
 interface CallRequestFormProps {
   onAddCall: (call: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => boolean | Promise<boolean>;
@@ -754,7 +755,14 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
               isDarkMode={isDarkMode}
             />
           )}
-          <label htmlFor="notes" className={`block text-sm font-medium ${mainColorClassLight} mb-1`}>備考</label>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="notes" className={`block text-sm font-medium ${mainColorClassLight}`}>備考</label>
+            <NoteTemplatePicker
+              userName={currentUser}
+              isDarkMode={isDarkMode}
+              onPick={(text) => setNotes(prev => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n${text}` : text))}
+            />
+          </div>
           <textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={`w-full px-3 py-2 border ${darkFieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${darkFieldBg} ${mainColorClass}`}></textarea>
         </div>
         <div className="md:col-span-2 flex justify-end gap-3">

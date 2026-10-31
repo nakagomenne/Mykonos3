@@ -6,6 +6,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
 import EmojiPicker from './EmojiPicker';
+import NoteTemplatePicker from './NoteTemplatePicker';
 
 interface CallEditFormProps {
   call: CallRequest;
@@ -685,7 +686,14 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
               isDarkMode={isDarkMode}
             />
           )}
-          <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight} mb-1`}>備考</label>
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor={`edit-notes-${call.id}`} className={`block text-xs font-medium ${mainColorClassLight}`}>備考</label>
+            <NoteTemplatePicker
+              userName={currentUserName}
+              isDarkMode={isDarkMode}
+              onPick={(text) => setNotes(prev => (prev.trim() ? `${prev.replace(/\s+$/, '')}\n${text}` : text))}
+            />
+          </div>
           <textarea id={`edit-notes-${call.id}`} value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} className={`w-full px-2 py-1.5 border ${fieldBorder} rounded-md shadow-sm ${mainRingClass} ${mainBorderClass} transition ${fieldBg} ${mainColorClass}`}></textarea>
         </div>
         <div className="flex justify-end gap-2 pt-2">

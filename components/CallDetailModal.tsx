@@ -18,6 +18,8 @@ interface CallDetailModalProps {
   showJumpButton?: boolean;
   isDeletedSearch?: boolean;
   users?: User[];
+  /** 備考をノートに保存する(渡された場合のみボタンを表示) */
+  onSaveToNote?: (call: CallRequest) => void;
 }
 
 const fieldLabels: Record<string, string> = {
@@ -55,7 +57,7 @@ const formatHistoryValue = (field: string, value: any) => {
 const CallDetailModal: React.FC<CallDetailModalProps> = ({
   calls, duplicateCalls, selectedCallDuplicates, onClose, onJump, onReactivate,
   isConfirmingDuplicate, onConfirmDuplicate,
-  isPrecheckTheme = false, showJumpButton = false, isDeletedSearch = false, users = []
+  isPrecheckTheme = false, showJumpButton = false, isDeletedSearch = false, users = [], onSaveToNote
 }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [detailedCall, setDetailedCall] = useState<CallRequest | null>(null);
@@ -192,7 +194,22 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
             {/* 完了ステータス */}
             <div><strong className={`${mainColorClassLight} block`}>ステータス:</strong> <StatusBadge status={callToRender.status} /></div>
             {/* 備考 */}
-            {callToRender.notes && <div className="sm:col-span-2"><strong className={`${mainColorClassLight} block`}>備考:</strong> <p className={`${mainColorClass} whitespace-pre-wrap`}>{callToRender.notes}</p></div>}
+            {callToRender.notes && (
+              <div className="sm:col-span-2">
+                <div className="flex items-center justify-between gap-2">
+                  <strong className={`${mainColorClassLight} block`}>備考:</strong>
+                  {onSaveToNote && !isConfirmingDuplicate && (
+                    <button
+                      type="button"
+                      onClick={() => onSaveToNote(callToRender)}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-md border border-[#0193be] text-[#0193be] hover:bg-[#0193be] hover:text-white transition"
+                      title="この備考をノートに保存します"
+                    >📓 ノートに保存</button>
+                  )}
+                </div>
+                <p className={`${mainColorClass} whitespace-pre-wrap`}>{callToRender.notes}</p>
+              </div>
+            )}
         </div>
       </div>
       );

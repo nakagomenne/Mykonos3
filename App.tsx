@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
-import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply, CommentReaction } from './types';
+import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply, CommentReaction, Note } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon } from './components/icons';
+import { useNotes } from './hooks/useNotes';
+const NotesPanel = lazy(() => import('./components/NotesPanel'));
+const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -241,6 +244,26 @@ const App: React.FC = () => {
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
   useEffect(() => { usersRef.current = users; }, [users]);
+
+  // ── ノート機能 ──
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [notesInitialId, setNotesInitialId] = useState<string | null>(null);
+  const [moveToNoteCall, setMoveToNoteCall] = useState<CallRequest | null>(null);
+  const handleNoteAnnounce = useCallback((note: Note) => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const n = new Notification(`📣 周知: ${note.title || '(無題)'}`, {
+      body: `${note.owner} さんからの周知です。内容を確認してください。`,
+      tag: `note_announce_${note.id}`,
+      icon: '/favicon.ico',
+    });
+    n.onclick = () => {
+      window.focus();
+      setNotesInitialId(note.id);
+      setIsNotesOpen(true);
+      n.close();
+    };
+  }, []);
+  const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce });
 
   /** "HH:MM" → "H時MM分" 形式（MM=00 の場合は "H時"）*/
   const formatWorkTime = (hhmm?: string): string => {
@@ -2996,6 +3019,20 @@ const App: React.FC = () => {
                 )}
             </div>
 
+            {/* ノートボタン */}
+            <button
+              onClick={() => { setNotesInitialId(null); setIsNotesOpen(true); }}
+              className={`relative p-2 rounded-full transition-colors duration-500 ${adminButtonClass}`}
+              title="ノート"
+            >
+              <NotebookIcon className="w-6 h-6" />
+              {notesApi.unreadAnnouncements.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                  {notesApi.unreadAnnouncements.length > 9 ? '9+' : notesApi.unreadAnnouncements.length}
+                </span>
+              )}
+            </button>
+
             {/* メンバーコメントボタン */}
             {(() => {
               const commentedUsers = users
@@ -4590,7 +4627,41 @@ const App: React.FC = () => {
         onConfirmDuplicate={handleConfirmDuplicateCreation}
         isPrecheckTheme={isPrecheckTheme || isElecTheme}
         users={users}
+        onSaveToNote={(c) => setMoveToNoteCall(c)}
       />
+
+      {isNotesOpen && currentUser && (
+        <Suspense fallback={null}>
+          <NotesPanel
+            api={notesApi}
+            me={currentUser}
+            users={users}
+            isDarkMode={isDarkMode}
+            initialNoteId={notesInitialId}
+            onClose={() => { void notesApi.flushAll(); setIsNotesOpen(false); setNotesInitialId(null); }}
+          />
+        </Suspense>
+      )}
+
+      {moveToNoteCall && currentUser && (
+        <Suspense fallback={null}>
+          <MoveToNoteModal
+            call={calls.find(c => c.id === moveToNoteCall.id) ?? moveToNoteCall}
+            api={notesApi}
+            me={currentUser}
+            users={users}
+            isDarkMode={isDarkMode}
+            onUpdateCall={handleUpdateCall}
+            onClose={() => setMoveToNoteCall(null)}
+            onOpenNote={(id) => {
+              setSelectedCall(null);
+              setSearchResults(null);
+              setNotesInitialId(id);
+              setIsNotesOpen(true);
+            }}
+          />
+        </Suspense>
+      )}
 
       <ConfirmationModal
         isOpen={!!pendingNonWorkingDayConfirmation}
