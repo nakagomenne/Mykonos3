@@ -87,6 +87,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [editingId, setEditingId] = useState<string | null>(null);
   /** PC表示でノート一覧をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
   const [listCollapsed, setListCollapsed] = useState(!!initialNoteId);
+  /** PC表示でフォルダ欄をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
+  const [foldersCollapsed, setFoldersCollapsed] = useState(!!initialNoteId);
+  /** ノートを開いたとき: フォルダ欄・ノート一覧の両方をたたむ */
+  const foldPanes = () => { setListCollapsed(true); setFoldersCollapsed(true); };
 
   // 別のノートを開いたら、公開範囲の設定パネルは閉じる
   useEffect(() => { setSettingsOpen(false); }, [selectedId]);
@@ -107,7 +111,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (!t) return;
     setDraft(null);
     setEditingId(null);
-    setListCollapsed(true);
+    foldPanes();
     setSelectedId(initialNoteId);
     setSearch('');
     setView(t.owner === me.name ? { kind: 'mine' } : { kind: 'shared' });
@@ -188,6 +192,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const isEditing = !!selected && isOwner && editingId === selected.id;
   // 開いているノート(または新規下書き)があるときだけ、一覧をたためる
   const listFolded = listCollapsed && (!!selected || !!draft);
+  const foldersFolded = foldersCollapsed && (!!selected || !!draft);
   const currentFolder = view.kind === 'folder' ? folders.find(f => f.id === view.folderId) ?? null : null;
 
   // 選択中のノートが消えた(削除・非公開化など)ら選択解除
@@ -209,7 +214,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   /** 「新規ノート」: ここではまだ作成せず、空の下書きを開く */
   const handleNewNote = () => {
-    if (draft) { setListCollapsed(true); setStep('note'); return; }
+    if (draft) { foldPanes(); setStep('note'); return; }
     const folder = view.kind === 'folder' ? myFolders.find(f => f.id === view.folderId) : undefined;
     setLocalError(null);
     setSearch('');
@@ -218,7 +223,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
     setSelectedId(null);
     setEditingId(null);
-    setListCollapsed(true);
+    foldPanes();
     setDraft({
       title: '',
       body: '',
@@ -280,7 +285,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setView({ kind: 'unsorted' });
     setSelectedId(created.id);
     setEditingId(created.id);
-    setListCollapsed(true);
+    foldPanes();
     setStep('note');
   });
 
@@ -387,7 +392,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = n.id === selectedId;
     return (
       <button
-        onClick={() => guard(() => { setEditingId(null); setSelectedId(n.id); setListCollapsed(true); setStep('note'); })}
+        onClick={() => guard(() => { setEditingId(null); setSelectedId(n.id); foldPanes(); setStep('note'); })}
         className={`w-full text-left px-3 py-2.5 border-b ${border} transition ${active ? (d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10') : hoverRow}`}
       >
         <div className="flex items-center gap-1.5">
@@ -841,8 +846,22 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         ) : (
           <div className="flex-1 flex min-h-0">
             {/* ① フォルダ */}
-            <aside className={`${step === 'folders' ? 'flex' : 'hidden'} md:flex w-full md:w-56 lg:w-60 flex-shrink-0 flex-col border-r ${border} ${surface2} overflow-y-auto p-2 gap-0.5`}>
-              <div className={`px-2 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>自分のノート</div>
+            <aside
+              className={`${step === 'folders' ? 'flex' : 'hidden'} md:flex w-full flex-shrink-0 flex-col min-h-0 overflow-hidden ${surface2} md:transition-[width] md:duration-200 ${
+                foldersFolded ? 'md:w-0 md:invisible' : `md:w-56 lg:w-60 border-r ${border}`}`}
+            >
+             <div className="flex flex-col flex-1 min-h-0 w-full md:w-56 lg:w-60 overflow-y-auto p-2 gap-0.5">
+              <div className={`px-2 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
+                <span>自分のノート</span>
+                {(selected || draft) && (
+                  <button
+                    onClick={() => setFoldersCollapsed(true)}
+                    title="フォルダ欄をたたんで本文を広く表示します"
+                    aria-label="フォルダ欄をたたむ"
+                    className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded text-xs ${muted} ${hoverRow}`}
+                  >◀</button>
+                )}
+              </div>
               <SideItem v={{ kind: 'mine' }} icon="📝" label="すべて" count={myNotes.length} />
               <SideItem v={{ kind: 'pinned' }} icon="★" label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon="📥" label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
@@ -871,14 +890,28 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 onClick={() => setHelpOpen(true)}
                 className={`mt-3 flex items-center gap-1.5 px-2 py-2 rounded-md text-sm font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
               >❓ ノートの使い方</button>
+             </div>
             </aside>
+
+            {/* ①' たたまれたフォルダバー(PCのみ・クリックで展開) */}
+            {foldersFolded && (
+              <button
+                onClick={() => setFoldersCollapsed(false)}
+                title="フォルダ欄を開く"
+                aria-label="フォルダ欄を開く"
+                className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-3 pt-3 border-r ${border} ${surface2} ${hoverRow} transition`}
+              >
+                <span className={`text-sm ${d ? 'text-sky-300' : 'text-[#0193be]'}`}>▶</span>
+                <span className={`text-xs font-semibold whitespace-nowrap flex-shrink-0 ${muted}`} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', height: '5em' }}>
+                  フォルダ
+                </span>
+              </button>
+            )}
 
             {/* ② ノート一覧 */}
             <section
-              aria-hidden={listFolded}
-              inert={listFolded}
               className={`${step === 'list' ? 'flex' : 'hidden'} md:flex w-full flex-shrink-0 flex-col min-h-0 overflow-hidden md:transition-[width] md:duration-200 ${
-                listFolded ? 'md:w-0 md:border-r-0' : `md:w-72 lg:w-80 border-r ${border}`}`}
+                listFolded ? 'md:w-0 md:invisible' : `md:w-72 lg:w-80 border-r ${border}`}`}
             >
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-72 lg:w-80">
               <div className={`px-3 py-2 text-sm font-bold border-b ${border} flex items-center justify-between gap-2`}>
