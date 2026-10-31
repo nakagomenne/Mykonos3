@@ -39,7 +39,8 @@ export type Rank =
   | 'プラ両方追跡'
   | '不備解消'
   | '番号重複'
-  | 'CB対応';
+  | 'CB対応'
+  | 'キャンセル依頼';
 
 export type CallStatus = '追客中' | '完了';
 
