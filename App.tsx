@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditChange, CallRequestUpdatableFields, FeedbackReport, CommentReply, CommentReaction, Note } from './types';
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
-import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon } from './components/icons';
+import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon, QuestionMarkCircleIcon } from './components/icons';
 import { useNotes } from './hooks/useNotes';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
+const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
 import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
@@ -144,6 +145,7 @@ const App: React.FC = () => {
   const [announcementPriority, setAnnouncementPriority] = useState<string>('medium');
   const [workRules, setWorkRules] = useState<string>('');
   const [isWorkRulesModalOpen, setIsWorkRulesModalOpen] = useState(false);
+  const [isUsageGuideOpen, setIsUsageGuideOpen] = useState(false);
   const [appVersion, setAppVersion] = useState<string>(`ver ${__APP_VERSION__}`);
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [scheduleOpenedFromAdmin, setScheduleOpenedFromAdmin] = useState(false);
@@ -3589,6 +3591,18 @@ const App: React.FC = () => {
                           <FlagIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                           <span>バグ報告 / 要望</span>
                         </button>
+                        {/* 使い方ガイド */}
+                        <button
+                          onClick={() => {
+                            setIsUsageGuideOpen(true);
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="flex items-center gap-3 w-full px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 transition-colors"
+                          role="menuitem"
+                        >
+                          <QuestionMarkCircleIcon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                          <span>使い方ガイド</span>
+                        </button>
                       </div>
                       <div className="border-t border-slate-100 dark:border-slate-700 my-1" />
                       <div className="py-1" role="none">
@@ -4629,6 +4643,12 @@ const App: React.FC = () => {
         users={users}
         onSaveToNote={(c) => setMoveToNoteCall(c)}
       />
+
+      {isUsageGuideOpen && (
+        <Suspense fallback={null}>
+          <UsageGuideModal isDarkMode={isDarkMode} onClose={() => setIsUsageGuideOpen(false)} />
+        </Suspense>
+      )}
 
       {isNotesOpen && currentUser && (
         <Suspense fallback={null}>
