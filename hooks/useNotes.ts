@@ -177,6 +177,22 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     await Promise.all(Array.from(pending.current.keys()).map(id => flush(id)));
   }, [flush]);
 
+  /** 「保存」ボタン用: 変更をまとめて保存する(完了を待ち、失敗したら例外を投げる。自動保存はしない) */
+  const saveNote = useCallback(async (id: string, patch: svc.NotePatch) => {
+    const v = viewerRef.current;
+    if (!v) return;
+    await flush(id); // ピン留めなど、先に送信待ちの変更があれば先に送る
+    inflight.current.add(id);
+    try {
+      const updated = await svc.updateNote(id, patch, v.name);
+      setNotes(prev => prev.map(n => (n.id === id ? updated : n)));
+      setSaveState('saved');
+      setError(null);
+    } finally {
+      inflight.current.delete(id);
+    }
+  }, [flush]);
+
   const editNote = useCallback((id: string, patch: svc.NotePatch, opts?: { immediate?: boolean }) => {
     const v = viewerRef.current;
     if (!v) return;
@@ -317,7 +333,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     notes, folders, reads, loading, unavailable, error, saveState,
     myReadIds, myHiddenIds, unreadAnnouncements,
     reload: load, flushAll, clearError: () => setError(null),
-    editNote, addNote, removeNote, copyToMine, announce, unannounce, markRead, hideAnnouncement, unhideAnnouncement,
+    editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
   };
 }

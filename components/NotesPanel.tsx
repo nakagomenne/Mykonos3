@@ -5,6 +5,7 @@ import type { NotesApi } from '../hooks/useNotes';
 import {
   VISIBILITY_ICONS, VISIBILITY_LABELS, fetchTemplates, getRecipients, uploadNoteImage,
 } from '../services/notesService';
+import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
@@ -38,6 +39,17 @@ interface NoteDraft {
   sharedWith: string[];
   tags: string[];
   pinned: boolean;
+}
+
+/** 既存ノートの「編集中」の内容(「保存」を押すまでDBには反映しない) */
+interface NoteEditDraft {
+  id: string;
+  title: string;
+  body: string;
+  folderId: string | null;
+  visibility: NoteVisibility;
+  sharedWith: string[];
+  tags: string[];
 }
 
 interface NotesPanelProps {
@@ -88,6 +100,16 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   /** 編集モードで開いているノートのID(それ以外のノートは閲覧モード) */
   const [editingId, setEditingId] = useState<string | null>(null);
+  /** 編集中の下書き(自動保存しない。「保存」で反映、「キャンセル」で破棄) */
+  const [editDraft, setEditDraft] = useState<NoteEditDraft | null>(null);
+  const beginEdit = (n: Note) => {
+    setEditingId(n.id);
+    setEditDraft({
+      id: n.id, title: n.title, body: n.body, folderId: n.folderId,
+      visibility: n.visibility, sharedWith: [...n.sharedWith], tags: [...n.tags],
+    });
+  };
+  const endEdit = () => { setEditingId(null); setEditDraft(null); };
   /** PC表示でノート一覧をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
   const [listCollapsed, setListCollapsed] = useState(!!initialNoteId);
   /** PC表示でフォルダ欄をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
@@ -113,7 +135,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const t = notes.find(n => n.id === initialNoteId);
     if (!t) return;
     setDraft(null);
-    setEditingId(null);
+    endEdit();
     foldPanes();
     setSelectedId(initialNoteId);
     setSearch('');
@@ -202,6 +224,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   // 選択中のノートが消えた(削除・非公開化など)ら選択解除
   useEffect(() => {
     if (selectedId && !notes.some(n => n.id === selectedId)) {
+      endEdit();
       setSelectedId(null);
       setStep(s => (s === 'note' ? 'list' : s));
     }
@@ -226,7 +249,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setTagInput('');
     if (view.kind === 'shared' || view.kind === 'announce' || view.kind === 'hiddenAnnounce') setView({ kind: 'mine' });
     setSelectedId(null);
-    setEditingId(null);
+    endEdit();
     foldPanes();
     setDraft({
       title: '',
@@ -259,7 +282,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setDraft(null);
     setTagInput('');
     setSearch('');
-    setEditingId(null);
+    endEdit();
     setSelectedId(note.id);
     setStep('note');
   });
@@ -268,9 +291,29 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     !!draft.title.trim() || !!draft.body || draft.tags.length > 0 || !!tagInput.trim()
   );
 
-  /** 下書きを捨てて別の操作をする。内容があるときは確認する */
+  /** 既存ノートの編集中に、まだ「保存」していない変更があるか */
+  const editDirty = !!selected && isEditing && !!editDraft && editDraft.id === selected.id && (
+    editDraft.title !== selected.title ||
+    editDraft.body !== selected.body ||
+    editDraft.folderId !== selected.folderId ||
+    editDraft.visibility !== selected.visibility ||
+    editDraft.sharedWith.join('\n') !== selected.sharedWith.join('\n') ||
+    editDraft.tags.join('\n') !== selected.tags.join('\n') ||
+    !!tagInput.trim()
+  );
+  const hasUnsaved = draftDirty || editDirty;
+
+  // 保存していない内容があるままタブを閉じる/リロードしようとしたら、ブラウザの確認を出す
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsaved]);
+
+  /** 保存していない内容を捨てて別の操作をする。内容があるときは確認する */
   const guard = (fn: () => void) => {
-    if (draftDirty) { setPendingAction(() => fn); return; }
+    if (hasUnsaved) { setPendingAction(() => fn); return; }
     setDraft(null);
     fn();
   };
@@ -288,7 +331,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setSearch('');
     setView({ kind: 'unsorted' });
     setSelectedId(created.id);
-    setEditingId(created.id);
+    beginEdit(created);
     foldPanes();
     setStep('note');
   });
@@ -330,7 +373,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       setSearch('');
       setView({ kind: 'unsorted' });
       setSelectedId(created.id);
-      setEditingId(null);
+      endEdit();
       foldPanes();
       setStep('note');
     } else if (view.kind === 'announce' && selectedId === target.id) {
@@ -339,13 +382,38 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
   });
 
+  const patchEdit = (p: Partial<NoteEditDraft>) => setEditDraft(cur => (cur ? { ...cur, ...p } : cur));
+
   const addTag = () => {
-    if (!selected) return;
     const t = tagInput.trim().replace(/^#/, '');
     if (!t) return;
-    if (!selected.tags.includes(t)) api.editNote(selected.id, { tags: [...selected.tags, t] });
+    setEditDraft(cur => (cur && !cur.tags.includes(t) ? { ...cur, tags: [...cur.tags, t] } : cur));
     setTagInput('');
   };
+
+  /** 編集中の「保存」: ここで初めて変更をDBに反映する(自動保存はしない) */
+  const handleSaveEdit = () => selected && editDraft && run(async () => {
+    const n = selected;
+    const dr = editDraft;
+    const pendingTag = tagInput.trim().replace(/^#/, '');
+    const tags = pendingTag && !dr.tags.includes(pendingTag) ? [...dr.tags, pendingTag] : dr.tags;
+    const patch: NotePatch = {};
+    if (dr.title !== n.title) patch.title = dr.title;
+    if (dr.body !== n.body) patch.body = dr.body;
+    if (dr.folderId !== n.folderId) patch.folderId = dr.folderId;
+    if (dr.visibility !== n.visibility || dr.sharedWith.join('\n') !== n.sharedWith.join('\n')) {
+      patch.visibility = dr.visibility;
+      patch.sharedWith = dr.sharedWith;
+    }
+    if (tags.join('\n') !== n.tags.join('\n')) patch.tags = tags;
+    if (Object.keys(patch).length > 0) await api.saveNote(n.id, patch);
+    endEdit();
+    setSettingsOpen(false);
+    setTagInput('');
+  });
+
+  /** 編集中の「キャンセル」: 変更を捨てて閲覧モードに戻る(未保存の変更があれば確認) */
+  const cancelEdit = () => guard(() => { endEdit(); setSettingsOpen(false); setTagInput(''); });
 
   // ── スタイル ──────────────────────────────────────────
   const d = isDarkMode;
@@ -425,7 +493,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = n.id === selectedId;
     return (
       <button
-        onClick={() => guard(() => { setEditingId(null); setSelectedId(n.id); foldPanes(); setStep('note'); })}
+        onClick={() => guard(() => { endEdit(); setSelectedId(n.id); foldPanes(); setStep('note'); })}
         className={`w-full text-left px-3 py-2.5 border-b ${border} transition ${active ? (d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10') : hoverRow}`}
       >
         <div className="flex items-center gap-1.5">
@@ -597,12 +665,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const snap = n.sourceSnapshot;
     const folderOptions = flatFolders;
     const folderName = n.folderId ? folders.find(f => f.id === n.folderId)?.name : undefined;
-    const finishEditing = () => {
-      void api.flushAll();
-      setEditingId(null);
-      setSettingsOpen(false);
-      setTagInput('');
-    };
+    const e = isEditing && editDraft && editDraft.id === n.id ? editDraft : null;
+    const shown = e ?? n;   // 編集中は下書き、それ以外は保存済みの内容
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {isOwner && (
@@ -613,19 +677,27 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             {isEditing ? (
               <>
                 <span className={`text-sm font-bold flex-1 min-w-0 truncate ${d ? 'text-sky-300' : 'text-[#01607a]'}`}>
-                  ✏️ 編集中<span className={`ml-2 text-xs font-normal ${muted}`}>変更は自動で保存されます</span>
+                  ✏️ 編集中
+                  <span className={`ml-2 text-xs font-normal ${editDirty ? 'text-amber-600' : muted}`}>
+                    {editDirty ? '未保存の変更があります' : '「保存」を押すと反映されます'}
+                  </span>
                 </span>
-                <span className={`text-xs ${muted} whitespace-nowrap`}>{saveLabel}</span>
                 <button
-                  onClick={finishEditing}
-                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
-                >完了</button>
+                  onClick={cancelEdit}
+                  disabled={busy}
+                  className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
+                >キャンセル</button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={busy}
+                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
+                >{busy ? '保存中…' : '保存'}</button>
               </>
             ) : (
               <>
                 <span className={`text-sm flex-1 min-w-0 truncate ${muted}`}>📖 閲覧中</span>
                 <button
-                  onClick={() => { setSettingsOpen(false); setEditingId(n.id); }}
+                  onClick={() => { setSettingsOpen(false); beginEdit(n); }}
                   className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
                 >✏️ 編集</button>
               </>
@@ -667,9 +739,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {/* タイトル */}
           <div className="flex items-start gap-2">
             <input
-              value={n.title}
+              value={shown.title}
               readOnly={!isEditing}
-              onChange={e => api.editNote(n.id, { title: e.target.value })}
+              onChange={ev => patchEdit({ title: ev.target.value })}
               placeholder={isEditing ? 'タイトル' : '(無題)'}
               className={`flex-1 min-w-0 text-xl font-bold bg-transparent border-b-2 focus:outline-none py-1 ${
                 isEditing ? `${border} focus:border-[#0193be]` : 'border-transparent cursor-default'}`}
@@ -702,14 +774,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition ${settingsOpen ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]' : `${border} ${hoverRow}`}`}
                 >
                   <span className={`text-xs ${muted}`}>公開範囲</span>
-                  <span className="font-bold">{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+                  <span className="font-bold">{VISIBILITY_ICONS[shown.visibility]} {VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${shown.sharedWith.length}名)` : ''}</span>
                   <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
                 </button>
                 <label className="inline-flex items-center gap-1.5">
                   <span className={`text-xs ${muted}`}>フォルダ</span>
                   <select
-                    value={n.folderId ?? ''}
-                    onChange={e => api.editNote(n.id, { folderId: e.target.value || null }, { immediate: true })}
+                    value={shown.folderId ?? ''}
+                    onChange={ev => patchEdit({ folderId: ev.target.value || null })}
                     className={inputCls}
                   >
                     <option value="">📥 未設定</option>
@@ -720,10 +792,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 </label>
                 <div className="inline-flex items-center gap-1 flex-wrap">
                   <span className={`text-xs ${muted}`}>タグ</span>
-                  {n.tags.map(t => (
+                  {shown.tags.map(t => (
                     <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
                       #{t}
-                      <button onClick={() => api.editNote(n.id, { tags: n.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
+                      <button onClick={() => patchEdit({ tags: shown.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
                     </span>
                   ))}
                   <input
@@ -739,14 +811,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
               {settingsOpen && (
                 <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
-                  <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。選ぶとすぐに反映されます。</div>
+                  <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。「保存」を押すと反映されます。</div>
                   <NoteVisibilityPicker
-                    visibility={n.visibility}
-                    sharedWith={n.sharedWith}
+                    visibility={shown.visibility}
+                    sharedWith={shown.sharedWith}
                     users={users}
                     owner={n.owner}
                     isDarkMode={d}
-                    onChange={(v: NoteVisibility, sh: string[]) => api.editNote(n.id, { visibility: v, sharedWith: sh }, { immediate: true })}
+                    onChange={(v: NoteVisibility, sh: string[]) => patchEdit({ visibility: v, sharedWith: sh })}
                   />
                 </div>
               )}
@@ -766,18 +838,18 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 {n.visibility === 'private' ? (
                   <>
                     <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
-                    <button onClick={() => { setEditingId(n.id); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
+                    <button onClick={() => { if (!isEditing) beginEdit(n); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
                   </>
                 ) : n.isAnnouncement ? (
                   <>
                     <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]">📣 周知中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
-                    <button onClick={() => setAnnounceTarget(n)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`} title="内容を直したときなど、もう一度確認してもらいます">再周知する</button>
-                    <button onClick={() => run(() => api.unannounce(n.id))} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>周知をやめる</button>
+                    <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`} title={editDirty ? '先に「保存」してください' : '内容を直したときなど、もう一度確認してもらいます'}>再周知する</button>
+                    <button onClick={() => run(() => api.unannounce(n.id))} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}>周知をやめる</button>
                   </>
                 ) : (
                   <>
                     <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
-                    <button onClick={() => setAnnounceTarget(n)} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600">📣 周知する</button>
+                    <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} title={editDirty ? '先に「保存」してください' : undefined} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50">📣 周知する</button>
                   </>
                 )}
               </div>
@@ -817,11 +889,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {/* エディタ(ノートごとに作り直す) */}
           <NoteEditor
             key={n.id + (isEditing ? ':e' : ':r')}
-            value={n.body}
+            value={e ? e.body : n.body}
             editable={isEditing}
             isDarkMode={d}
             toolbarTop={isOwner ? 54 : 0}
-            onChange={html => api.editNote(n.id, { body: html })}
+            onChange={html => patchEdit({ body: html })}
             onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
             templates={isEditing ? templates : undefined}
             onError={setLocalError}
@@ -1063,6 +1135,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           const fn = pendingAction;
           setPendingAction(null);
           setDraft(null);
+          endEdit();
           setTagInput('');
           fn?.();
         }}
@@ -1071,7 +1144,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         confirmLabel="破棄して移動"
         cancelLabel="編集に戻る"
       >
-        <p>新規ノートはまだ保存されていません。このまま移動すると、入力した内容は破棄されます。</p>
+        <p>{editDirty ? 'ノートの変更はまだ保存されていません。このまま進むと、変更は破棄されます。' : '新規ノートはまだ保存されていません。このまま移動すると、入力した内容は破棄されます。'}</p>
       </ConfirmationModal>
 
       <ConfirmationModal
