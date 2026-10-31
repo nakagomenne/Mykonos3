@@ -384,6 +384,16 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   const patchEdit = (p: Partial<NoteEditDraft>) => setEditDraft(cur => (cur ? { ...cur, ...p } : cur));
 
+  // 公開範囲・フォルダ: 編集中は下書きに、閲覧中はその場で保存する(本文の編集とは独立)
+  const changeVisibility = (id: string, v: NoteVisibility, sh: string[]) => {
+    if (isEditing) patchEdit({ visibility: v, sharedWith: sh });
+    else api.editNote(id, { visibility: v, sharedWith: sh }, { immediate: true });
+  };
+  const changeFolder = (id: string, folderId: string | null) => {
+    if (isEditing) patchEdit({ folderId });
+    else api.editNote(id, { folderId }, { immediate: true });
+  };
+
   const addTag = () => {
     const t = tagInput.trim().replace(/^#/, '');
     if (!t) return;
@@ -777,7 +787,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {/* オーナー用設定 */}
           {isOwner ? (
             <div className="space-y-2">
-              {isEditing ? (<>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <button
                   onClick={() => setSettingsOpen(o => !o)}
@@ -792,7 +801,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <span className={`text-xs ${muted}`}>フォルダ</span>
                   <select
                     value={shown.folderId ?? ''}
-                    onChange={ev => patchEdit({ folderId: ev.target.value || null })}
+                    onChange={ev => changeFolder(n.id, ev.target.value || null)}
                     className={inputCls}
                   >
                     <option value="">📥 未設定</option>
@@ -801,46 +810,40 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     ))}
                   </select>
                 </label>
-                <div className="inline-flex items-center gap-1 flex-wrap">
-                  <span className={`text-xs ${muted}`}>タグ</span>
-                  {shown.tags.map(t => (
-                    <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                      #{t}
-                      <button onClick={() => patchEdit({ tags: shown.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
-                    </span>
-                  ))}
-                  <input
-                    value={tagInput}
-                    onChange={e => setTagInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addTag(); } }}
-                    onBlur={addTag}
-                    placeholder="＋タグ"
-                    className={`${inputCls} w-24 !py-0.5 text-xs`}
-                  />
-                </div>
+                {isEditing ? (
+                  <div className="inline-flex items-center gap-1 flex-wrap">
+                    <span className={`text-xs ${muted}`}>タグ</span>
+                    {shown.tags.map(t => (
+                      <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                        #{t}
+                        <button onClick={() => patchEdit({ tags: shown.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
+                      </span>
+                    ))}
+                    <input
+                      value={tagInput}
+                      onChange={e => setTagInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addTag(); } }}
+                      onBlur={addTag}
+                      placeholder="＋タグ"
+                      className={`${inputCls} w-24 !py-0.5 text-xs`}
+                    />
+                  </div>
+                ) : n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
               </div>
 
               {settingsOpen && (
                 <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
-                  <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。「保存」を押すと反映されます。</div>
+                  <div className={`text-xs ${muted}`}>
+                    このノートを誰が見られるかを選びます。{isEditing ? '「保存」を押すと反映されます。' : '選ぶとすぐに反映されます。'}
+                  </div>
                   <NoteVisibilityPicker
                     visibility={shown.visibility}
                     sharedWith={shown.sharedWith}
                     users={users}
                     owner={n.owner}
                     isDarkMode={d}
-                    onChange={(v: NoteVisibility, sh: string[]) => patchEdit({ visibility: v, sharedWith: sh })}
+                    onChange={(v: NoteVisibility, sh: string[]) => changeVisibility(n.id, v, sh)}
                   />
-                </div>
-              )}
-              </>) : (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <span className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full border ${border}`}>
-                    <span className={`text-xs ${muted}`}>公開範囲</span>
-                    <span className="font-bold">{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
-                  </span>
-                  <span className={`text-xs ${muted}`}>{folderName ? `📁 ${folderName}` : '📥 フォルダ未設定'}</span>
-                  {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
                 </div>
               )}
 
@@ -849,7 +852,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 {n.visibility === 'private' ? (
                   <>
                     <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
-                    <button onClick={() => { if (!isEditing) beginEdit(n); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
+                    <button onClick={() => setSettingsOpen(true)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
                   </>
                 ) : n.isAnnouncement ? (
                   <>
