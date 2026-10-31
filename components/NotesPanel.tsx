@@ -935,6 +935,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {/* 右寄せ: 検索・新規ノート・保存状態・ヘルプ・閉じる */}
           <div className="flex-1 min-w-0 flex items-center justify-end gap-2 md:gap-3">
             <div className="relative min-w-0 flex-1 sm:flex-none sm:w-[270px]">
+              {/* 保存状態: 場所を取らず、検索窓の左に重ねて表示(出入りしてもボタンが動かない) */}
+              {saveLabel && <span className="hidden md:block absolute right-full mr-3 top-1/2 -translate-y-1/2 text-xs opacity-90 whitespace-nowrap pointer-events-none">{saveLabel}</span>}
               <MagnifyingGlassIcon className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 value={search}
@@ -948,7 +950,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               disabled={busy || unavailable}
               className="inline-flex items-center gap-1 bg-white text-[#01607a] font-bold text-sm px-3 py-1.5 rounded-md hover:bg-slate-100 disabled:opacity-50 whitespace-nowrap"
             ><PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">新規ノート</span><span className="sm:hidden">新規</span></button>
-            <span className="hidden md:inline text-xs opacity-90 min-w-[88px] text-right whitespace-nowrap">{saveLabel}</span>
             <button onClick={() => setHelpOpen(true)} className="hidden sm:inline-flex items-center justify-center w-7 h-7 rounded-full border border-white/70 text-sm font-bold hover:bg-white/20" title="ノートの使い方" aria-label="ノートの使い方">?</button>
             <button onClick={requestClose} className="p-1 hover:bg-white/20 rounded" aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
           </div>
