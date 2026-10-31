@@ -734,24 +734,35 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             )}
           </div>
         )}
+        {n.isAnnouncement && (isOwner || isAdmin) && (
+          <div className={`px-4 py-2.5 border-b ${border}`}>
+            <NoteReadStatus note={n} users={users} reads={reads} isDarkMode={d} />
+          </div>
+        )}
 
         <div className="p-4 space-y-3">
           {/* タイトル */}
-          <div className="flex items-start gap-2">
-            <input
-              value={shown.title}
-              readOnly={!isEditing}
-              onChange={ev => patchEdit({ title: ev.target.value })}
-              placeholder={isEditing ? 'タイトル' : '(無題)'}
-              className={`flex-1 min-w-0 text-xl font-bold bg-transparent border-b-2 focus:outline-none py-1 ${
-                isEditing ? `${border} focus:border-[#0193be]` : 'border-transparent cursor-default'}`}
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className={`flex-1 min-w-[14rem] rounded-lg border px-3 py-2 transition-colors ${border} ${surface2} ${isEditing ? 'focus-within:border-[#0193be]' : ''}`}>
+              <input
+                value={shown.title}
+                readOnly={!isEditing}
+                onChange={ev => patchEdit({ title: ev.target.value })}
+                placeholder={isEditing ? 'タイトル' : '(無題)'}
+                className={`w-full min-w-0 text-xl font-bold bg-transparent focus:outline-none ${isEditing ? '' : 'cursor-default'}`}
+              />
+            </div>
             {isOwner && (
               <button
                 onClick={() => api.editNote(n.id, { pinned: !n.pinned }, { immediate: true })}
                 title={n.pinned ? 'ピン留めを外す' : 'ピン留め'}
                 className={`text-xl px-1 ${n.pinned ? 'text-amber-500' : muted}`}
               >{n.pinned ? '★' : '☆'}</button>
+            )}
+            {!isOwner && (
+              <button onClick={handleCopy} disabled={busy} className="ml-auto text-sm px-3 py-2 rounded-md font-semibold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50 whitespace-nowrap">
+                📄 自分用にコピーして編集
+              </button>
             )}
           </div>
 
@@ -858,15 +869,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <div className="flex flex-wrap gap-2 items-center">
               {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
               <span className={`text-xs ${muted}`}>他の人のノートは読み取り専用です</span>
-              <button onClick={handleCopy} disabled={busy} className="ml-auto text-sm px-3 py-1.5 rounded-md font-semibold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50">
-                📄 自分用にコピーして編集
-              </button>
             </div>
           )}
 
-          {n.isAnnouncement && (isOwner || isAdmin) && (
-            <NoteReadStatus note={n} users={users} reads={reads} isDarkMode={d} />
-          )}
           {n.isAnnouncement && isOwner && recipients.length === 0 && (
             <div className="text-xs text-amber-600">※ 周知の対象者がいません(特定メンバーの選択を確認してください)。</div>
           )}
@@ -887,20 +892,22 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
 
           {/* エディタ(ノートごとに作り直す) */}
-          <NoteEditor
-            key={n.id + (isEditing ? ':e' : ':r')}
-            value={e ? e.body : n.body}
-            editable={isEditing}
-            isDarkMode={d}
-            toolbarTop={isOwner ? 54 : 0}
-            onChange={html => patchEdit({ body: html })}
-            onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
-            templates={isEditing ? templates : undefined}
-            onError={setLocalError}
-          />
-          {!isEditing && !n.body && (
-            <div className={`text-sm ${muted}`}>本文はまだありません。{isOwner ? '「✏️ 編集」から書き込めます。' : ''}</div>
-          )}
+          <div className={isEditing ? '' : `rounded-lg border ${border} ${surface2} p-4 min-h-[8rem]`}>
+            <NoteEditor
+              key={n.id + (isEditing ? ':e' : ':r')}
+              value={e ? e.body : n.body}
+              editable={isEditing}
+              isDarkMode={d}
+              toolbarTop={isOwner ? 54 : 0}
+              onChange={html => patchEdit({ body: html })}
+              onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
+              templates={isEditing ? templates : undefined}
+              onError={setLocalError}
+            />
+            {!isEditing && !n.body && (
+              <div className={`text-sm ${muted}`}>本文はまだありません。{isOwner ? '「✏️ 編集」から書き込めます。' : ''}</div>
+            )}
+          </div>
 
           {isOwner && (
             <div className="pt-2 flex justify-end">

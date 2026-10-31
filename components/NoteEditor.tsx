@@ -173,7 +173,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 
   const mutedText = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const frame = editable
-    ? `rounded-lg border-2 transition-colors ${isDarkMode ? 'border-slate-600 focus-within:border-[#0193be] bg-[#0f172a]' : 'border-slate-300 focus-within:border-[#0193be] bg-white'}`
+    ? `rounded-lg border-2 transition-colors ${isDarkMode ? 'border-slate-600 focus-within:border-[#0193be] bg-[#141b2b]' : 'border-slate-300 focus-within:border-[#0193be] bg-slate-50'}`
     : '';
 
   return (
