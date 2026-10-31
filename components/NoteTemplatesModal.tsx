@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { NoteTemplate } from '../types';
 import { XMarkIcon } from './icons';
 import { deleteTemplate, fetchTemplates, saveTemplate } from '../services/notesService';
+import { NoteIcon } from './NoteIcons';
 
 interface NoteTemplatesModalProps {
   userName: string;
@@ -68,7 +69,7 @@ const NoteTemplatesModal: React.FC<NoteTemplatesModalProps> = ({ userName, isDar
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[70]" onClick={onClose}>
       <div className={`${card} rounded-xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col`} onClick={e => e.stopPropagation()}>
         <div className={`p-4 border-b ${border} flex items-center justify-between`}>
-          <h2 className="text-lg font-bold">📋 定型文の管理</h2>
+          <h2 className="text-lg font-bold"><NoteIcon name="clipboard" /> 定型文の管理</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XMarkIcon className="w-6 h-6" /></button>
         </div>
 
@@ -103,7 +104,7 @@ const NoteTemplatesModal: React.FC<NoteTemplatesModalProps> = ({ userName, isDar
                       type="button"
                       onClick={() => setEditing({ ...editing, visibility: v })}
                       className={`px-3 py-1.5 rounded-lg border text-sm ${editing.visibility === v ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be] font-bold' : `${border} text-slate-500`}`}
-                    >{v === 'private' ? '🔒 自分だけ' : '🌐 全員に公開'}</button>
+                    >{v === 'private' ? <><NoteIcon name="lock" /> 自分だけ</> : <><NoteIcon name="globe" /> 全員に公開</>}</button>
                   ))}
                 </div>
                 <div className="flex gap-2">
@@ -133,7 +134,7 @@ const NoteTemplatesModal: React.FC<NoteTemplatesModalProps> = ({ userName, isDar
                   <li key={t.id} className={`border ${border} rounded-lg p-3`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-bold text-sm truncate">
-                        {t.visibility === 'public' ? '🌐' : '🔒'} {t.name}
+                        <NoteIcon name={t.visibility === 'public' ? 'globe' : 'lock'} /> {t.name}
                         {!mine && <span className="ml-2 text-xs font-normal text-slate-400">by {t.owner}</span>}
                       </div>
                       {mine && (

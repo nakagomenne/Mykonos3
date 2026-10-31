@@ -5,6 +5,7 @@ import type { NotesApi } from '../hooks/useNotes';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import { plainTextToHtml } from './NoteEditor';
 import { XMarkIcon } from './icons';
+import { NoteIcon } from './NoteIcons';
 
 interface MoveToNoteModalProps {
   call: CallRequest;
@@ -106,13 +107,13 @@ const MoveToNoteModal: React.FC<MoveToNoteModalProps> = ({
         onClick={e => e.stopPropagation()}
       >
         <div className={`p-4 border-b ${border} flex items-center justify-between`}>
-          <h2 className="text-lg font-bold">📓 備考をノートに保存</h2>
+          <h2 className="text-lg font-bold"><NoteIcon name="book" /> 備考をノートに保存</h2>
           <button onClick={onClose} disabled={busy} aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
         </div>
 
         {done ? (
           <div className="p-6 space-y-4">
-            <div className="text-base font-semibold">✅ ノートに保存しました</div>
+            <div className="text-base font-semibold"><NoteIcon name="check-circle" /> ノートに保存しました</div>
             <p className="text-sm">
               {done === 'completed'
                 ? '案件を完了にし、備考は案件から外してノートに移しました(変更履歴には残っています)。'
@@ -135,7 +136,7 @@ const MoveToNoteModal: React.FC<MoveToNoteModalProps> = ({
               <li><b>完了する</b>:案件を完了にし、備考はノートへ移します(案件の備考欄は空になります)。</li>
               <li><b>完了しない</b>:案件はそのままで、備考も案件に残ります(ノートは控えとして残ります)。</li>
             </ul>
-            {error && <div className="text-sm text-red-600">⚠ {error}</div>}
+            {error && <div className="text-sm text-red-600"><NoteIcon name="warning" /> {error}</div>}
             <div className="flex justify-end gap-2">
               <button onClick={() => setDone('kept')} disabled={busy} className={`px-4 py-2 rounded-md text-sm border ${border} disabled:opacity-50`}>完了しない</button>
               <button onClick={completeCall} disabled={busy} className="px-4 py-2 rounded-md text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50">
@@ -157,7 +158,7 @@ const MoveToNoteModal: React.FC<MoveToNoteModalProps> = ({
               <div>
                 <div className={labelCls}>保存先フォルダ</div>
                 <select value={folderId} onChange={e => onFolderChange(e.target.value)} className={inputCls}>
-                  <option value="">📥 未整理</option>
+                  <option value="">未整理</option>
                   {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
                 </select>
               </div>
@@ -182,7 +183,7 @@ const MoveToNoteModal: React.FC<MoveToNoteModalProps> = ({
                   </span>
                 </span>
               </label>
-              {error && <div className="text-sm text-red-600">⚠ {error}</div>}
+              {error && <div className="text-sm text-red-600"><NoteIcon name="warning" /> {error}</div>}
             </div>
             <div className={`p-4 border-t ${border} flex justify-end gap-2`}>
               <button onClick={onClose} disabled={busy} className={`px-4 py-2 rounded-md text-sm border ${border}`}>キャンセル</button>

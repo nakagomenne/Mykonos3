@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { NoteVisibility, User } from '../types';
 import { XMarkIcon } from './icons';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
+import { NoteIcon } from './NoteIcons';
 
 interface NoteFolderDialogProps {
   mode: 'create' | 'edit';
@@ -56,7 +57,7 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
       >
         <div className={`p-4 border-b ${border} flex items-center justify-between`}>
           <h2 className="text-lg font-bold">
-            {mode === 'create' ? (parentName ? `📁 「${parentName}」にサブフォルダを作成` : '📁 フォルダを作成') : '📁 フォルダの設定'}
+            <NoteIcon name="folder" /> {mode === 'create' ? (parentName ? `「${parentName}」にサブフォルダを作成` : 'フォルダを作成') : 'フォルダの設定'}
           </h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><XMarkIcon className="w-6 h-6" /></button>
         </div>
@@ -84,7 +85,7 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
               onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
             />
             {appliesToContents && visibilityChanged && (
-              <p className="text-xs text-amber-600 mt-2">⚠ 変更すると、このフォルダの中にあるノートの公開範囲もすべて同じ設定に変わります。</p>
+              <p className="text-xs text-amber-600 mt-2"><NoteIcon name="warning" /> 変更すると、このフォルダの中にあるノートの公開範囲もすべて同じ設定に変わります。</p>
             )}
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}

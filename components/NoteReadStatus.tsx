@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Note, NoteRead, User } from '../types';
 import { getRecipients } from '../services/notesService';
+import { NoteIcon } from './NoteIcons';
 
 interface NoteReadStatusProps {
   note: Note;
@@ -26,7 +27,7 @@ const NoteReadStatus: React.FC<NoteReadStatusProps> = ({ note, users, reads, isD
   return (
     <div className={`rounded-lg border px-3 py-2 ${isDarkMode ? 'border-slate-600 bg-[#0f1623]' : 'border-slate-200 bg-slate-50'}`}>
       <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 text-left">
-        <span className="text-sm font-bold text-[#0193be] whitespace-nowrap">📣 確認状況</span>
+        <span className="text-sm font-bold text-[#0193be] whitespace-nowrap"><NoteIcon name="megaphone" /> 確認状況</span>
         <span className={`text-sm whitespace-nowrap ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
           {done.length} / {recipients.length}人
         </span>
@@ -40,7 +41,7 @@ const NoteReadStatus: React.FC<NoteReadStatusProps> = ({ note, users, reads, isD
           <div>
             <div className="text-xs font-bold text-red-500 mb-1">未確認({todo.length})</div>
             {todo.length === 0
-              ? <div className="text-xs text-slate-400">全員確認済みです 🎉</div>
+              ? <div className="text-xs text-slate-400">全員確認済みです</div>
               : <ul className="space-y-0.5">{todo.map(n => <li key={n} className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>{n}</li>)}</ul>}
           </div>
           <div>

@@ -253,7 +253,7 @@ const App: React.FC = () => {
   const [moveToNoteCall, setMoveToNoteCall] = useState<CallRequest | null>(null);
   const handleNoteAnnounce = useCallback((note: Note) => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    const n = new Notification(`📣 周知: ${note.title || '(無題)'}`, {
+    const n = new Notification(`周知: ${note.title || '(無題)'}`, {
       body: `${note.owner} さんからの周知です。内容を確認してください。`,
       tag: `note_announce_${note.id}`,
       icon: '/favicon.ico',

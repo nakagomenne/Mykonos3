@@ -89,13 +89,6 @@ export const VISIBILITY_LABELS: Record<NoteVisibility, string> = {
   members: '特定メンバー',
 };
 
-export const VISIBILITY_ICONS: Record<NoteVisibility, string> = {
-  private: '🔒',
-  public:  '🌐',
-  admin:   '🛡',
-  members: '👥',
-};
-
 // ────────────────────────────────────────────────────────────
 // 行 ⇔ 型 の変換
 // ────────────────────────────────────────────────────────────

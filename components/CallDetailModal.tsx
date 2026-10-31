@@ -3,6 +3,7 @@ import { CallRequest, Rank, User } from '../types';
 import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowRightIcon, PencilIcon } from './icons';
 import StatusBadge from './StatusBadge';
 import { fetchCallHistory } from '../services/apiService';
+import { NoteIcon } from './NoteIcons';
 
 interface CallDetailModalProps {
   calls?: CallRequest[] | null;
@@ -204,7 +205,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                       onClick={() => onSaveToNote(callToRender)}
                       className="text-xs font-semibold px-2.5 py-1 rounded-md border border-[#0193be] text-[#0193be] hover:bg-[#0193be] hover:text-white transition"
                       title="この備考をノートに保存します"
-                    >📓 ノートに保存</button>
+                    ><NoteIcon name="book" /> ノートに保存</button>
                   )}
                 </div>
                 <p className={`${mainColorClass} whitespace-pre-wrap`}>{callToRender.notes}</p>

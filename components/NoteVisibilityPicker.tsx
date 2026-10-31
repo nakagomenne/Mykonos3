@@ -1,6 +1,7 @@
 import React from 'react';
 import { NoteVisibility, User } from '../types';
-import { VISIBILITY_ICONS, VISIBILITY_LABELS } from '../services/notesService';
+import { VISIBILITY_LABELS } from '../services/notesService';
+import { VisibilityIcon } from './NoteIcons';
 
 interface NoteVisibilityPickerProps {
   visibility: NoteVisibility;
@@ -50,7 +51,7 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
               } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className={`font-bold ${active ? 'text-[#0193be]' : (isDarkMode ? 'text-slate-200' : 'text-slate-700')}`}>
-                {VISIBILITY_ICONS[o.value]} {VISIBILITY_LABELS[o.value]}
+                <VisibilityIcon visibility={o.value} /> {VISIBILITY_LABELS[o.value]}
               </div>
               <div className={`text-[11px] mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{o.desc}</div>
             </button>

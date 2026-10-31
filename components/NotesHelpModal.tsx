@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { XMarkIcon } from './icons';
+import { withNoteIcons, NoteIcon } from './NoteIcons';
 
 interface NotesHelpModalProps {
   isDarkMode?: boolean;
@@ -26,16 +27,16 @@ const NotesHelpModal: React.FC<NotesHelpModalProps> = ({ isDarkMode = false, onC
         onClick={e => e.stopPropagation()}
       >
         <div className={`p-4 border-b ${d ? 'border-slate-700' : 'border-slate-200'} flex items-center justify-between`}>
-          <h2 className="text-lg font-bold">📖 ノートの使い方</h2>
+          <h2 className="text-lg font-bold"><NoteIcon name="book-open" /> ノートの使い方</h2>
           <button onClick={onClose} aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
         </div>
         <div className="p-4 overflow-y-auto space-y-4">
           {ITEMS.map(it => (
             <div key={it.title} className="flex gap-3">
-              <div className="text-2xl leading-none pt-0.5 w-8 text-center flex-shrink-0">{it.icon}</div>
+              <div className="text-2xl leading-none pt-0.5 w-8 text-center flex-shrink-0">{withNoteIcons(it.icon)}</div>
               <div>
                 <div className="font-bold text-sm">{it.title}</div>
-                <p className={`text-sm mt-0.5 leading-relaxed ${d ? 'text-slate-300' : 'text-slate-600'}`}>{it.body}</p>
+                <p className={`text-sm mt-0.5 leading-relaxed ${d ? 'text-slate-300' : 'text-slate-600'}`}>{withNoteIcons(it.body)}</p>
               </div>
             </div>
           ))}

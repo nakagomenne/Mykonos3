@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
+import { NoteIcon } from './NoteIcons';
 
 interface NoteEditorProps {
   /** 本文(HTML) */
@@ -199,14 +200,14 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   : isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-100'
               }`}
             >
-              <span>🛠 書式・添付</span>
+              <span><NoteIcon name="wrench" /> 書式・添付</span>
               <span className="text-[10px]">{toolsOpen ? '▲' : '▼'}</span>
             </button>
             <button type="button" title="元に戻す" disabled={!state?.canUndo} className={btn(false, !state?.canUndo)}
-              onMouseDown={run(() => editor.chain().focus().undo().run())}>↩</button>
+              onMouseDown={run(() => editor.chain().focus().undo().run())}><NoteIcon name="undo" /></button>
             <button type="button" title="やり直し" disabled={!state?.canRedo} className={btn(false, !state?.canRedo)}
-              onMouseDown={run(() => editor.chain().focus().redo().run())}>↪</button>
-            {uploading && <span className={`text-xs ml-1 ${mutedText}`}>⏳ 画像を送信中…</span>}
+              onMouseDown={run(() => editor.chain().focus().redo().run())}><NoteIcon name="redo" /></button>
+            {uploading && <span className={`text-xs ml-1 ${mutedText}`}><NoteIcon name="clock" /> 画像を送信中…</span>}
             {!toolsOpen && !uploading && (
               <span className={`hidden sm:inline text-xs ml-1 truncate ${mutedText}`}>見出し・箇条書き・表・画像など</span>
             )}
@@ -234,20 +235,20 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 <button type="button" title="番号付きリスト" className={btn(!!state?.ordered)}
                   onMouseDown={run(() => editor.chain().focus().toggleOrderedList().run())}>1. 番号付き</button>
                 <button type="button" title="チェックリスト" className={btn(!!state?.task)}
-                  onMouseDown={run(() => editor.chain().focus().toggleTaskList().run())}>☑ チェックリスト</button>
+                  onMouseDown={run(() => editor.chain().focus().toggleTaskList().run())}><NoteIcon name="check-square" /> チェックリスト</button>
               </ToolRow>
               <ToolRow dark={isDarkMode} label="挿入">
                 <button type="button" title="引用" className={btn(!!state?.quote)}
-                  onMouseDown={run(() => editor.chain().focus().toggleBlockquote().run())}>❝ 引用</button>
+                  onMouseDown={run(() => editor.chain().focus().toggleBlockquote().run())}><NoteIcon name="quote" /> 引用</button>
                 <button type="button" title="区切り線" className={btn(false)}
                   onMouseDown={run(() => editor.chain().focus().setHorizontalRule().run())}>― 区切り線</button>
                 <button type="button" title="表を挿入" className={btn(!!state?.inTable)}
-                  onMouseDown={run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>▦ 表</button>
+                  onMouseDown={run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}><NoteIcon name="table" /> 表</button>
                 {onUploadImage && (
                   <>
                     <button type="button" title="画像を添付(貼り付け・ドラッグでも追加できます)" className={btn(false, uploading)} disabled={uploading}
                       onMouseDown={e => { e.preventDefault(); fileInputRef.current?.click(); }}>
-                      🖼 画像を添付
+                      <NoteIcon name="image" /> 画像を添付
                     </button>
                     <input
                       ref={fileInputRef}
@@ -266,7 +267,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 {templates && templates.length > 0 && (
                   <div className="relative">
                     <button type="button" title="定型文を挿入" className={btn(isTemplateOpen)}
-                      onMouseDown={e => { e.preventDefault(); setIsTemplateOpen(o => !o); }}>📋 定型文</button>
+                      onMouseDown={e => { e.preventDefault(); setIsTemplateOpen(o => !o); }}><NoteIcon name="clipboard" /> 定型文</button>
                     {isTemplateOpen && (
                       <div className={`absolute left-0 top-full mt-1 z-20 w-56 max-h-60 overflow-y-auto rounded-lg border shadow-xl ${isDarkMode ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
                         {templates.map(t => (

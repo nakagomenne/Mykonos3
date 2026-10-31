@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { NoteTemplate } from '../types';
 import { fetchTemplates } from '../services/notesService';
 import NoteTemplatesModal from './NoteTemplatesModal';
+import { NoteIcon } from './NoteIcons';
 
 interface NoteTemplatePickerProps {
   userName: string;
@@ -46,7 +47,7 @@ const NoteTemplatePicker: React.FC<NoteTemplatePickerProps> = ({ userName, onPic
           isDarkMode ? 'border-slate-500 text-slate-300 hover:bg-slate-700' : 'border-slate-300 text-slate-500 hover:bg-slate-100'
         }`}
         title="定型文を挿入"
-      >📋 定型文</button>
+      ><NoteIcon name="clipboard" /> 定型文</button>
       {open && (
         <div className={`absolute right-0 top-full mt-1 z-30 w-64 max-h-64 overflow-y-auto rounded-lg border shadow-xl ${isDarkMode ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
           {templates === null ? (
@@ -61,7 +62,7 @@ const NoteTemplatePicker: React.FC<NoteTemplatePickerProps> = ({ userName, onPic
               className={`block w-full text-left px-3 py-2 text-sm border-b last:border-b-0 ${isDarkMode ? 'text-slate-200 hover:bg-slate-700 border-slate-700' : 'text-slate-700 hover:bg-slate-50 border-slate-100'}`}
               title={t.body}
             >
-              <div className="font-medium truncate">{t.visibility === 'public' ? '🌐 ' : ''}{t.name}</div>
+              <div className="font-medium truncate">{t.visibility === 'public' && <><NoteIcon name="globe" /> </>}{t.name}</div>
               <div className="text-[11px] text-slate-400 truncate">{t.body.replace(/\s+/g, ' ')}</div>
             </button>
           ))}
@@ -69,7 +70,7 @@ const NoteTemplatePicker: React.FC<NoteTemplatePickerProps> = ({ userName, onPic
             type="button"
             onClick={() => { setOpen(false); setManaging(true); }}
             className="block w-full text-left px-3 py-2 text-xs font-bold text-[#0193be] hover:bg-[#0193be]/10"
-          >⚙ 定型文を管理…</button>
+          >定型文を管理…</button>
         </div>
       )}
       {managing && (
