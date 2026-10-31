@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, Rank, User } from '../types';
 import { CheckIcon, ClipboardDocumentIcon, PencilIcon, PhoneMissedIcon } from './icons';
@@ -46,7 +46,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   const [isRankDropdownOpen, setIsRankDropdownOpen] = useState(false);
   const rankButtonRef = useRef<HTMLButtonElement>(null);
   const dropdownMenuRef = useRef<HTMLDivElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState<{top: number; left: number; width: number} | null>(null);
+  /** ランクボタンの画面上の位置(ドロップダウンを置く基準) */
+  const [rankAnchor, setRankAnchor] = useState<{top: number; bottom: number; left: number; width: number} | null>(null);
+  /** 画面内に収まるよう補正した後のドロップダウン位置 */
+  const [dropdownPosition, setDropdownPosition] = useState<{top: number; left: number; maxHeight: number} | null>(null);
   const [isAbsenceDropdownOpen, setIsAbsenceDropdownOpen] = useState(false);
   const absenceButtonRef = useRef<HTMLButtonElement>(null);
   const absenceDropdownRef = useRef<HTMLDivElement>(null);
@@ -83,6 +86,50 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isRankDropdownOpen, isAbsenceDropdownOpen]);
+
+  // ランクのドロップダウン: 画面の下端・右端からはみ出す場合は、上向きに開く/位置をずらす/高さを縮める
+  useLayoutEffect(() => {
+    if (!isRankDropdownOpen || !rankAnchor) return;
+    const menu = dropdownMenuRef.current;
+    if (!menu) return;
+    const MARGIN = 8, GAP = 4, MAX_H = 240;
+    const vh = window.innerHeight, vw = window.innerWidth;
+    const h = Math.min(menu.scrollHeight + 2, MAX_H);
+    const w = menu.offsetWidth;
+    const spaceBelow = vh - rankAnchor.bottom - GAP - MARGIN;
+    const spaceAbove = rankAnchor.top - GAP - MARGIN;
+    let top: number, maxHeight: number;
+    if (h <= spaceBelow || spaceBelow >= spaceAbove) {
+      // 下に収まる(または上より下のほうが広い): 下向き
+      top = rankAnchor.bottom + GAP;
+      maxHeight = Math.min(MAX_H, Math.max(spaceBelow, 80));
+    } else {
+      // 下に入らず上のほうが広い: 上向き
+      maxHeight = Math.min(MAX_H, Math.max(spaceAbove, 80));
+      top = rankAnchor.top - GAP - Math.min(h, maxHeight);
+    }
+    top = Math.max(MARGIN, top);
+    const left = Math.max(MARGIN, Math.min(rankAnchor.left, vw - w - MARGIN));
+    setDropdownPosition(prev =>
+      prev && prev.top === top && prev.left === left && prev.maxHeight === maxHeight ? prev : { top, left, maxHeight });
+  }, [isRankDropdownOpen, rankAnchor]);
+
+  // 開いている間にスクロール・リサイズされたら、ボタンの位置に追従させる
+  useEffect(() => {
+    if (!isRankDropdownOpen) return;
+    const update = () => {
+      const btn = rankButtonRef.current;
+      if (!btn) return;
+      const r = btn.getBoundingClientRect();
+      setRankAnchor({ top: r.top, bottom: r.bottom, left: r.left, width: r.width });
+    };
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [isRankDropdownOpen]);
 
   const { liStyle, dateTimeStyle, absenceCounterClass } = useMemo((): { liStyle: React.CSSProperties; dateTimeStyle: React.CSSProperties; absenceCounterClass: string; } => {
     const defaultMainTextClass = isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
@@ -641,11 +688,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                   setIsRankDropdownOpen(false);
                 } else {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  setDropdownPosition({
-                    top: rect.bottom + 4,
-                    left: rect.left,
-                    width: rect.width
-                  });
+                  setDropdownPosition(null);
+                  setRankAnchor({ top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width });
                   setIsRankDropdownOpen(true);
                 }
               }}
@@ -662,15 +706,18 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
             >
               {call.rank}
             </button>
-            {isRankDropdownOpen && dropdownPosition && createPortal(
+            {isRankDropdownOpen && rankAnchor && createPortal(
               <div
                 ref={dropdownMenuRef}
                 className="fixed z-50 bg-white rounded-md shadow-lg border border-slate-200 max-h-60 overflow-auto animate-wipe-in-down"
                 style={{
-                  top: `${dropdownPosition.top}px`,
-                  left: `${dropdownPosition.left}px`,
-                  minWidth: `${dropdownPosition.width}px`,
+                  // 位置が決まるまで(測定の1フレーム)は見えないようにして、ちらつきを防ぐ
+                  top: `${dropdownPosition ? dropdownPosition.top : rankAnchor.bottom + 4}px`,
+                  left: `${dropdownPosition ? dropdownPosition.left : rankAnchor.left}px`,
+                  minWidth: `${rankAnchor.width}px`,
                   width: 'max-content',
+                  maxHeight: dropdownPosition ? `${dropdownPosition.maxHeight}px` : undefined,
+                  visibility: dropdownPosition ? 'visible' : 'hidden',
                 }}
               >
                 <ul className="p-1 space-y-1" role="listbox">
