@@ -679,13 +679,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const shown = e ?? n;   // 編集中は下書き、それ以外は保存済みの内容
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {isOwner && (
-          <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${
-            isEditing
-              ? (d ? 'bg-sky-900/40 border-sky-700' : 'bg-sky-50 border-sky-300')
-              : `${border} ${d ? 'bg-[#1a2234]' : 'bg-white'}`}`}>
-            {isEditing ? (
-              <>
+        {isOwner && isEditing && (
+          <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${d ? 'bg-sky-900/40 border-sky-700' : 'bg-sky-50 border-sky-300'}`}>
+            <>
                 <span className={`text-sm font-bold flex-1 min-w-0 truncate ${d ? 'text-sky-300' : 'text-[#01607a]'}`}>
                   ✏️ 編集中
                   <span className={`ml-2 text-xs font-normal ${editDirty ? 'text-amber-600' : muted}`}>
@@ -702,16 +698,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   disabled={busy}
                   className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
                 >{busy ? '保存中…' : '保存'}</button>
-              </>
-            ) : (
-              <>
-                <span className={`text-sm flex-1 min-w-0 truncate ${muted}`}>📖 閲覧中</span>
-                <button
-                  onClick={() => { setSettingsOpen(false); beginEdit(n); }}
-                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
-                >✏️ 編集</button>
-              </>
-            )}
+            </>
           </div>
         )}
         {n.isAnnouncement && !isOwner && (
@@ -913,7 +900,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           </div>
 
           {isOwner && (
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex justify-end items-center gap-2">
+              {!isEditing && (
+                <button
+                  onClick={() => { setSettingsOpen(false); beginEdit(n); }}
+                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
+                >✏️ 編集</button>
+              )}
               <button onClick={() => setDeleteNoteTarget(n)} className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-500 hover:bg-red-50 inline-flex items-center gap-1">
                 <TrashIcon className="w-4 h-4" />このノートを削除
               </button>

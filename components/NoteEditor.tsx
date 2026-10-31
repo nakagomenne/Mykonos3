@@ -133,7 +133,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const editorRef = useRef<Editor | null>(null);
   useEffect(() => { editorRef.current = editor; }, [editor]);
 
-  useEffect(() => { editor?.setEditable(editable); }, [editor, editable]);
+  // 編集可/不可の切り替えでは更新イベントを出さない(開いただけで「変更あり」と見なされるのを防ぐ)
+  useEffect(() => { editor?.setEditable(editable, false); }, [editor, editable]);
+
+  // エディタが整形した後のHTMLを「現在の内容」の基準にする(開いただけでは変更扱いにしない)
+  useEffect(() => {
+    if (editor) lastHtmlRef.current = editor.isEmpty ? '' : editor.getHTML();
+  }, [editor]);
 
   // 読み取り専用のときは、外部(他の人の編集・Realtime)からの本文変更を反映する
   // (編集可能なときは入力中のカーソルが飛ぶため反映しない)
