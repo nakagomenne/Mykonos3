@@ -187,6 +187,8 @@ export interface NoteRead {
   noteId: string;
   userName: string;
   readAt: string;
+  /** 本人が「確認済みにして非表示」にした周知か(周知の一覧から隠れる) */
+  hidden: boolean;
 }
 
 export interface NoteTemplate {

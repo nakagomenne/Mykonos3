@@ -9,6 +9,7 @@ import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
 import NoteReadStatus from './NoteReadStatus';
+import NoteConfirmDialog from './NoteConfirmDialog';
 import NotesHelpModal from './NotesHelpModal';
 import ConfirmationModal from './ConfirmationModal';
 import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon } from './icons';
@@ -18,6 +19,7 @@ type View =
   | { kind: 'unsorted' }
   | { kind: 'mine' }
   | { kind: 'announce' }
+  | { kind: 'hiddenAnnounce' }
   | { kind: 'shared' }
   | { kind: 'folder'; folderId: string };
 
@@ -59,7 +61,7 @@ const fmtDateTime = (iso: string) => {
 
 const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = false, initialNoteId = null, onClose }) => {
   const {
-    notes, folders, reads, loading, unavailable, error, saveState, myReadIds, unreadAnnouncements,
+    notes, folders, reads, loading, unavailable, error, saveState, myReadIds, myHiddenIds, unreadAnnouncements,
   } = api;
   const isAdmin = !!(me.isAdmin || me.isSuperAdmin);
 
@@ -75,6 +77,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<Note | null>(null);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<NoteFolder | null>(null);
   const [announceTarget, setAnnounceTarget] = useState<Note | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Note | null>(null);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
@@ -166,7 +169,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         case 'pinned': base = myNotes.filter(n => n.pinned); break;
         case 'unsorted': base = myNotes.filter(n => !n.folderId); break;
         case 'mine': base = myNotes; break;
-        case 'announce': base = notes.filter(n => n.isAnnouncement); break;
+        case 'announce': base = notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)); break;
+        case 'hiddenAnnounce': base = notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id)); break;
         case 'shared': base = otherNotes; break;
         case 'folder': {
           const ids = new Set([view.folderId, ...myFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
@@ -185,7 +189,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     return [...base].sort((a, b) =>
       Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, myNotes, otherNotes, myFolders, view, search]);
+  }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds]);
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
   const isOwner = !!selected && selected.owner === me.name;
@@ -220,7 +224,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setSearch('');
     setSettingsOpen(false);
     setTagInput('');
-    if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
+    if (view.kind === 'shared' || view.kind === 'announce' || view.kind === 'hiddenAnnounce') setView({ kind: 'mine' });
     setSelectedId(null);
     setEditingId(null);
     foldPanes();
@@ -307,6 +311,26 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setAnnounceTarget(null);
   });
 
+  /** 周知の「確認しました」ダイアログで、キャンセル以外を選んだとき(確認済み+非表示。必要ならコピーも作る) */
+  const handleConfirmHide = (copy: boolean) => confirmTarget && run(async () => {
+    const target = confirmTarget;
+    let created: Note | null = null;
+    if (copy) created = await api.copyToMine(target);   // 先にコピー(失敗しても周知は未確認のまま残る)
+    await api.hideAnnouncement(target.id);
+    setConfirmTarget(null);
+    if (created) {
+      setSearch('');
+      setView({ kind: 'unsorted' });
+      setSelectedId(created.id);
+      setEditingId(null);
+      foldPanes();
+      setStep('note');
+    } else if (view.kind === 'announce' && selectedId === target.id) {
+      setSelectedId(null);   // 非表示にした周知は一覧から消えるので、開いたままにしない
+      setStep('list');
+    }
+  });
+
   const addTag = () => {
     if (!selected) return;
     const t = tagInput.trim().replace(/^#/, '');
@@ -381,6 +405,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       case 'unsorted': return '📥 フォルダ未設定';
       case 'mine': return '📝 自分のノート(すべて)';
       case 'announce': return '📣 周知(お知らせ)';
+      case 'hiddenAnnounce': return '🙈 非表示の周知一覧';
       case 'shared': return '🌐 共有されたノート';
       case 'folder': return `📁 ${currentFolder?.name ?? 'フォルダ'}`;
     }
@@ -560,6 +585,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const n = selected;
     const recipients = getRecipients(n, users);
     const iRead = myReadIds.has(n.id);
+    const iHidden = myHiddenIds.has(n.id);
     const snap = n.sourceSnapshot;
     const folderOptions = flatFolders;
     const folderName = n.folderId ? folders.find(f => f.id === n.folderId)?.name : undefined;
@@ -599,16 +625,32 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           </div>
         )}
         {n.isAnnouncement && !isOwner && (
-          <div className={`px-4 py-2.5 flex items-center gap-3 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
-            <span className="text-sm flex-1">
-              {iRead ? '✅ このお知らせを確認済みです' : `📣 ${n.owner} さんからの周知です。内容を読んだら「確認しました」を押してください。`}
+          <div className={`px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
+            <span className="text-sm flex-1 min-w-[200px]">
+              {iRead
+                ? (iHidden ? '✅ 確認済みで、周知の一覧では非表示にしています' : '✅ このお知らせを確認済みです')
+                : `📣 ${n.owner} さんからの周知です。内容を読んだら「確認しました」を押してください。`}
             </span>
             {!iRead && (
               <button
-                onClick={() => run(() => api.markRead(n.id))}
+                onClick={() => setConfirmTarget(n)}
                 disabled={busy}
                 className="px-3 py-1.5 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
               >確認しました</button>
+            )}
+            {iRead && !iHidden && (
+              <button
+                onClick={() => setConfirmTarget(n)}
+                disabled={busy}
+                className={`px-3 py-1.5 rounded-md text-sm font-bold border ${border} ${hoverRow} disabled:opacity-50`}
+              >非表示にする</button>
+            )}
+            {iHidden && (
+              <button
+                onClick={() => run(() => api.unhideAnnouncement(n.id))}
+                disabled={busy}
+                className={`px-3 py-1.5 rounded-md text-sm font-bold border ${border} ${hoverRow} disabled:opacity-50`}
+              >周知の一覧に戻す</button>
             )}
           </div>
         )}
@@ -867,7 +909,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'unsorted' }} icon="📥" label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
-              <SideItem v={{ kind: 'announce' }} icon="📣" label="周知(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement).length} />
+              <SideItem v={{ kind: 'announce' }} icon="📣" label="周知(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
+              <SideItem v={{ kind: 'hiddenAnnounce' }} icon="🙈" label="非表示の周知一覧" count={notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id)).length} />
               <SideItem v={{ kind: 'shared' }} icon="🌐" label="共有されたノート" count={otherNotes.length} />
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
@@ -944,7 +987,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
                 ) : visibleNotes.length === 0 ? (
                   draft ? null : <div className={`p-4 text-sm ${muted}`}>
-                    {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
+                    {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : view.kind === 'hiddenAnnounce' ? '非表示にした周知はありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
                 ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
               </div>
@@ -1045,6 +1088,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <p>フォルダ「{deleteFolderTarget?.name}」を削除します。</p>
         <p className="mt-2 text-sm">中のノートは削除されず「未整理」に移動します。サブフォルダがある場合は、サブフォルダも削除されます。</p>
       </ConfirmationModal>
+
+      <NoteConfirmDialog
+        isOpen={!!confirmTarget}
+        noteTitle={confirmTarget?.title ?? ''}
+        busy={busy}
+        onCopyAndHide={() => handleConfirmHide(true)}
+        onHide={() => handleConfirmHide(false)}
+        onCancel={() => setConfirmTarget(null)}
+      />
 
       <ConfirmationModal
         isOpen={!!announceTarget}

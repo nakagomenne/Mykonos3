@@ -40,6 +40,8 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
 
   const notesRef = useRef<Note[]>([]);
   useEffect(() => { notesRef.current = notes; }, [notes]);
+  const readsRef = useRef<NoteRead[]>([]);
+  useEffect(() => { readsRef.current = reads; }, [reads]);
   const onAnnounceRef = useRef(onAnnounce);
   useEffect(() => { onAnnounceRef.current = onAnnounce; }, [onAnnounce]);
 
@@ -249,6 +251,25 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     setReads(prev => [...prev.filter(x => !(x.noteId === noteId && x.userName === v.name)), r]);
   }, []);
 
+  /** 確認済みにして、周知の一覧から非表示にする(未確認なら確認も同時に記録) */
+  const hideAnnouncement = useCallback(async (noteId: string) => {
+    const v = viewerRef.current;
+    if (!v) return;
+    const already = readsRef.current.some(x => x.noteId === noteId && x.userName === v.name);
+    const r = already
+      ? await svc.setNoteReadHidden(noteId, v.name, true)
+      : await svc.markNoteRead(noteId, v.name, true);
+    setReads(prev => [...prev.filter(x => !(x.noteId === noteId && x.userName === v.name)), r]);
+  }, []);
+
+  /** 非表示にした周知を、周知の一覧に戻す */
+  const unhideAnnouncement = useCallback(async (noteId: string) => {
+    const v = viewerRef.current;
+    if (!v) return;
+    const r = await svc.setNoteReadHidden(noteId, v.name, false);
+    setReads(prev => [...prev.filter(x => !(x.noteId === noteId && x.userName === v.name)), r]);
+  }, []);
+
   // ── フォルダ操作 ──────────────────────────────────────
   const addFolder = useCallback(async (params: {
     name: string; parentId: string | null; visibility?: NoteVisibility; sharedWith?: string[];
@@ -281,6 +302,11 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     () => new Set(reads.filter(r => r.userName === meName).map(r => r.noteId)),
     [reads, meName]
   );
+  /** 自分が「確認済みにして非表示」にした周知のID */
+  const myHiddenIds = useMemo(
+    () => new Set(reads.filter(r => r.userName === meName && r.hidden).map(r => r.noteId)),
+    [reads, meName]
+  );
   /** 自分宛ての、まだ「確認しました」を押していない周知 */
   const unreadAnnouncements = useMemo(
     () => notes.filter(n => n.isAnnouncement && n.owner !== meName && !myReadIds.has(n.id)),
@@ -289,9 +315,9 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
 
   return {
     notes, folders, reads, loading, unavailable, error, saveState,
-    myReadIds, unreadAnnouncements,
+    myReadIds, myHiddenIds, unreadAnnouncements,
     reload: load, flushAll, clearError: () => setError(null),
-    editNote, addNote, removeNote, copyToMine, announce, unannounce, markRead,
+    editNote, addNote, removeNote, copyToMine, announce, unannounce, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
   };
 }

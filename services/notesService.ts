@@ -138,7 +138,7 @@ export function rowToNote(row: any): Note {
 export function rowToFolderPublic(row: any): NoteFolder { return rowToFolder(row); }
 
 function rowToRead(row: any): NoteRead {
-  return { noteId: row.note_id, userName: row.user_name, readAt: row.read_at };
+  return { noteId: row.note_id, userName: row.user_name, readAt: row.read_at, hidden: row.hidden ?? false };
 }
 
 function rowToTemplate(row: any): NoteTemplate {
@@ -350,13 +350,37 @@ export async function fetchNoteReads(noteIds: string[]): Promise<NoteRead[]> {
   return (data ?? []).map(rowToRead);
 }
 
-export async function markNoteRead(noteId: string, userName: string): Promise<NoteRead> {
+/** note_reads.hidden 列が未作成のときは、実行すべきSQLを案内する */
+function failHidden(prefix: string, error: any): never {
+  if (String(error?.message ?? '').includes('hidden')) {
+    throw new Error(`${prefix}: データベースの更新が必要です(supabase/migrations/20261101_add_note_reads_hidden.sql を実行してください)`);
+  }
+  return fail(prefix, error);
+}
+
+/** 「確認しました」を記録する。hidden=true なら、同時に周知の一覧から非表示にする */
+export async function markNoteRead(noteId: string, userName: string, hidden = false): Promise<NoteRead> {
+  const row: Record<string, unknown> = { note_id: noteId, user_name: userName, read_at: new Date().toISOString() };
+  if (hidden) row.hidden = true;   // 非表示にしない場合は hidden 列に触れない(未適用のDBでも確認だけは通る)
   const { data, error } = await supabase
     .from('note_reads')
-    .upsert({ note_id: noteId, user_name: userName, read_at: new Date().toISOString() })
+    .upsert(row)
     .select('*')
     .single();
-  if (error) fail('確認の記録に失敗しました', error);
+  if (error) failHidden('確認の記録に失敗しました', error);
+  return rowToRead(data);
+}
+
+/** 既に確認済みの周知の「非表示」だけを切り替える(確認日時は変えない) */
+export async function setNoteReadHidden(noteId: string, userName: string, hidden: boolean): Promise<NoteRead> {
+  const { data, error } = await supabase
+    .from('note_reads')
+    .update({ hidden })
+    .eq('note_id', noteId)
+    .eq('user_name', userName)
+    .select('*')
+    .single();
+  if (error) failHidden('非表示の切り替えに失敗しました', error);
   return rowToRead(data);
 }
 
