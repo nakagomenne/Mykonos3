@@ -6,13 +6,15 @@ interface NoteConfirmDialogProps {
   isOpen: boolean;
   noteTitle: string;
   busy?: boolean;
+  /** 失敗したときのメッセージ(ダイアログ内に表示する) */
+  error?: string | null;
   onCopyAndHide: () => void;
   onHide: () => void;
   onCancel: () => void;
 }
 
 /** 周知の「確認しました」: コピーして非表示 / コピーせず非表示 / キャンセル を選ぶダイアログ */
-const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle, busy = false, onCopyAndHide, onHide, onCancel }) => {
+const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle, busy = false, error = null, onCopyAndHide, onHide, onCancel }) => {
   if (!isOpen) return null;
   return createPortal(
     <div
@@ -32,6 +34,9 @@ const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle
         <div className="p-5 text-slate-600 space-y-3 overflow-y-auto">
           <p className="text-sm">「{noteTitle || '(無題)'}」を確認済みにして、周知の一覧から非表示にします。</p>
           <p className="text-xs text-slate-500">非表示にした周知は、あとから「非表示の周知一覧」で見られます。</p>
+          {error && (
+            <div role="alert" className="text-sm rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2">⚠ {error}</div>
+          )}
           <div className="flex flex-col gap-2 pt-1">
             <button
               onClick={onCopyAndHide}

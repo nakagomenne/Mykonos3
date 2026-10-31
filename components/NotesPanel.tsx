@@ -314,9 +314,17 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** 周知の「確認しました」ダイアログで、キャンセル以外を選んだとき(確認済み+非表示。必要ならコピーも作る) */
   const handleConfirmHide = (copy: boolean) => confirmTarget && run(async () => {
     const target = confirmTarget;
-    let created: Note | null = null;
-    if (copy) created = await api.copyToMine(target);   // 先にコピー(失敗しても周知は未確認のまま残る)
+    // 先に「確認済み+非表示」を記録する(DBの更新漏れなどで失敗したとき、コピーだけが増えないように)
     await api.hideAnnouncement(target.id);
+    let created: Note | null = null;
+    if (copy) {
+      try {
+        created = await api.copyToMine(target);
+      } catch (e) {
+        try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくても「非表示の周知一覧」から見られる */ }
+        throw e;
+      }
+    }
     setConfirmTarget(null);
     if (created) {
       setSearch('');
@@ -633,14 +641,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </span>
             {!iRead && (
               <button
-                onClick={() => setConfirmTarget(n)}
+                onClick={() => { setLocalError(null); setConfirmTarget(n); }}
                 disabled={busy}
                 className="px-3 py-1.5 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
               >確認しました</button>
             )}
             {iRead && !iHidden && (
               <button
-                onClick={() => setConfirmTarget(n)}
+                onClick={() => { setLocalError(null); setConfirmTarget(n); }}
                 disabled={busy}
                 className={`px-3 py-1.5 rounded-md text-sm font-bold border ${border} ${hoverRow} disabled:opacity-50`}
               >非表示にする</button>
@@ -1093,9 +1101,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         isOpen={!!confirmTarget}
         noteTitle={confirmTarget?.title ?? ''}
         busy={busy}
+        error={localError}
         onCopyAndHide={() => handleConfirmHide(true)}
         onHide={() => handleConfirmHide(false)}
-        onCancel={() => setConfirmTarget(null)}
+        onCancel={() => { setConfirmTarget(null); setLocalError(null); }}
       />
 
       <ConfirmationModal
