@@ -148,7 +148,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   if (!editor) return null;
 
   const btn = (active: boolean, disabled = false) =>
-    `px-2 py-1 rounded text-sm font-medium transition select-none ${
+    `px-2.5 py-1.5 rounded text-[13px] font-medium transition select-none whitespace-nowrap ${
       disabled ? 'opacity-30 cursor-not-allowed'
       : active ? (isDarkMode ? 'bg-[#0193be] text-white' : 'bg-[#0193be] text-white')
       : (isDarkMode ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-slate-200')
@@ -166,11 +166,11 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             onMouseDown={run(() => editor.chain().focus().redo().run())}>↪</button>
           {sep}
           <button type="button" title="見出し" className={btn(!!state?.h2)}
-            onMouseDown={run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())}>H1</button>
+            onMouseDown={run(() => editor.chain().focus().toggleHeading({ level: 2 }).run())}>大見出し</button>
           <button type="button" title="小見出し" className={btn(!!state?.h3)}
-            onMouseDown={run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())}>H2</button>
+            onMouseDown={run(() => editor.chain().focus().toggleHeading({ level: 3 }).run())}>小見出し</button>
           {sep}
-          <button type="button" title="太字" className={`${btn(!!state?.bold)} font-bold`}
+          <button type="button" title="太字(選択した文字を太くします)" className={`${btn(!!state?.bold)} font-bold`}
             onMouseDown={run(() => editor.chain().focus().toggleBold().run())}>B</button>
           <button type="button" title="斜体" className={`${btn(!!state?.italic)} italic`}
             onMouseDown={run(() => editor.chain().focus().toggleItalic().run())}>I</button>
@@ -178,15 +178,15 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             onMouseDown={run(() => editor.chain().focus().toggleStrike().run())}>S</button>
           {sep}
           <button type="button" title="箇条書き" className={btn(!!state?.bullet)}
-            onMouseDown={run(() => editor.chain().focus().toggleBulletList().run())}>• リスト</button>
+            onMouseDown={run(() => editor.chain().focus().toggleBulletList().run())}>• 箇条書き</button>
           <button type="button" title="番号付きリスト" className={btn(!!state?.ordered)}
-            onMouseDown={run(() => editor.chain().focus().toggleOrderedList().run())}>1. リスト</button>
+            onMouseDown={run(() => editor.chain().focus().toggleOrderedList().run())}>1. 番号付き</button>
           <button type="button" title="チェックリスト" className={btn(!!state?.task)}
-            onMouseDown={run(() => editor.chain().focus().toggleTaskList().run())}>☑ チェック</button>
+            onMouseDown={run(() => editor.chain().focus().toggleTaskList().run())}>☑ チェックリスト</button>
           <button type="button" title="引用" className={btn(!!state?.quote)}
-            onMouseDown={run(() => editor.chain().focus().toggleBlockquote().run())}>❝</button>
+            onMouseDown={run(() => editor.chain().focus().toggleBlockquote().run())}>❝ 引用</button>
           <button type="button" title="区切り線" className={btn(false)}
-            onMouseDown={run(() => editor.chain().focus().setHorizontalRule().run())}>―</button>
+            onMouseDown={run(() => editor.chain().focus().setHorizontalRule().run())}>― 区切り線</button>
           {sep}
           <button type="button" title="表を挿入" className={btn(!!state?.inTable)}
             onMouseDown={run(() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>▦ 表</button>

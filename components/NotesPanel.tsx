@@ -9,6 +9,7 @@ import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
 import NoteReadStatus from './NoteReadStatus';
+import NotesHelpModal from './NotesHelpModal';
 import ConfirmationModal from './ConfirmationModal';
 import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon } from './icons';
 
@@ -67,6 +68,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [localError, setLocalError] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  // 別のノートを開いたら、公開範囲の設定パネルは閉じる
+  useEffect(() => { setSettingsOpen(false); }, [selectedId]);
 
   useEffect(() => {
     fetchTemplates(me.name).then(setTemplates).catch(() => setTemplates([]));
@@ -289,10 +295,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (search.trim()) return `検索結果「${search.trim()}」`;
     switch (view.kind) {
       case 'pinned': return '★ ピン留め';
-      case 'unsorted': return '📥 未整理';
-      case 'mine': return '📝 自分のノート';
-      case 'announce': return '📣 周知';
-      case 'shared': return '🌐 みんなのノート';
+      case 'unsorted': return '📥 フォルダ未設定';
+      case 'mine': return '📝 自分のノート(すべて)';
+      case 'announce': return '📣 周知(お知らせ)';
+      case 'shared': return '🌐 共有されたノート';
       case 'folder': return `📁 ${currentFolder?.name ?? 'フォルダ'}`;
     }
   })();
@@ -327,8 +333,21 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const renderNotePane = () => {
     if (!selected) {
       return (
-        <div className={`flex-1 flex items-center justify-center ${muted} text-sm p-6 text-center`}>
-          左の一覧からノートを選ぶか、「＋ 新規ノート」で作成してください。
+        <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="max-w-md w-full text-center space-y-4">
+            <div className="text-4xl">📓</div>
+            <div className="font-bold text-base">ノートを選んでください</div>
+            <p className={`text-sm ${muted}`}>左の一覧からノートを選ぶか、新しく作成します。</p>
+            <div className="flex justify-center gap-2 flex-wrap">
+              <button onClick={handleNewNote} disabled={busy} className="px-4 py-2 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50">＋ 新規ノート</button>
+              <button onClick={() => setHelpOpen(true)} className={`px-4 py-2 rounded-md text-sm font-semibold border ${border} ${hoverRow}`}>❓ 使い方を見る</button>
+            </div>
+            <ul className={`text-left text-sm space-y-1.5 rounded-lg border ${border} ${surface2} p-4 ${d ? 'text-slate-300' : 'text-slate-600'}`}>
+              <li>📣 <b>周知</b>:読んでほしいノートを、みんなに通知して確認状況も見られます</li>
+              <li>🔒 <b>公開範囲</b>:自分だけ / 全員 / 管理者 / 選んだメンバー</li>
+              <li>📎 案件の備考は、詳細画面の「ノートに保存」から移せます</li>
+            </ul>
+          </div>
         </div>
       );
     }
@@ -378,39 +397,37 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <span>👤 {n.owner}</span>
             <span>作成 {fmtDateTime(n.createdAt)}</span>
             <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
-            <span>{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+            {!isOwner && <span>{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>}
           </div>
 
           {/* オーナー用設定 */}
           {isOwner ? (
-            <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-3`}>
-              <div>
-                <div className={`text-xs font-semibold mb-1 ${muted}`}>公開範囲</div>
-                <NoteVisibilityPicker
-                  visibility={n.visibility}
-                  sharedWith={n.sharedWith}
-                  users={users}
-                  owner={n.owner}
-                  isDarkMode={d}
-                  onChange={(v: NoteVisibility, s: string[]) => api.editNote(n.id, { visibility: v, sharedWith: s }, { immediate: true })}
-                />
-              </div>
-              <div className="flex flex-wrap gap-3 items-center">
-                <label className="flex items-center gap-2 text-sm">
-                  <span className={`text-xs font-semibold ${muted}`}>フォルダ</span>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <button
+                  onClick={() => setSettingsOpen(o => !o)}
+                  title="このノートを誰が見られるかを変更します"
+                  className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition ${settingsOpen ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]' : `${border} ${hoverRow}`}`}
+                >
+                  <span className={`text-xs ${muted}`}>公開範囲</span>
+                  <span className="font-bold">{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+                  <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
+                </button>
+                <label className="inline-flex items-center gap-1.5">
+                  <span className={`text-xs ${muted}`}>フォルダ</span>
                   <select
                     value={n.folderId ?? ''}
                     onChange={e => api.editNote(n.id, { folderId: e.target.value || null }, { immediate: true })}
                     className={inputCls}
                   >
-                    <option value="">📥 未整理</option>
+                    <option value="">📥 未設定</option>
                     {folderOptions.map(({ folder, depth }) => (
                       <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
                     ))}
                   </select>
                 </label>
-                <div className="flex items-center gap-1 flex-wrap flex-1 min-w-[180px]">
-                  <span className={`text-xs font-semibold ${muted}`}>タグ</span>
+                <div className="inline-flex items-center gap-1 flex-wrap">
+                  <span className={`text-xs ${muted}`}>タグ</span>
                   {n.tags.map(t => (
                     <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
                       #{t}
@@ -422,32 +439,53 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); addTag(); } }}
                     onBlur={addTag}
-                    placeholder="タグを追加(Enter)"
-                    className={`${inputCls} w-36 !py-0.5 text-xs`}
+                    placeholder="＋タグ"
+                    className={`${inputCls} w-24 !py-0.5 text-xs`}
                   />
                 </div>
               </div>
 
+              {settingsOpen && (
+                <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
+                  <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。選ぶとすぐに反映されます。</div>
+                  <NoteVisibilityPicker
+                    visibility={n.visibility}
+                    sharedWith={n.sharedWith}
+                    users={users}
+                    owner={n.owner}
+                    isDarkMode={d}
+                    onChange={(v: NoteVisibility, sh: string[]) => api.editNote(n.id, { visibility: v, sharedWith: sh }, { immediate: true })}
+                  />
+                </div>
+              )}
+
               {/* 周知 */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 ${n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
                 {n.visibility === 'private' ? (
-                  <span className={`text-xs ${muted}`}>📣 周知するには、公開範囲を「非公開」以外にしてください。</span>
+                  <>
+                    <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
+                    <button onClick={() => setSettingsOpen(true)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
+                  </>
                 ) : n.isAnnouncement ? (
                   <>
-                    <span className="text-xs font-semibold text-amber-600">📣 周知中{n.announcedAt ? `(${fmtDateTime(n.announcedAt)})` : ''}</span>
-                    <button onClick={() => setAnnounceTarget(n)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>再周知(再確認を依頼)</button>
-                    <button onClick={() => run(() => api.unannounce(n.id))} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>周知を解除</button>
+                    <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]">📣 周知中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
+                    <button onClick={() => setAnnounceTarget(n)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`} title="内容を直したときなど、もう一度確認してもらいます">再周知する</button>
+                    <button onClick={() => run(() => api.unannounce(n.id))} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>周知をやめる</button>
                   </>
                 ) : (
-                  <button onClick={() => setAnnounceTarget(n)} className="text-sm px-3 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600">📣 周知する</button>
+                  <>
+                    <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
+                    <button onClick={() => setAnnounceTarget(n)} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600">📣 周知する</button>
+                  </>
                 )}
               </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-2 items-center">
               {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
+              <span className={`text-xs ${muted}`}>他の人のノートは読み取り専用です</span>
               <button onClick={handleCopy} disabled={busy} className="ml-auto text-sm px-3 py-1.5 rounded-md font-semibold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50">
-                📄 自分用にコピー
+                📄 自分用にコピーして編集
               </button>
             </div>
           )}
@@ -512,7 +550,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               aria-label="戻る"
             ><ChevronLeftIcon className="w-5 h-5" /></button>
           )}
-          <h2 className="font-bold text-base md:text-lg whitespace-nowrap">📓 ノート</h2>
+          <h2 className="font-bold text-base md:text-lg whitespace-nowrap">📓<span className="hidden sm:inline"> ノート</span></h2>
           <div className="relative flex-1 max-w-md">
             <MagnifyingGlassIcon className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -527,7 +565,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             disabled={busy || unavailable}
             className="inline-flex items-center gap-1 bg-white text-[#01607a] font-bold text-sm px-3 py-1.5 rounded-md hover:bg-slate-100 disabled:opacity-50 whitespace-nowrap"
           ><PlusIcon className="w-4 h-4" /><span className="hidden sm:inline">新規ノート</span><span className="sm:hidden">新規</span></button>
-          <span className="hidden md:inline text-xs opacity-90 w-20 text-right">{saveLabel}</span>
+          <span className="hidden md:inline text-xs opacity-90 min-w-[88px] text-right whitespace-nowrap">{saveLabel}</span>
+          <button onClick={() => setHelpOpen(true)} className="hidden sm:inline-flex items-center justify-center w-7 h-7 rounded-full border border-white/70 text-sm font-bold hover:bg-white/20" title="ノートの使い方" aria-label="ノートの使い方">?</button>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded" aria-label="閉じる"><XMarkIcon className="w-6 h-6" /></button>
         </div>
 
@@ -552,24 +591,42 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           <div className="flex-1 flex min-h-0">
             {/* ① フォルダ */}
             <aside className={`${step === 'folders' ? 'flex' : 'hidden'} md:flex w-full md:w-56 lg:w-60 flex-shrink-0 flex-col border-r ${border} ${surface2} overflow-y-auto p-2 gap-0.5`}>
+              <div className={`px-2 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>自分のノート</div>
+              <SideItem v={{ kind: 'mine' }} icon="📝" label="すべて" count={myNotes.length} />
               <SideItem v={{ kind: 'pinned' }} icon="★" label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
-              <SideItem v={{ kind: 'mine' }} icon="📝" label="自分のノート" count={myNotes.length} />
-              <SideItem v={{ kind: 'unsorted' }} icon="📥" label="未整理" count={myNotes.filter(n => !n.folderId).length} />
-              <SideItem v={{ kind: 'announce' }} icon="📣" label="周知" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement).length} />
-              <SideItem v={{ kind: 'shared' }} icon="🌐" label="みんなのノート" count={otherNotes.length} />
-              <div className={`mt-3 mb-1 px-2 text-[11px] font-bold tracking-wide ${muted}`}>マイフォルダ</div>
+              <SideItem v={{ kind: 'unsorted' }} icon="📥" label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
+
+              <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
+              <SideItem v={{ kind: 'announce' }} icon="📣" label="周知(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement).length} />
+              <SideItem v={{ kind: 'shared' }} icon="🌐" label="共有されたノート" count={otherNotes.length} />
+
+              <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
+                <span>マイフォルダ</span>
+                <button
+                  onClick={() => setFolderDlg({ mode: 'create', parent: null })}
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded font-semibold normal-case ${hoverRow}`}
+                  title="フォルダを作る"
+                ><PlusIcon className="w-3.5 h-3.5" />作成</button>
+              </div>
               {topFolders.map(f => renderFolder(f, 0))}
-              {topFolders.length === 0 && <div className={`px-2 text-xs ${muted}`}>フォルダはまだありません</div>}
+              {topFolders.length === 0 && (
+                <div className={`px-2 py-1 text-xs leading-relaxed ${muted}`}>
+                  フォルダはまだありません。右上の「＋作成」で、ノートを分類するフォルダを作れます。
+                </div>
+              )}
+
+              <div className="flex-1" />
               <button
-                onClick={() => setFolderDlg({ mode: 'create', parent: null })}
-                className={`mt-1 flex items-center gap-1 px-2 py-1.5 rounded-md text-sm ${hoverRow} ${muted}`}
-              ><PlusIcon className="w-4 h-4" />フォルダ</button>
+                onClick={() => setHelpOpen(true)}
+                className={`mt-3 flex items-center gap-1.5 px-2 py-2 rounded-md text-sm font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
+              >❓ ノートの使い方</button>
             </aside>
 
             {/* ② ノート一覧 */}
             <section className={`${step === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-72 lg:w-80 flex-shrink-0 flex-col border-r ${border} min-h-0`}>
-              <div className={`px-3 py-2 text-sm font-bold border-b ${border} flex items-center justify-between`}>
-                <span className="truncate">{viewTitle}</span>
+              <div className={`px-3 py-2 text-sm font-bold border-b ${border} flex items-center justify-between gap-2`}>
+                <button onClick={() => setStep('folders')} className={`md:hidden flex-shrink-0 text-xs font-semibold px-2 py-1 rounded border ${border}`}>📂 フォルダ</button>
+                <span className="truncate flex-1">{viewTitle}</span>
                 <span className={`text-xs font-normal ${muted}`}>{visibleNotes.length}件</span>
               </div>
               <div className="flex-1 overflow-y-auto">
@@ -590,6 +647,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           </div>
         )}
       </div>
+
+      {helpOpen && <NotesHelpModal isDarkMode={d} onClose={() => setHelpOpen(false)} />}
 
       {/* フォルダ作成・設定 */}
       {folderDlg && (
