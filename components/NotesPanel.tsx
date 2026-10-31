@@ -20,7 +20,6 @@ type View =
   | { kind: 'unsorted' }
   | { kind: 'mine' }
   | { kind: 'announce' }
-  | { kind: 'hiddenAnnounce' }
   | { kind: 'shared' }
   | { kind: 'folder'; folderId: string };
 
@@ -192,7 +191,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         case 'unsorted': base = myNotes.filter(n => !n.folderId); break;
         case 'mine': base = myNotes; break;
         case 'announce': base = notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)); break;
-        case 'hiddenAnnounce': base = notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id)); break;
         case 'shared': base = otherNotes; break;
         case 'folder': {
           const ids = new Set([view.folderId, ...myFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
@@ -212,6 +210,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds]);
+
+  // 自分が非表示にした周知(「周知(お知らせ)」一覧の最下部に別枠で出す)
+  const hiddenAnnouncements = useMemo(
+    () => notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [notes, myHiddenIds]);
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
   const isOwner = !!selected && selected.owner === me.name;
@@ -247,7 +251,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setSearch('');
     setSettingsOpen(false);
     setTagInput('');
-    if (view.kind === 'shared' || view.kind === 'announce' || view.kind === 'hiddenAnnounce') setView({ kind: 'mine' });
+    if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
     setSelectedId(null);
     endEdit();
     foldPanes();
@@ -364,7 +368,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       try {
         created = await api.copyToMine(target);
       } catch (e) {
-        try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくても「非表示の周知一覧」から見られる */ }
+        try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくても周知一覧の最下部から見られる */ }
         throw e;
       }
     }
@@ -377,7 +381,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       foldPanes();
       setStep('note');
     } else if (view.kind === 'announce' && selectedId === target.id) {
-      setSelectedId(null);   // 非表示にした周知は一覧から消えるので、開いたままにしない
+      setSelectedId(null);   // 非表示にした周知は上の一覧から最下部の「非表示の周知」へ移るので、開いたままにしない
       setStep('list');
     }
   });
@@ -491,7 +495,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       case 'unsorted': return '📥 フォルダ未設定';
       case 'mine': return '📝 自分のノート(すべて)';
       case 'announce': return '📣 周知(お知らせ)';
-      case 'hiddenAnnounce': return '🙈 非表示の周知一覧';
       case 'shared': return '🌐 共有されたノート';
       case 'folder': return `📁 ${currentFolder?.name ?? 'フォルダ'}`;
     }
@@ -997,7 +1000,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
               <SideItem v={{ kind: 'announce' }} icon="📣" label="周知(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
-              <SideItem v={{ kind: 'hiddenAnnounce' }} icon="🙈" label="非表示の周知一覧" count={notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id)).length} />
               <SideItem v={{ kind: 'shared' }} icon="🌐" label="共有されたノート" count={otherNotes.length} />
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
@@ -1074,9 +1076,18 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
                 ) : visibleNotes.length === 0 ? (
                   draft ? null : <div className={`p-4 text-sm ${muted}`}>
-                    {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : view.kind === 'hiddenAnnounce' ? '非表示にした周知はありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
+                    {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
                 ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
+                {/* 「周知(お知らせ)」を開いているときだけ、一覧の一番下に非表示にした周知を出す */}
+                {view.kind === 'announce' && !search.trim() && hiddenAnnouncements.length > 0 && (
+                  <>
+                    <div className={`px-3 py-1.5 text-[11px] font-bold tracking-wide border-b ${border} ${surface2} ${muted}`}>
+                      🙈 非表示の周知（{hiddenAnnouncements.length}件）
+                    </div>
+                    {hiddenAnnouncements.map(n => <NoteRow key={n.id} n={n} />)}
+                  </>
+                )}
               </div>
              </div>
             </section>
