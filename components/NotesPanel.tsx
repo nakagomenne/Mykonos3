@@ -217,6 +217,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [notes, myHiddenIds]);
 
+  // 「非表示の周知」バーの開閉(初期は閉じる。開いている非表示周知を選んでいる間は自動で開く)
+  const [hiddenOpen, setHiddenOpen] = useState(false);
+
+  // 非表示の周知を開いたとき(通知からの遷移など)は、バーも一緒に開いて選択中のノートが見えるようにする
+  useEffect(() => {
+    if (selectedId && hiddenAnnouncements.some(n => n.id === selectedId)) setHiddenOpen(true);
+  }, [selectedId, hiddenAnnouncements]);
+
   const selected = notes.find(n => n.id === selectedId) ?? null;
   const isOwner = !!selected && selected.owner === me.name;
   const isEditing = !!selected && isOwner && editingId === selected.id;
@@ -1082,10 +1090,19 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 {/* 「周知(お知らせ)」を開いているときだけ、一覧の一番下に非表示にした周知を出す */}
                 {view.kind === 'announce' && !search.trim() && hiddenAnnouncements.length > 0 && (
                   <>
-                    <div className={`px-3 py-1.5 text-[11px] font-bold tracking-wide border-b ${border} ${surface2} ${muted}`}>
-                      🙈 非表示の周知（{hiddenAnnouncements.length}件）
+                    <button
+                      onClick={() => setHiddenOpen(o => !o)}
+                      aria-expanded={hiddenOpen}
+                      className={`w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold tracking-wide border-b ${border} ${surface2} ${muted} ${hoverRow}`}
+                    >
+                      <span className={`inline-block transition-transform duration-200 ${hiddenOpen ? 'rotate-90' : ''}`}>▶</span>
+                      <span className="flex-1 text-left">🙈 非表示の周知（{hiddenAnnouncements.length}件）</span>
+                    </button>
+                    <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${hiddenOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                      <div className="overflow-hidden min-h-0" {...(hiddenOpen ? {} : { inert: true } as object)}>
+                        {hiddenAnnouncements.map(n => <NoteRow key={n.id} n={n} />)}
+                      </div>
                     </div>
-                    {hiddenAnnouncements.map(n => <NoteRow key={n.id} n={n} />)}
                   </>
                 )}
               </div>

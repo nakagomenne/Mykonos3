@@ -33,7 +33,7 @@ const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle
         </div>
         <div className="p-5 text-slate-600 space-y-3 overflow-y-auto">
           <p className="text-sm">「{noteTitle || '(無題)'}」を確認済みにして、周知の一覧から非表示にします。</p>
-          <p className="text-xs text-slate-500">非表示にした周知は、あとから「周知(お知らせ)」一覧の一番下で見られます。</p>
+          <p className="text-xs text-slate-500">非表示にした周知は、あとから「周知(お知らせ)」一覧の一番下の「非表示の周知」バーから見られます。</p>
           {error && (
             <div role="alert" className="text-sm rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2">⚠ {error}</div>
           )}
