@@ -21,6 +21,8 @@ interface NoteEditorProps {
   templates?: { id: string; name: string; body: string }[];
   /** 上部のエラー表示 */
   onError?: (message: string) => void;
+  /** ツールバーを固定表示するときの上端からの距離(px)。上に固定バーがある場合に指定 */
+  toolbarTop?: number;
 }
 
 /** プレーンテキスト(改行区切り)を段落のHTMLに変換 */
@@ -55,7 +57,7 @@ const ToolRow: React.FC<{ label: string; dark: boolean; children: React.ReactNod
 
 const NoteEditor: React.FC<NoteEditorProps> = ({
   value, onChange, onUploadImage, editable = true, isDarkMode = false,
-  placeholder = 'ここに本文を入力…(画像は貼り付け・ドラッグでも追加できます)', templates, onError,
+  placeholder = 'ここに本文を入力…(画像は貼り付け・ドラッグでも追加できます)', templates, onError, toolbarTop = 0,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -177,7 +179,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   return (
     <div className={`note-editor flex flex-col min-h-0 ${frame} ${isDarkMode ? 'note-editor-dark' : ''}`}>
       {editable && (
-        <div className={`sticky top-0 z-10 rounded-t-md border-b ${isDarkMode ? 'bg-[#1a2234] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+        <div style={{ top: toolbarTop }} className={`sticky z-10 rounded-t-md border-b ${isDarkMode ? 'bg-[#1a2234] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
           {/* 常に表示する細いバー(書式メニューの開閉 + 元に戻す/やり直し) */}
           <div className="flex items-center gap-1 px-2 py-1.5">
             <button

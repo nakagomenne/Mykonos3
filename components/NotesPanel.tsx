@@ -83,6 +83,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [helpOpen, setHelpOpen] = useState(false);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  /** 編集モードで開いているノートのID(それ以外のノートは閲覧モード) */
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // 別のノートを開いたら、公開範囲の設定パネルは閉じる
   useEffect(() => { setSettingsOpen(false); }, [selectedId]);
@@ -102,6 +104,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const t = notes.find(n => n.id === initialNoteId);
     if (!t) return;
     setDraft(null);
+    setEditingId(null);
     setSelectedId(initialNoteId);
     setSearch('');
     setView(t.owner === me.name ? { kind: 'mine' } : { kind: 'shared' });
@@ -179,6 +182,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
   const isOwner = !!selected && selected.owner === me.name;
+  const isEditing = !!selected && isOwner && editingId === selected.id;
   const currentFolder = view.kind === 'folder' ? folders.find(f => f.id === view.folderId) ?? null : null;
 
   // 選択中のノートが消えた(削除・非公開化など)ら選択解除
@@ -208,6 +212,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setTagInput('');
     if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
     setSelectedId(null);
+    setEditingId(null);
     setDraft({
       title: '',
       body: '',
@@ -239,6 +244,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setDraft(null);
     setTagInput('');
     setSearch('');
+    setEditingId(null);
     setSelectedId(note.id);
     setStep('note');
   });
@@ -267,6 +273,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setSearch('');
     setView({ kind: 'unsorted' });
     setSelectedId(created.id);
+    setEditingId(created.id);
     setStep('note');
   });
 
@@ -372,7 +379,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = n.id === selectedId;
     return (
       <button
-        onClick={() => guard(() => { setSelectedId(n.id); setStep('note'); })}
+        onClick={() => guard(() => { setEditingId(null); setSelectedId(n.id); setStep('note'); })}
         className={`w-full text-left px-3 py-2.5 border-b ${border} transition ${active ? (d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10') : hoverRow}`}
       >
         <div className="flex items-center gap-1.5">
@@ -490,6 +497,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             key="draft"
             value={dr.body}
             editable
+            toolbarTop={54}
             isDarkMode={d}
             onChange={html => patch({ body: html })}
             onUploadImage={file => uploadNoteImage(file, me.name)}
@@ -541,8 +549,42 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const iRead = myReadIds.has(n.id);
     const snap = n.sourceSnapshot;
     const folderOptions = flatFolders;
+    const folderName = n.folderId ? folders.find(f => f.id === n.folderId)?.name : undefined;
+    const finishEditing = () => {
+      void api.flushAll();
+      setEditingId(null);
+      setSettingsOpen(false);
+      setTagInput('');
+    };
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        {isOwner && (
+          <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${
+            isEditing
+              ? (d ? 'bg-sky-900/40 border-sky-700' : 'bg-sky-50 border-sky-300')
+              : `${border} ${d ? 'bg-[#1a2234]' : 'bg-white'}`}`}>
+            {isEditing ? (
+              <>
+                <span className={`text-sm font-bold flex-1 min-w-0 truncate ${d ? 'text-sky-300' : 'text-[#01607a]'}`}>
+                  ✏️ 編集中<span className={`ml-2 text-xs font-normal ${muted}`}>変更は自動で保存されます</span>
+                </span>
+                <span className={`text-xs ${muted} whitespace-nowrap`}>{saveLabel}</span>
+                <button
+                  onClick={finishEditing}
+                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
+                >完了</button>
+              </>
+            ) : (
+              <>
+                <span className={`text-sm flex-1 min-w-0 truncate ${muted}`}>📖 閲覧中</span>
+                <button
+                  onClick={() => { setSettingsOpen(false); setEditingId(n.id); }}
+                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
+                >✏️ 編集</button>
+              </>
+            )}
+          </div>
+        )}
         {n.isAnnouncement && !isOwner && (
           <div className={`px-4 py-2.5 flex items-center gap-3 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
             <span className="text-sm flex-1">
@@ -563,10 +605,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           <div className="flex items-start gap-2">
             <input
               value={n.title}
-              readOnly={!isOwner}
+              readOnly={!isEditing}
               onChange={e => api.editNote(n.id, { title: e.target.value })}
-              placeholder="タイトル"
-              className={`flex-1 text-xl font-bold bg-transparent border-b-2 ${border} focus:border-[#0193be] focus:outline-none py-1`}
+              placeholder={isEditing ? 'タイトル' : '(無題)'}
+              className={`flex-1 min-w-0 text-xl font-bold bg-transparent border-b-2 focus:outline-none py-1 ${
+                isEditing ? `${border} focus:border-[#0193be]` : 'border-transparent cursor-default'}`}
             />
             {isOwner && (
               <button
@@ -588,6 +631,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {/* オーナー用設定 */}
           {isOwner ? (
             <div className="space-y-2">
+              {isEditing ? (<>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <button
                   onClick={() => setSettingsOpen(o => !o)}
@@ -643,13 +687,23 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   />
                 </div>
               )}
+              </>) : (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <span className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full border ${border}`}>
+                    <span className={`text-xs ${muted}`}>公開範囲</span>
+                    <span className="font-bold">{VISIBILITY_ICONS[n.visibility]} {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+                  </span>
+                  <span className={`text-xs ${muted}`}>{folderName ? `📁 ${folderName}` : '📥 フォルダ未設定'}</span>
+                  {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
+                </div>
+              )}
 
               {/* 周知 */}
               <div className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 ${n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
                 {n.visibility === 'private' ? (
                   <>
                     <span className="text-sm flex-1 min-w-[200px]">📣 <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
-                    <button onClick={() => setSettingsOpen(true)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
+                    <button onClick={() => { setEditingId(n.id); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
                   </>
                 ) : n.isAnnouncement ? (
                   <>
@@ -699,15 +753,19 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
           {/* エディタ(ノートごとに作り直す) */}
           <NoteEditor
-            key={n.id + (isOwner ? ':e' : ':r')}
+            key={n.id + (isEditing ? ':e' : ':r')}
             value={n.body}
-            editable={isOwner}
+            editable={isEditing}
             isDarkMode={d}
+            toolbarTop={isOwner ? 54 : 0}
             onChange={html => api.editNote(n.id, { body: html })}
-            onUploadImage={isOwner ? file => uploadNoteImage(file, me.name) : undefined}
-            templates={isOwner ? templates : undefined}
+            onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
+            templates={isEditing ? templates : undefined}
             onError={setLocalError}
           />
+          {!isEditing && !n.body && (
+            <div className={`text-sm ${muted}`}>本文はまだありません。{isOwner ? '「✏️ 編集」から書き込めます。' : ''}</div>
+          )}
 
           {isOwner && (
             <div className="pt-2 flex justify-end">
