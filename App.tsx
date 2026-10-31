@@ -3029,7 +3029,7 @@ const App: React.FC = () => {
             >
               <NotebookIcon className="w-6 h-6" />
               {notesApi.unreadAnnouncements.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white ring-2 ring-white animate-badge-pop">
                   {notesApi.unreadAnnouncements.length > 9 ? '9+' : notesApi.unreadAnnouncements.length}
                 </span>
               )}
