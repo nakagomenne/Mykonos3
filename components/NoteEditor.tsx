@@ -10,6 +10,7 @@ import { TaskItem } from '@tiptap/extension-task-item';
 import { TextStyle, Color, BackgroundColor, FontSize } from '@tiptap/extension-text-style';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NoteIcon } from './NoteIcons';
+import { NoteAudio, NoteVideo, toVideoEmbedUrl, isAutoEmbedVideoUrl } from './noteMedia';
 
 interface NoteEditorProps {
   /** 本文(HTML) */
@@ -18,7 +19,7 @@ interface NoteEditorProps {
   /** 画像ファイルをアップロードして公開URLを返す */
   onUploadImage?: (file: File) => Promise<string>;
   /** 画像以外のファイル(PDF・Excel など)をアップロードして、URL と表示名を返す */
-  onUploadFile?: (file: File) => Promise<{ url: string; name: string }>;
+  onUploadFile?: (file: File) => Promise<{ url: string; name: string; kind?: 'audio' | 'file' }>;
   editable?: boolean;
   isDarkMode?: boolean;
   placeholder?: string;
@@ -46,7 +47,8 @@ export function htmlToPlainText(html: string): string {
   // <img> を残すと detached な要素でも画像を取りに行ってしまうため、先に除去する
   el.innerHTML = html
     .replace(/<img[^>]*>/gi, ' ')
-    .replace(/<\/(p|h[1-6]|li|tr|blockquote)>/gi, '$&\n')
+    .replace(/<(audio|iframe)\b[^>]*>(<\/\1>)?/gi, ' ')
+    .replace(/<\/(p|h[1-6]|li|tr|blockquote|div)>/gi, '$&\n')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(td|th)>/gi, '$& ');
   return (el.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
@@ -102,6 +104,10 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  /** 動画リンクの入力欄(開いているとき文字列、閉じているとき null) */
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState('');
   // handlePaste/handleDrop から最新の editor を参照するための ref
   const editorRef = useRef<Editor | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -142,7 +148,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     setUploading(true);
     try {
       for (const file of files) {
-        const { url, name } = await uploadFileRef.current(file);
+        const { url, name, kind } = await uploadFileRef.current(file);
+        if (kind === 'audio') {
+          // 音声はノートの中でそのまま再生できる形で入れる
+          editor.chain().focus().setNoteAudio({ src: url, name }).run();
+          continue;
+        }
         editor.chain().focus()
           .insertContent({ type: 'text', text: name, marks: [{ type: 'link', attrs: { href: url } }] })
           .insertContent(' ')
@@ -194,6 +205,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       BackgroundColor,
       FontSize,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      NoteAudio,
+      NoteVideo,
     ],
     editorProps: {
       attributes: { class: 'note-prose' },
@@ -208,6 +221,16 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
         return lines.join('\n');
       },
       handlePaste: (_view, event) => {
+        // YouTube などの動画リンクだけを貼ったときは、ノートの中で再生できる形で入れる
+        const pasted = event.clipboardData?.getData('text/plain') ?? '';
+        if (!event.clipboardData?.files?.length && isAutoEmbedVideoUrl(pasted)) {
+          const src = toVideoEmbedUrl(pasted);
+          if (src && editorRef.current) {
+            event.preventDefault();
+            editorRef.current.chain().focus().setNoteVideo({ src }).run();
+            return true;
+          }
+        }
         if (!addFiles(Array.from(event.clipboardData?.files ?? []))) return false;
         event.preventDefault();
         return true;
@@ -281,6 +304,17 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const run = (fn: () => boolean) => (e: React.MouseEvent) => { e.preventDefault(); fn(); };
 
   const mutedText = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+
+  const submitVideo = () => {
+    const src = toVideoEmbedUrl(videoUrl ?? '');
+    if (!src) {
+      setVideoError('YouTube・Google ドライブ・Vimeo の動画リンクを貼ってください');
+      return;
+    }
+    editor.chain().focus().setNoteVideo({ src }).run();
+    setVideoUrl(null);
+    setVideoError('');
+  };
   const frame = editable
     ? `rounded-lg border-2 transition-colors ${isDarkMode ? 'border-slate-600 focus-within:border-[#0193be] bg-[#141b2b]' : 'border-slate-300 focus-within:border-[#0193be] bg-slate-50'}`
     : '';
@@ -471,6 +505,22 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 )}
                 {onUploadFile && (
                   <>
+                    <button type="button" title="音声ファイル(録音など)を添付。ノートの中で再生できます(ドラッグでも追加できます。50MBまで)" className={btn(false, uploading)} disabled={uploading}
+                      onMouseDown={e => { e.preventDefault(); audioInputRef.current?.click(); }}>
+                      ♪ 音声を添付
+                    </button>
+                    <input
+                      ref={audioInputRef}
+                      type="file"
+                      accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.opus,.flac"
+                      multiple
+                      className="hidden"
+                      onChange={e => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        if (files.length) void insertFiles(editor, files);
+                      }}
+                    />
                     <button type="button" title="PDF・Excel などのファイルを添付(ドラッグでも追加できます。20MBまで)" className={btn(false, uploading)} disabled={uploading}
                       onMouseDown={e => { e.preventDefault(); attachInputRef.current?.click(); }}>
                       <NoteIcon name="paperclip" /> ファイルを添付
@@ -488,6 +538,29 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                     />
                   </>
                 )}
+                <div className="relative">
+                  <button type="button" title="YouTube・Google ドライブ・Vimeo の動画リンクを貼ると、ノートの中で再生できます" aria-expanded={videoUrl !== null} className={btn(videoUrl !== null)}
+                    onMouseDown={e => { e.preventDefault(); setVideoError(''); setVideoUrl(v => (v === null ? '' : null)); }}>▶ 動画リンク</button>
+                  {videoUrl !== null && (
+                    <div className={`absolute left-0 top-full mt-1 z-30 w-80 max-w-[85vw] p-3 rounded-lg border shadow-xl ${isDarkMode ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
+                      <div className={`text-xs mb-1.5 ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>動画のリンクを貼ってください(YouTube・Google ドライブ・Vimeo)</div>
+                      <input
+                        type="url" autoFocus value={videoUrl} placeholder="https://…"
+                        onChange={e => { setVideoUrl(e.target.value); setVideoError(''); }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitVideo(); } if (e.key === 'Escape') setVideoUrl(null); }}
+                        className={`w-full px-2 py-1.5 rounded border text-sm ${isDarkMode ? 'bg-slate-800 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                      />
+                      {videoError && <div className="text-xs text-red-500 mt-1">{videoError}</div>}
+                      <div className={`text-[11px] mt-1.5 ${mutedText}`}>ドライブの動画は、見せたい人に共有されている必要があります。</div>
+                      <div className="flex justify-end gap-2 mt-2">
+                        <button type="button" className={`px-3 py-1.5 rounded-md text-xs border ${isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                          onClick={() => setVideoUrl(null)}>キャンセル</button>
+                        <button type="button" className="px-3 py-1.5 rounded-md text-xs font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
+                          onClick={submitVideo}>ノートに入れる</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {templates && templates.length > 0 && (
                   <div className="relative">
                     <button type="button" title="定型文を挿入" className={btn(isTemplateOpen)}

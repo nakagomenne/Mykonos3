@@ -52,6 +52,17 @@
   .note-prose hr { border: none; border-top: 2px dashed #cbd5e1; margin: 1.2em 0; }
   .note-prose img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.4em 0; cursor: default; }
   .note-prose img.ProseMirror-selectednode { outline: 3px solid #0193be; }
+  /* 音声(再生バー)と動画(外部プレーヤー) */
+  .note-prose .note-audio { margin: 0.5em 0; padding: 8px 10px; max-width: 520px; border: 1px solid rgba(100,116,139,0.35); border-radius: 10px; }
+  .note-prose .note-audio-name { font-size: 0.85em; font-weight: 600; margin-bottom: 4px; word-break: break-all; }
+  .note-prose .note-audio-name::before { content: "♪ "; color: #0193be; }
+  .note-prose .note-audio audio { display: block; width: 100%; height: 40px; }
+  .note-prose .note-video { margin: 0.5em 0; max-width: 640px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #0f172a; }
+  .note-prose .note-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .note-prose .note-audio.ProseMirror-selectednode, .note-prose .note-video.ProseMirror-selectednode { outline: 3px solid #0193be; }
+  /* 編集中は、動画を押すと「選択」になるようにする(再生は保存後の閲覧画面で) */
+  .note-prose[contenteditable="true"] .note-video { cursor: pointer; }
+  .note-prose[contenteditable="true"] .note-video iframe { pointer-events: none; }
   .note-prose code { background: rgba(100,116,139,0.18); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   .note-prose a { color: #0193be; text-decoration: underline; }
   /* 添付ファイル(Storage の files/ 以下)へのリンクは、ファイルだと分かるように枠で囲む */
