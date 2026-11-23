@@ -183,6 +183,20 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null;
+  /** 共同編集: true なら、見られる人(公開範囲に入っている人)も本文を編集できる */
+  allowEdit: boolean;
+}
+
+/** ノートの編集履歴(保存するたびに、保存前の内容を1件残したもの) */
+export interface NoteVersion {
+  id: string;
+  noteId: string;
+  title: string;
+  body: string;
+  /** この版を書いた人 */
+  editedBy: string | null;
+  /** この版が保存された日時 */
+  editedAt: string;
 }
 
 export interface NoteRead {

@@ -184,6 +184,12 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     await flush(id); // ピン留めなど、先に送信待ちの変更があれば先に送る
     inflight.current.add(id);
     try {
+      // タイトル・本文を書き換えるときは、保存前の内容を履歴に残す(前の版に戻せるように)
+      const prev = notesRef.current.find(n => n.id === id);
+      const contentChanged = !!prev && (
+        (patch.title !== undefined && patch.title !== prev.title) ||
+        (patch.body !== undefined && patch.body !== prev.body));
+      if (prev && contentChanged && (prev.title || prev.body)) await svc.saveNoteVersion(prev);
       const updated = await svc.updateNote(id, patch, v.name);
       setNotes(prev => prev.map(n => (n.id === id ? updated : n)));
       setSaveState('saved');

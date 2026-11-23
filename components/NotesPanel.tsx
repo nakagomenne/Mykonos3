@@ -12,6 +12,7 @@ import NoteFolderDialog from './NoteFolderDialog';
 import NoteReadStatus from './NoteReadStatus';
 import NoteConfirmDialog from './NoteConfirmDialog';
 import NotesHelpModal from './NotesHelpModal';
+import NoteHistoryModal from './NoteHistoryModal';
 import { NoteIcon, VisibilityIcon } from './NoteIcons';
 import ConfirmationModal from './ConfirmationModal';
 import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon } from './icons';
@@ -46,6 +47,9 @@ interface NoteEditDraft {
   id: string;
   title: string;
   body: string;
+  /** 編集を始めたときのタイトル・本文(その後に他の人が更新したかを見分けるため) */
+  baseTitle?: string;
+  baseBody?: string;
   folderId: string | null;
   visibility: NoteVisibility;
   sharedWith: string[];
@@ -139,7 +143,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const beginEdit = (n: Note) => {
     setEditingId(n.id);
     setEditDraft({
-      id: n.id, title: n.title, body: n.body, folderId: n.folderId,
+      id: n.id, title: n.title, body: n.body, baseTitle: n.title, baseBody: n.body, folderId: n.folderId,
       visibility: n.visibility, sharedWith: [...n.sharedWith], tags: [...n.tags],
     });
   };
@@ -307,7 +311,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
   const isOwner = !!selected && selected.owner === me.name;
-  const isEditing = !!selected && isOwner && editingId === selected.id;
+  /** 本文を編集できるか(オーナー、または共同編集がオンのノート) */
+  const canEdit = !!selected && (isOwner || selected.allowEdit);
+  const isEditing = !!selected && canEdit && editingId === selected.id;
+  const [historyOpen, setHistoryOpen] = useState(false);
+  /** 編集中に他の人がこのノートを更新していたときの「上書きしますか」確認 */
+  const [overwriteConfirm, setOverwriteConfirm] = useState(false);
   // 開いているノート(または新規下書き)があるときだけ、一覧をたためる
   const listFolded = listCollapsed && (!!selected || !!draft);
   const foldersFolded = foldersCollapsed && (!!selected || !!draft);
@@ -435,7 +444,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setSettingsOpen(false);
     setTagInput(b.tagInput ?? '');
     const folderOk = (id: string | null) => (id && myFolders.some(f => f.id === id) ? id : null);
-    const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && n.owner === me.name) : undefined;
+    const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && (n.owner === me.name || n.allowEdit)) : undefined;
     if (b.kind === 'edit' && target) {
       setDraft(null);
       setView({ kind: 'mine' });
@@ -552,9 +561,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   };
 
   /** 編集中の「保存」: ここで初めて変更をDBに反映する(自動保存はしない) */
-  const handleSaveEdit = () => selected && editDraft && run(async () => {
+  const handleSaveEdit = (force = false) => selected && editDraft && run(async () => {
     const n = selected;
     const dr = editDraft;
+    // 編集している間に他の人が内容を更新していたら、上書きする前に確かめる
+    const changedByOther = dr.baseTitle !== undefined && dr.baseBody !== undefined &&
+      (n.title !== dr.baseTitle || n.body !== dr.baseBody);
+    if (!force && changedByOther) { setOverwriteConfirm(true); return; }
     const pendingTag = tagInput.trim().replace(/^#/, '');
     const tags = pendingTag && !dr.tags.includes(pendingTag) ? [...dr.tags, pendingTag] : dr.tags;
     const patch: NotePatch = {};
@@ -830,7 +843,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const shown = e ?? n;   // 編集中は下書き、それ以外は保存済みの内容
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {isOwner && isEditing && (
+        {isEditing && (
           <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${d ? 'bg-sky-900/40 border-sky-700' : 'bg-sky-50 border-sky-300'}`}>
             <>
                 <span className={`text-sm font-bold flex-1 min-w-0 truncate ${d ? 'text-sky-300' : 'text-[#01607a]'}`}>
@@ -845,7 +858,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
                 >キャンセル</button>
                 <button
-                  onClick={handleSaveEdit}
+                  onClick={() => handleSaveEdit()}
                   disabled={busy}
                   className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
                 >{busy ? '保存中…' : '保存'}</button>
@@ -907,9 +920,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 className={`text-xl px-1 ${n.pinned ? 'text-amber-500' : muted}`}
               >{n.pinned ? '★' : '☆'}</button>
             )}
-            {!isOwner && (
-              <button onClick={handleCopy} disabled={busy} className="ml-auto text-sm px-3 py-2 rounded-md font-semibold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50 whitespace-nowrap">
-                <NoteIcon name="copy" /> 自分用にコピーして編集
+            {!isOwner && canEdit && !isEditing && (
+              <button
+                onClick={() => { setSettingsOpen(false); beginEdit(n); }}
+                className="ml-auto text-sm px-4 py-2 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1 whitespace-nowrap"
+              ><NoteIcon name="pencil" /> 編集</button>
+            )}
+            {!isOwner && !isEditing && (
+              <button onClick={handleCopy} disabled={busy} className={`${canEdit ? `border ${border} ${hoverRow}` : 'ml-auto text-white bg-[#0193be] hover:bg-[#017a9c]'} text-sm px-3 py-2 rounded-md font-semibold disabled:opacity-50 whitespace-nowrap`}>
+                <NoteIcon name="copy" /> {canEdit ? '自分用にコピー' : '自分用にコピーして編集'}
               </button>
             )}
           </div>
@@ -920,6 +939,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <span>作成 {fmtDateTime(n.createdAt)}</span>
             <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
             {!isOwner && <span><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>}
+            {n.allowEdit && n.visibility !== 'private' && <span><NoteIcon name="users" /> 共同編集</span>}
           </div>
 
           {/* オーナー用設定 */}
@@ -985,6 +1005,21 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 </div>
               )}
 
+              {/* 共同編集 */}
+              {n.visibility !== 'private' && (
+                <label className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer ${n.allowEdit ? (d ? 'border-sky-600 bg-sky-900/20' : 'border-sky-300 bg-sky-50') : `${border} ${surface2}`}`}>
+                  <input
+                    type="checkbox"
+                    checked={n.allowEdit}
+                    disabled={busy}
+                    onChange={ev => { const on = ev.target.checked; void run(() => api.saveNote(n.id, { allowEdit: on })); }}
+                    className="w-4 h-4 accent-[#0193be]"
+                  />
+                  <span className="text-sm"><NoteIcon name="users" /> <b>共同編集</b></span>
+                  <span className={`text-xs ${muted}`}>オンにすると、このノートを見られる人もタイトルと本文を編集できます(公開範囲・削除・周知は作った人だけ)</span>
+                </label>
+              )}
+
               {/* 周知 */}
               <div className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 ${n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
                 {n.visibility === 'private' ? (
@@ -1009,7 +1044,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           ) : (
             <div className="flex flex-wrap gap-2 items-center">
               {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
-              <span className={`text-xs ${muted}`}>他の人のノートは読み取り専用です</span>
+              <span className={`text-xs ${muted}`}>{canEdit ? '共同編集のノートです。「編集」からタイトルと本文を書き換えられます' : '他の人のノートは読み取り専用です'}</span>
             </div>
           )}
 
@@ -1039,7 +1074,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               value={e ? e.body : n.body}
               editable={isEditing}
               isDarkMode={d}
-              toolbarTop={isOwner ? 54 : 0}
+              toolbarTop={isEditing ? 54 : 0}
               onChange={html => patchEdit({ body: html })}
               onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
               onUploadFile={isEditing ? uploadNoteFile : undefined}
@@ -1047,21 +1082,30 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               onError={setLocalError}
             />}
             {!isEditing && !n.body && (
-              <div className={`text-sm text-left ${muted}`}>本文はまだありません。{isOwner ? '「編集」から書き込めます。' : ''}</div>
+              <div className={`text-sm text-left ${muted}`}>本文はまだありません。{canEdit ? '「編集」から書き込めます。' : ''}</div>
             )}
           </div>
 
-          {isOwner && (
+          {canEdit && (
             <div className="pt-2 flex justify-end items-center gap-2">
+              {!isEditing && (
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  title="これまでに保存した内容を見て、前の版に戻せます"
+                  className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} inline-flex items-center gap-1`}
+                ><NoteIcon name="clock" /> 履歴</button>
+              )}
               {!isEditing && (
                 <button
                   onClick={() => { setSettingsOpen(false); beginEdit(n); }}
                   className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
                 ><NoteIcon name="pencil" /> 編集</button>
               )}
-              <button onClick={() => setDeleteNoteTarget(n)} className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-500 hover:bg-red-50 inline-flex items-center gap-1">
-                <TrashIcon className="w-4 h-4" />このノートを削除
-              </button>
+              {isOwner && (
+                <button onClick={() => setDeleteNoteTarget(n)} className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-500 hover:bg-red-50 inline-flex items-center gap-1">
+                  <TrashIcon className="w-4 h-4" />このノートを削除
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1116,7 +1160,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
         {recovered && !unavailable && (() => {
           const b = recovered;
-          const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && n.owner === me.name) : undefined;
+          const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && (n.owner === me.name || n.allowEdit)) : undefined;
           const changedSince = !!target && b.kind === 'edit' && target.updatedAt !== b.baseUpdatedAt;
           const stillLoading = loading && notes.length === 0;
           return (
@@ -1346,6 +1390,28 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       </div>
 
       {helpOpen && <NotesHelpModal isDarkMode={d} onClose={() => setHelpOpen(false)} />}
+
+      {historyOpen && selected && (
+        <NoteHistoryModal
+          note={selected}
+          isDarkMode={d}
+          onClose={() => setHistoryOpen(false)}
+          onRestore={async v => { await api.saveNote(selected.id, { title: v.title, body: v.body }); }}
+        />
+      )}
+
+      <ConfirmationModal
+        isOpen={overwriteConfirm}
+        onClose={() => setOverwriteConfirm(false)}
+        onConfirm={() => { setOverwriteConfirm(false); void handleSaveEdit(true); }}
+        title="他の人がこのノートを更新しています"
+        titleClassName="text-amber-600"
+        confirmLabel="上書きして保存"
+        cancelLabel="編集に戻る"
+      >
+        <p>あなたが編集している間に、{selected?.updatedBy && selected.updatedBy !== me.name ? `${selected.updatedBy} さんが` : '他の人が'}このノートを更新しました。</p>
+        <p className="mt-2 text-sm">このまま保存すると、あなたの内容で上書きされます。相手の内容は「履歴」に残るので、あとで見たり戻したりできます。</p>
+      </ConfirmationModal>
 
       {/* フォルダ作成・設定 */}
       {folderDlg && (

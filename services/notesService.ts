@@ -11,7 +11,7 @@
 
 import { supabase } from '../lib/supabaseClient';
 import {
-  Note, NoteFolder, NoteRead, NoteTemplate, NoteVisibility, NoteSourceSnapshot, User,
+  Note, NoteFolder, NoteRead, NoteTemplate, NoteVersion, NoteVisibility, NoteSourceSnapshot, User,
 } from '../types';
 
 // ────────────────────────────────────────────────────────────
@@ -125,7 +125,14 @@ export function rowToNote(row: any): Note {
     createdAt:       row.created_at,
     updatedAt:       row.updated_at,
     updatedBy:       row.updated_by ?? null,
+    allowEdit:       row.allow_edit ?? false,
   };
+}
+
+/** viewer がこのノートの本文を編集できるか(オーナー、または共同編集がオンで見られる人) */
+export function canEditNote(note: Note, viewer: Viewer): boolean {
+  if (note.owner === viewer.name) return true;
+  return note.allowEdit && canView(note, viewer);
 }
 
 export function rowToFolderPublic(row: any): NoteFolder { return rowToFolder(row); }
@@ -270,7 +277,11 @@ export async function createNote(params: NewNoteParams): Promise<Note> {
 }
 
 export type NotePatch = Partial<Pick<Note,
-  'title' | 'body' | 'folderId' | 'visibility' | 'sharedWith' | 'pinned' | 'tags'>>;
+  'title' | 'body' | 'folderId' | 'visibility' | 'sharedWith' | 'pinned' | 'tags' | 'allowEdit'>>;
+
+/** 共同編集・編集履歴用のDB更新(20261123_add_note_versions_and_coedit.sql)がまだのときの案内 */
+const NOTE_EXT_SQL_HINT =
+  'データベースの更新が必要です(supabase/migrations/20261123_add_note_versions_and_coedit.sql を実行してください)';
 
 export async function updateNote(id: string, patch: NotePatch, editor: string): Promise<Note> {
   const row: Record<string, any> = { updated_at: new Date().toISOString(), updated_by: editor };
@@ -281,11 +292,76 @@ export async function updateNote(id: string, patch: NotePatch, editor: string): 
   if (patch.sharedWith !== undefined) row.shared_with = patch.sharedWith;
   if (patch.pinned     !== undefined) row.pinned      = patch.pinned;
   if (patch.tags       !== undefined) row.tags        = patch.tags;
+  if (patch.allowEdit  !== undefined) row.allow_edit  = patch.allowEdit;
   // 非公開に戻したら周知も解除
   if (patch.visibility === 'private') { row.is_announcement = false; }
   const { data, error } = await supabase.from('notes').update(row).eq('id', id).select('*').single();
-  if (error) fail('ノートの保存に失敗しました', error);
+  if (error) {
+    if (patch.allowEdit !== undefined && String(error?.message ?? '').includes('allow_edit')) {
+      throw new Error(`共同編集の設定を保存できませんでした: ${NOTE_EXT_SQL_HINT}`);
+    }
+    fail('ノートの保存に失敗しました', error);
+  }
   return rowToNote(data);
+}
+
+// ────────────────────────────────────────────────────────────
+// 編集履歴
+// ────────────────────────────────────────────────────────────
+
+/** 1ノートにつき残す履歴の件数(これより古いものは保存のたびに整理する) */
+export const NOTE_VERSION_LIMIT = 30;
+
+function rowToVersion(row: any): NoteVersion {
+  return {
+    id:       row.id,
+    noteId:   row.note_id,
+    title:    row.title ?? '',
+    body:     row.body ?? '',
+    editedBy: row.edited_by ?? null,
+    editedAt: row.edited_at,
+  };
+}
+
+/**
+ * 保存前の内容を履歴に1件残す(タイトル・本文を書き換える直前に呼ぶ)。
+ * 履歴はおまけの保険なので、失敗しても(テーブル未作成を含む)ノートの保存は止めない。
+ */
+export async function saveNoteVersion(prev: Note): Promise<void> {
+  try {
+    const { error } = await supabase.from('note_versions').insert({
+      note_id: prev.id,
+      title: prev.title,
+      body: prev.body,
+      edited_by: prev.updatedBy ?? prev.owner,
+      edited_at: prev.updatedAt,
+    });
+    if (error) return;
+    // 古い履歴を整理(新しいものから NOTE_VERSION_LIMIT 件だけ残す)
+    const { data: old } = await supabase
+      .from('note_versions')
+      .select('id')
+      .eq('note_id', prev.id)
+      .order('edited_at', { ascending: false })
+      .range(NOTE_VERSION_LIMIT, NOTE_VERSION_LIMIT + 199);
+    const ids = (old ?? []).map((r: any) => r.id);
+    if (ids.length > 0) await supabase.from('note_versions').delete().in('id', ids);
+  } catch { /* 履歴を残せなくても保存は続ける */ }
+}
+
+/** ノートの編集履歴を新しい順に取得 */
+export async function fetchNoteVersions(noteId: string): Promise<NoteVersion[]> {
+  const { data, error } = await supabase
+    .from('note_versions')
+    .select('*')
+    .eq('note_id', noteId)
+    .order('edited_at', { ascending: false })
+    .limit(NOTE_VERSION_LIMIT);
+  if (error) {
+    if (isMissingTableError(error)) throw new Error(`履歴はまだ使えません: ${NOTE_EXT_SQL_HINT}`);
+    throw new Error(`履歴の取得に失敗しました: ${error.message}`);
+  }
+  return (data ?? []).map(rowToVersion);
 }
 
 export async function deleteNote(id: string): Promise<void> {
