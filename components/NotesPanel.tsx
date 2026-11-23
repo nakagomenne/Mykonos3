@@ -189,12 +189,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     });
   };
   const endEdit = () => { setEditingId(null); setEditDraft(null); };
-  /** PC表示でノート一覧をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
-  const [listCollapsed, setListCollapsed] = useState(!!initialNoteId);
+  /** PC表示でノート一覧をバー状にたたむか(ノートを開いても自動ではたたまない。「たたむ」を押したときだけ) */
+  const [listCollapsed, setListCollapsed] = useState(false);
   /** PC表示でフォルダ欄をバー状にたたむか(ノートを開くとたたまれ、バーを押すと開く) */
   const [foldersCollapsed, setFoldersCollapsed] = useState(!!initialNoteId);
-  /** ノートを開いたとき: フォルダ欄・ノート一覧の両方をたたむ */
-  const foldPanes = () => { setListCollapsed(true); setFoldersCollapsed(true); };
+  /** ノートを開いたとき: フォルダ欄だけをたたむ(ノート一覧は出したままにして、続けて別のノートを選べるようにする) */
+  const foldPanes = () => { setFoldersCollapsed(true); };
 
   // 別のノートを開いたら、公開範囲の設定パネルは閉じる
   useEffect(() => { setSettingsOpen(false); }, [selectedId]);
