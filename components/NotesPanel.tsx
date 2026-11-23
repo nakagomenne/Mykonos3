@@ -1415,7 +1415,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 foldersFolded ? 'md:w-0 md:invisible' : `md:w-56 lg:w-60 border-r ${border}`}`}
             >
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-56 lg:w-60 overflow-y-auto p-2 gap-0.5">
-              <div className={`px-2 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
+              <div className={`px-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
                 <span>自分のノート</span>
                 {(
                   <button
@@ -1463,9 +1463,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 onClick={() => setFoldersCollapsed(false)}
                 title="フォルダ欄を開く"
                 aria-label="フォルダ欄を開く"
-                className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-3 pt-3 border-r ${border} ${surface2} ${hoverRow} transition`}
+                className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-1 pt-2 border-r ${border} ${surface2} ${hoverRow} transition`}
               >
-                <FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} />
+                <span className="h-8 flex items-center flex-shrink-0"><FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} /></span>
                 <span className={`text-xs font-semibold whitespace-nowrap flex-shrink-0 ${muted}`} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', height: '5em' }}>
                   フォルダ
                 </span>
@@ -1581,9 +1581,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 onClick={() => setListCollapsed(false)}
                 title="ノート一覧を開く"
                 aria-label="ノート一覧を開く"
-                className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-3 pt-3 border-r ${border} ${surface2} ${hoverRow} transition`}
+                className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-1 pt-2 border-r ${border} ${surface2} ${hoverRow} transition`}
               >
-                <FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} />
+                <span className="h-8 flex items-center flex-shrink-0"><FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} /></span>
                 <span className={`text-xs font-semibold whitespace-nowrap flex-shrink-0 ${muted}`} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', height: '6em' }}>
                   ノート一覧
                 </span>
