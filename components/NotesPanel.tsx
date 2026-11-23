@@ -372,8 +372,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** 編集中に他の人がこのノートを更新していたときの「上書きしますか」確認 */
   const [overwriteConfirm, setOverwriteConfirm] = useState(false);
   // 開いているノート(または新規下書き)があるときだけ、一覧をたためる
-  const listFolded = listCollapsed && (!!selected || !!draft);
-  const foldersFolded = foldersCollapsed && (!!selected || !!draft);
+  // ノートを開いていなくても、◀▶ でたためる
+  const listFolded = listCollapsed;
+  const foldersFolded = foldersCollapsed;
+  // 開いていたノートを閉じた(削除など)ときは、自動でたたんでいたフォルダ欄を開き直す
+  const hasOpenNote = !!selected || !!draft;
+  useEffect(() => { if (!hasOpenNote) setFoldersCollapsed(false); }, [hasOpenNote]);
   const currentFolder = view.kind === 'folder' ? folders.find(f => f.id === view.folderId) ?? null : null;
 
   // 選択中のノートが消えた(削除・非公開化など)ら選択解除
@@ -1301,7 +1305,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-56 lg:w-60 overflow-y-auto p-2 gap-0.5">
               <div className={`px-2 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
                 <span>自分のノート</span>
-                {(selected || draft) && (
+                {(
                   <button
                     onClick={() => setFoldersCollapsed(true)}
                     title="フォルダ欄をたたんで本文を広く表示します"
@@ -1366,7 +1370,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 <button onClick={() => setStep('folders')} className={`md:hidden flex-shrink-0 text-xs font-semibold px-2 py-1 rounded border ${border}`}><NoteIcon name="folder-open" /> フォルダ</button>
                 <span className="truncate flex-1">{viewTitle}</span>
                 <span className={`text-xs font-normal ${muted}`}>{visibleNotes.length}件</span>
-                {(selected || draft) && (
+                {(
                   <button
                     onClick={() => setListCollapsed(true)}
                     title="一覧をたたんで本文を広く表示します"
