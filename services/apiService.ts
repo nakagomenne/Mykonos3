@@ -446,6 +446,75 @@ export async function deleteUser(name: string): Promise<void> {
   if (error) throw new Error(`ユーザーの削除に失敗しました: ${error.message}`);
 }
 
+// ユーザー名を参照している列（users.name をキーとして各テーブルが名前で紐づいている）
+const USER_NAME_COLUMNS: { table: string; column: string }[] = [
+  { table: 'call_requests',     column: 'requester' },
+  { table: 'call_requests',     column: 'assignee' },
+  { table: 'call_requests',     column: 'prechecker' },
+  { table: 'comment_replies',   column: 'user_name' },
+  { table: 'comment_replies',   column: 'author' },
+  { table: 'comment_reactions', column: 'user_name' },
+  { table: 'comment_reactions', column: 'reactor' },
+  { table: 'note_folders',      column: 'owner' },
+  { table: 'notes',             column: 'owner' },
+  { table: 'notes',             column: 'updated_by' },
+  { table: 'note_reads',        column: 'user_name' },
+  { table: 'note_templates',    column: 'owner' },
+];
+// ユーザー名の配列を持つ列（ノートの「特定メンバーのみ」共有先）
+const USER_NAME_ARRAY_COLUMNS: { table: string; column: string }[] = [
+  { table: 'note_folders', column: 'shared_with' },
+  { table: 'notes',        column: 'shared_with' },
+];
+
+/**
+ * ユーザー名を変更する。
+ * 案件・コメント・ノートなど名前で紐づくデータを先に付け替え、最後に users の行を改名する。
+ * （途中で失敗しても users は旧名のまま残るので、同じ改名をやり直せば続きから完了できる）
+ * 案件の編集履歴（history）と不具合報告の報告者名は、当時の記録としてそのまま残す。
+ */
+export async function renameUser(oldName: string, newName: string): Promise<void> {
+  if (oldName === newName) return;
+
+  const { data: clash, error: clashError } = await supabase
+    .from('users')
+    .select('name')
+    .eq('name', newName)
+    .limit(1);
+  if (clashError) throw new Error(`ユーザー名の確認に失敗しました: ${clashError.message}`);
+  if (clash && clash.length > 0) throw new Error(`「${newName}」という名前のユーザーがすでに存在します。`);
+
+  for (const { table, column } of USER_NAME_COLUMNS) {
+    const { error } = await supabase
+      .from(table)
+      .update({ [column]: newName })
+      .eq(column, oldName);
+    if (error) throw new Error(`ユーザー名の変更に失敗しました（${table}.${column}）: ${error.message}`);
+  }
+
+  for (const { table, column } of USER_NAME_ARRAY_COLUMNS) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(`id,${column}`)
+      .contains(column, [oldName]);
+    if (error) throw new Error(`ユーザー名の変更に失敗しました（${table}.${column}）: ${error.message}`);
+    for (const row of (data ?? []) as any[]) {
+      const replaced = Array.from(new Set(((row[column] ?? []) as string[]).map(n => (n === oldName ? newName : n))));
+      const { error: updateError } = await supabase
+        .from(table)
+        .update({ [column]: replaced })
+        .eq('id', row.id);
+      if (updateError) throw new Error(`ユーザー名の変更に失敗しました（${table}.${column}）: ${updateError.message}`);
+    }
+  }
+
+  const { error: userError } = await supabase
+    .from('users')
+    .update({ name: newName })
+    .eq('name', oldName);
+  if (userError) throw new Error(`ユーザー名の変更に失敗しました: ${userError.message}`);
+}
+
 /** ユーザーを新規作成する（INSERT） */
 export async function insertUser(user: User): Promise<User> {
   const row = userToRow(user);
@@ -744,6 +813,24 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
           } else if (eventType === 'UPDATE' && newRow) {
             const name = newRow.name;
             if (!name) return;
+            // 改名されたユーザーは新しい名前では見つからないので、一覧を取り直して反映する
+            let refetchQueued = false;
+            callbacks.onUsersChange(prev => {
+              if (prev.length === 0 || prev.some(u => u.name === name) || refetchQueued) return prev;
+              refetchQueued = true;
+              fetchUsers()
+                .then(latest => {
+                  callbacks.onUsersChange(current => {
+                    const picMap = new Map(current.map(u => [u.name, u.profilePicture ?? null]));
+                    return latest.map(u => ({
+                      ...u,
+                      profilePicture: picMap.get(u.name) ?? (u.name === name ? newRow.profile_picture ?? null : null),
+                    }));
+                  });
+                })
+                .catch(e => console.error('[Realtime] users 再取得エラー:', e));
+              return prev;
+            });
             callbacks.onUsersChange(prev =>
               prev.map(u => {
                 if (u.name !== name) return u;

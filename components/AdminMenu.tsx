@@ -21,7 +21,7 @@ interface AdminMenuProps {
     onClose: () => void;
     users: User[];
     currentUser: User;
-    onSave: (updatedUsers: User[], deletedUserNames: string[]) => void;
+    onSave: (updatedUsers: User[], deletedUserNames: string[], renames: { from: string; to: string }[]) => void;
     onResetUserPassword: (userName: string) => void;
     announcement: string;
     onSetAnnouncement: (text: string) => void;
@@ -291,6 +291,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     // isOpen の「前回値」を保持して false→true の瞬間だけ初期化を行うために使う
     const prevIsOpenRef = useRef(false);
+    // 未保存の改名: 「いまの表示名 → 保存済みの元の名前」。保存時に元の行を改名するために使う
+    const renamesRef = useRef<Map<string, string>>(new Map());
     
     const [localUsers, setLocalUsers] = useState<User[]>([]);
     const [usersToDelete, setUsersToDelete] = useState<Set<string>>(new Set());
@@ -339,6 +341,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         if (isOpen && !wasOpen) {
             // false→true になった瞬間（メニューを開いたとき）だけ全初期化
             setLocalUsers(JSON.parse(JSON.stringify(users)));
+            renamesRef.current = new Map();
             setUsersToDelete(new Set());
             setSelectedUsersForTask(new Set());
             setActivePresets(new Set());
@@ -347,12 +350,13 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
             // すでに開いている状態で users が Realtime 更新された場合は
             // profilePicture だけ編集中の値を保持して他フィールドを同期する
             setLocalUsers(prev => {
-                const prevMap = new Map(prev.map(u => [u.name, u]));
+                // 改名中のユーザーは「元の名前」で突き合わせる
+                const prevMap = new Map(prev.map(u => [renamesRef.current.get(u.name) ?? u.name, u]));
                 return users.map(u => {
                     const editing = prevMap.get(u.name);
                     if (editing) {
-                        // 編集中の profilePicture を優先して保持する
-                        return { ...u, profilePicture: editing.profilePicture };
+                        // 編集中の profilePicture と未保存の改名を優先して保持する
+                        return { ...u, name: editing.name, profilePicture: editing.profilePicture };
                     }
                     return { ...u };
                 });
@@ -431,10 +435,27 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const handleUpdateName = (oldName: string, newName: string) => {
         const trimmed = newName.trim();
         if (!trimmed) { alert('名前を入力してください。'); return; }
-        if (trimmed !== oldName && localUsers.find(u => u.name === trimmed)) {
+        if (trimmed === oldName) { setEditingNameUser(null); return; }
+        const renames = renamesRef.current;
+        // 保存済みの元の名前（未保存の新規ユーザーには無い）
+        const originalName = renames.get(oldName) ?? (users.some(u => u.name === oldName) ? oldName : undefined);
+        const takenByOther =
+            localUsers.some(u => u.name === trimmed) ||
+            // 別のユーザーが改名前に使っていた名前は、保存が済むまで使えない
+            (trimmed !== originalName && users.some(u => u.name === trimmed));
+        if (takenByOther) {
             alert('同じ名前のユーザーがすでに存在します。'); return;
         }
+        renames.delete(oldName);
+        if (originalName !== undefined && originalName !== trimmed) renames.set(trimmed, originalName);
         setLocalUsers(prev => prev.map(u => u.name === oldName ? { ...u, name: trimmed } : u));
+        setUsersToDelete(prev => {
+            if (!prev.has(oldName)) return prev;
+            const next = new Set(prev);
+            next.delete(oldName);
+            next.add(trimmed);
+            return next;
+        });
         setEditingNameUser(null);
     };
 
@@ -445,8 +466,14 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     const handleSave = () => {
         const finalUsers = localUsers.filter(u => !usersToDelete.has(u.name));
-        const deletedNames = Array.from(usersToDelete);
-        onSave(finalUsers, deletedNames);
+        // 削除は保存済みの元の名前で行う（改名してから削除にした場合に備える）
+        const deletedNames = Array.from(usersToDelete)
+            .map(name => renamesRef.current.get(name) ?? name)
+            .filter(name => users.some(u => u.name === name));
+        const renames = Array.from(renamesRef.current.entries())
+            .filter(([to]) => !usersToDelete.has(to))
+            .map(([to, from]) => ({ from, to }));
+        onSave(finalUsers, deletedNames, renames);
         onClose();
     };
 

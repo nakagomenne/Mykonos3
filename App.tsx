@@ -42,6 +42,7 @@ import {
   upsertUsers,
   deleteUser as apiDeleteUser,
   insertUser as apiInsertUser,
+  renameUser as apiRenameUser,
   updateUserAvailabilityStatus,
   updateUserAvailabilityStatusWithRevert,
   updateUserPassword as apiUpdateUserPassword,
@@ -1679,11 +1680,25 @@ const App: React.FC = () => {
     setIsAdminMenuOpen(false);
   };
 
-  const handleAdminSave = async (updatedUsers: User[], deletedUserNames: string[]) => {
+  const handleAdminSave = async (
+    updatedUsers: User[],
+    deletedUserNames: string[],
+    renames: { from: string; to: string }[] = []
+  ) => {
     try {
       // 削除処理
       for (const name of deletedUserNames) {
         await apiDeleteUser(name);
+      }
+
+      // 改名処理（元の行を改名し、案件・ノートなど名前で紐づくデータも付け替える）
+      // ※ 以前は改名後の名前を「新規ユーザー」と誤判定して追加し、元のユーザーが残っていた
+      const newToOld = new Map<string, string>();
+      const oldToNew = new Map<string, string>();
+      for (const { from, to } of renames) {
+        await apiRenameUser(from, to);
+        newToOld.set(to, from);
+        oldToNew.set(from, to);
       }
 
       // 既存ユーザーのname一覧（削除前のstateを参照）
@@ -1691,8 +1706,10 @@ const App: React.FC = () => {
 
       // 新規ユーザーと既存ユーザーを分離して個別処理
       for (const u of updatedUsers) {
-        if (existingNames.has(u.name)) {
-          const original = users.find(orig => orig.name === u.name);
+        const isExisting = newToOld.has(u.name) || (existingNames.has(u.name) && !oldToNew.has(u.name));
+        if (isExisting) {
+          const originalName = newToOld.get(u.name) ?? u.name;
+          const original = users.find(orig => orig.name === originalName);
 
           // プロフィール画像の変更を先に単独送信（Storage優先、フォールバックでBase64）
           if (original?.profilePicture !== u.profilePicture) {
@@ -1721,8 +1738,40 @@ const App: React.FC = () => {
       const latestUsers = await fetchUsers();
       setUsers(prev => {
         const picMap = new Map(prev.map(u => [u.name, u.profilePicture ?? null]));
-        return latestUsers.map(u => ({ ...u, profilePicture: picMap.get(u.name) ?? null }));
+        return latestUsers.map(u => ({
+          ...u,
+          profilePicture: picMap.get(u.name) ?? picMap.get(newToOld.get(u.name) ?? '') ?? null,
+        }));
       });
+
+      if (oldToNew.size > 0) {
+        // 画面上の案件・表示中メンバー・ログイン中の自分も新しい名前に合わせる
+        const renamed = (name: string) => oldToNew.get(name) ?? name;
+        setCalls(prevCalls =>
+          prevCalls.map(call => {
+            const requester = renamed(call.requester);
+            const assignee = renamed(call.assignee);
+            const prechecker = call.prechecker ? renamed(call.prechecker) : call.prechecker;
+            return requester === call.requester && assignee === call.assignee && prechecker === call.prechecker
+              ? call
+              : { ...call, requester, assignee, prechecker };
+          })
+        );
+        if (oldToNew.has(selectedMember)) {
+          setSelectedMember(renamed(selectedMember));
+        }
+        if (currentUser && oldToNew.has(currentUser.name)) {
+          const selfNewName = renamed(currentUser.name);
+          const renamedSelf = latestUsers.find(u => u.name === selfNewName);
+          if (renamedSelf) {
+            setCurrentUser({
+              ...renamedSelf,
+              profilePicture: currentUser.profilePicture,
+              isLoggedInAsAdmin: currentUser.isLoggedInAsAdmin,
+            });
+          }
+        }
+      }
 
       if (deletedUserNames.length > 0) {
         // 削除されたユーザーが担当の案件を「(削除済み)」に
