@@ -106,9 +106,9 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   '共有': { backgroundColor: '#d4edbc', color: '#01b96e' },
   '対応': { backgroundColor: '#b10202', color: '#ffcfc9' },
   '立ち上げ': { backgroundColor: '#e2e2e2', color: '#fd0000' },
-  'SB光前確': { backgroundColor: '#ffeb00', color: '#0193be' },
+  'SB光前確': { backgroundColor: '#ffeb00', color: '#333333' },
   // 後確は前確の配色を反転（同じ商材だと分かり、前確と見分けがつくように）
-  'SB光後確': { backgroundColor: '#0193be', color: '#ffeb00' },
+  'SB光後確': { backgroundColor: '#333333', color: '#ffeb00', border: '1px solid #ffeb00' },
   'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
   'AIR後確': { backgroundColor: '#003361', color: '#e8eaed' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
