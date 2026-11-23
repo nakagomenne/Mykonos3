@@ -114,7 +114,7 @@ const fmtDateTime = (iso: string) => {
  * (たたむ→開く、開く→たたむ で、ボタンがくるっと逆向きになったように見せる)
  */
 const FoldArrow: React.FC<{ dir: 'left' | 'right'; className?: string }> = ({ dir, className = '' }) => (
-  <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className={`note-fold-arrow ${className}`}>
+  <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className={`note-fold-arrow ${dir === 'left' ? 'note-fold-arrow-cw' : ''} ${className}`}>
     <path d={dir === 'left' ? 'M8 1 L2 5 L8 9 Z' : 'M2 1 L8 5 L2 9 Z'} fill="currentColor" />
   </svg>
 );
