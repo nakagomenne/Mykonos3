@@ -15,6 +15,8 @@ interface NoteEditorProps {
   onChange?: (html: string) => void;
   /** 画像ファイルをアップロードして公開URLを返す */
   onUploadImage?: (file: File) => Promise<string>;
+  /** 画像以外のファイル(PDF・Excel など)をアップロードして、URL と表示名を返す */
+  onUploadFile?: (file: File) => Promise<{ url: string; name: string }>;
   editable?: boolean;
   isDarkMode?: boolean;
   placeholder?: string;
@@ -57,16 +59,21 @@ const ToolRow: React.FC<{ label: string; dark: boolean; children: React.ReactNod
 );
 
 const NoteEditor: React.FC<NoteEditorProps> = ({
-  value, onChange, onUploadImage, editable = true, isDarkMode = false,
+  value, onChange, onUploadImage, onUploadFile, editable = true, isDarkMode = false,
   placeholder = 'ここに本文を入力…(画像は貼り付け・ドラッグでも追加できます)', templates, onError, toolbarTop = 0,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  // handlePaste/handleDrop から最新の editor を参照するための ref
+  const editorRef = useRef<Editor | null>(null);
   const [uploading, setUploading] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
 
   // onUploadImage / onError は props が変わっても editor を作り直さないよう ref 経由で参照
   const uploadRef = useRef(onUploadImage);
+  const uploadFileRef = useRef(onUploadFile);
+  useEffect(() => { uploadFileRef.current = onUploadFile; }, [onUploadFile]);
   const errorRef = useRef(onError);
   const changeRef = useRef(onChange);
   const lastHtmlRef = useRef(value);
@@ -89,11 +96,51 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     }
   }, []);
 
+  /** 画像以外のファイルを送信して、本文にダウンロード用のリンクとして入れる */
+  const insertFiles = useCallback(async (editor: Editor, files: File[]) => {
+    if (!uploadFileRef.current) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const { url, name } = await uploadFileRef.current(file);
+        editor.chain().focus()
+          .insertContent({ type: 'text', text: name, marks: [{ type: 'link', attrs: { href: url } }] })
+          .insertContent(' ')
+          .run();
+      }
+    } catch (e: any) {
+      errorRef.current?.(e?.message ?? 'ファイルのアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  /** 貼り付け・ドラッグ・選択されたファイルを、画像とそれ以外に分けて追加する */
+  const addFiles = useCallback((all: File[]): boolean => {
+    const images = uploadRef.current ? all.filter(f => f.type.startsWith('image/')) : [];
+    const others = uploadFileRef.current ? all.filter(f => !f.type.startsWith('image/')) : [];
+    if (images.length === 0 && others.length === 0) return false;
+    const ed = editorRef.current;
+    if (ed) void (async () => {
+      if (images.length) await insertImages(ed, images);
+      if (others.length) await insertFiles(ed, others);
+    })();
+    return true;
+  }, [insertImages, insertFiles]);
+
   const editor = useEditor({
     editable,
     content: value,
     extensions: [
-      StarterKit.configure({ heading: { levels: [2, 3] } }),
+      StarterKit.configure({
+        heading: { levels: [2, 3] },
+        // リンク(添付ファイル・URL): 閲覧中はクリックで別タブに開く。編集中はクリックしても開かない
+        link: {
+          openOnClick: 'whenNotEditable',
+          autolink: true,
+          HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
+        },
+      }),
       Image.configure({ inline: false, allowBase64: false }),
       Placeholder.configure({ placeholder }),
       Table.configure({ resizable: true }),
@@ -106,17 +153,13 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     editorProps: {
       attributes: { class: 'note-prose' },
       handlePaste: (_view, event) => {
-        const files = Array.from(event.clipboardData?.files ?? []).filter(f => f.type.startsWith('image/'));
-        if (files.length === 0 || !uploadRef.current) return false;
+        if (!addFiles(Array.from(event.clipboardData?.files ?? []))) return false;
         event.preventDefault();
-        if (editorRef.current) void insertImages(editorRef.current, files);
         return true;
       },
       handleDrop: (_view, event) => {
-        const files = Array.from((event as DragEvent).dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'));
-        if (files.length === 0 || !uploadRef.current) return false;
+        if (!addFiles(Array.from((event as DragEvent).dataTransfer?.files ?? []))) return false;
         event.preventDefault();
-        if (editorRef.current) void insertImages(editorRef.current, files);
         return true;
       },
     },
@@ -130,8 +173,6 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     },
   });
 
-  // handlePaste/handleDrop から最新の editor を参照するための ref
-  const editorRef = useRef<Editor | null>(null);
   useEffect(() => { editorRef.current = editor; }, [editor]);
 
   // 編集可/不可の切り替えでは更新イベントを出さない(開いただけで「変更あり」と見なされるのを防ぐ)
@@ -207,7 +248,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               onMouseDown={run(() => editor.chain().focus().undo().run())}><NoteIcon name="undo" /></button>
             <button type="button" title="やり直し" disabled={!state?.canRedo} className={btn(false, !state?.canRedo)}
               onMouseDown={run(() => editor.chain().focus().redo().run())}><NoteIcon name="redo" /></button>
-            {uploading && <span className={`text-xs ml-1 ${mutedText}`}><NoteIcon name="clock" /> 画像を送信中…</span>}
+            {uploading && <span className={`text-xs ml-1 ${mutedText}`}><NoteIcon name="clock" /> 送信中…</span>}
             {!toolsOpen && !uploading && (
               <span className={`hidden sm:inline text-xs ml-1 truncate ${mutedText}`}>見出し・箇条書き・表・画像など</span>
             )}
@@ -260,6 +301,25 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                         const files = Array.from(e.target.files ?? []);
                         e.target.value = '';
                         if (files.length) void insertImages(editor, files);
+                      }}
+                    />
+                  </>
+                )}
+                {onUploadFile && (
+                  <>
+                    <button type="button" title="PDF・Excel などのファイルを添付(ドラッグでも追加できます。20MBまで)" className={btn(false, uploading)} disabled={uploading}
+                      onMouseDown={e => { e.preventDefault(); attachInputRef.current?.click(); }}>
+                      <NoteIcon name="paperclip" /> ファイルを添付
+                    </button>
+                    <input
+                      ref={attachInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={e => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        if (files.length) addFiles(files);
                       }}
                     />
                   </>

@@ -479,6 +479,35 @@ export async function uploadNoteImage(file: File, owner: string): Promise<string
 }
 
 // ────────────────────────────────────────────────────────────
+// 添付ファイル (画像以外。PDF・Excel など。画像と同じバケットの files/ 以下に置く)
+// ────────────────────────────────────────────────────────────
+
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** 開くと動いてしまう種類のファイルは添付させない */
+const BLOCKED_FILE_EXTS = new Set([
+  'exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'ps1', 'vbs', 'js', 'jse', 'wsf', 'lnk', 'jar',
+  'html', 'htm', 'xhtml', 'svg', 'hta', 'dll', 'apk', 'sh',
+]);
+
+/** 添付ファイルを Storage にアップロードして、元のファイル名でダウンロードできる URL を返す */
+export async function uploadNoteFile(file: File): Promise<{ url: string; name: string }> {
+  const name = file.name || 'file';
+  const ext = (name.includes('.') ? name.split('.').pop() ?? '' : '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!ext) throw new Error('拡張子のないファイルは添付できません');
+  if (BLOCKED_FILE_EXTS.has(ext)) throw new Error(`「.${ext}」のファイルは添付できません`);
+  if (file.size > MAX_FILE_BYTES) throw new Error('添付ファイルは20MB以下にしてください');
+  const id = (crypto as any).randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  // Storage のキーに日本語などは使わない(元のファイル名はダウンロード時の名前として URL に付ける)
+  const path = `${new Date().toISOString().slice(0, 7)}/files/${id}.${ext}`;
+  const { error } = await supabase.storage
+    .from(NOTE_IMAGE_BUCKET)
+    .upload(path, file, { contentType: file.type || 'application/octet-stream', upsert: false });
+  if (error) throw new Error(`ファイルのアップロードに失敗しました: ${error.message}`);
+  const url = supabase.storage.from(NOTE_IMAGE_BUCKET).getPublicUrl(path, { download: name }).data.publicUrl;
+  return { url, name };
+}
+
+// ────────────────────────────────────────────────────────────
 // Realtime
 // ────────────────────────────────────────────────────────────
 

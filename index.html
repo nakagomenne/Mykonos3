@@ -50,6 +50,12 @@
   .note-prose img.ProseMirror-selectednode { outline: 3px solid #0193be; }
   .note-prose code { background: rgba(100,116,139,0.18); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
   .note-prose a { color: #0193be; text-decoration: underline; }
+  /* 添付ファイル(Storage の files/ 以下)へのリンクは、ファイルだと分かるように枠で囲む */
+  .note-prose a[href*="/files/"] {
+    display: inline-block; text-decoration: none; font-weight: 600;
+    border: 1px solid currentColor; border-radius: 6px; padding: 1px 8px; margin: 1px 0;
+  }
+  .note-prose a[href*="/files/"]::before { content: "添付 "; font-size: 0.75em; font-weight: 700; opacity: 0.75; }
   .note-prose ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
   .note-prose ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 8px; }
   .note-prose ul[data-type="taskList"] li > label { margin-top: 0.35em; user-select: none; }

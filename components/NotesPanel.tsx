@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Note, NoteFolder, NoteTemplate, NoteVisibility, User } from '../types';
 import type { NotesApi } from '../hooks/useNotes';
 import {
-  VISIBILITY_LABELS, fetchTemplates, getRecipients, uploadNoteImage,
+  VISIBILITY_LABELS, fetchTemplates, getRecipients, uploadNoteImage, uploadNoteFile,
 } from '../services/notesService';
 import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
@@ -61,6 +61,40 @@ interface NotesPanelProps {
   initialNoteId?: string | null;
   onClose: () => void;
 }
+
+/** 一覧の並び順(ピン留めは常に先頭) */
+type SortKey = 'updated' | 'created' | 'title';
+const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順' };
+const SORT_STORAGE_KEY = 'mikonote_sort';
+const loadSortKey = (): SortKey => {
+  try {
+    const v = localStorage.getItem(SORT_STORAGE_KEY);
+    return v === 'created' || v === 'title' ? v : 'updated';
+  } catch { return 'updated'; }
+};
+
+/**
+ * 書きかけの控え(この端末のブラウザ内だけに置く)。
+ * 「保存」を押す前に画面が閉じたり固まったりしても、次に開いたときに戻せるようにする。
+ */
+type NoteBackup =
+  | { kind: 'new'; draft: NoteDraft; tagInput: string; savedAt: string }
+  | { kind: 'edit'; draft: NoteEditDraft; tagInput: string; baseUpdatedAt: string; savedAt: string };
+const backupKey = (userName: string) => `mikonote_backup_${userName}`;
+const loadBackup = (userName: string): NoteBackup | null => {
+  try {
+    const raw = localStorage.getItem(backupKey(userName));
+    if (!raw) return null;
+    const b = JSON.parse(raw);
+    return b && (b.kind === 'new' || b.kind === 'edit') && b.draft ? b as NoteBackup : null;
+  } catch { return null; }
+};
+const storeBackup = (userName: string, b: NoteBackup | null) => {
+  try {
+    if (b) localStorage.setItem(backupKey(userName), JSON.stringify(b));
+    else localStorage.removeItem(backupKey(userName));
+  } catch { /* 容量不足などで控えを残せなくても、編集は続けられるようにする */ }
+};
 
 const fmtDate = (iso: string) => {
   const d = new Date(iso);
@@ -134,6 +168,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (!initialNoteId) return;
     const t = notes.find(n => n.id === initialNoteId);
     if (!t) return;
+    // 通知などから別のノートへ切り替わるとき、書きかけがあれば控えに残して、あとで戻せるようにする
+    if (hasUnsaved) {
+      const b = makeBackup();
+      if (b) { storeBackup(me.name, b); setRecovered(b); }
+    }
     setDraft(null);
     endEdit();
     foldPanes();
@@ -181,7 +220,20 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     return text;
   };
 
-  const visibleNotes = useMemo(() => {
+  // 絞り込み(作った人・タグ)と並び順
+  const [ownerFilter, setOwnerFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>(loadSortKey);
+  const changeSort = (k: SortKey) => {
+    setSortKey(k);
+    try { localStorage.setItem(SORT_STORAGE_KEY, k); } catch { /* 覚えられなくても並び替えはできる */ }
+  };
+  // 見ている場所(フォルダなど)を変えたら、絞り込みは解除する
+  const viewId = view.kind === 'folder' ? `folder:${view.folderId}` : view.kind;
+  useEffect(() => { setOwnerFilter(''); setTagFilter(''); }, [viewId]);
+
+  /** 絞り込み前の一覧(見ている場所 + 検索語) */
+  const baseNotes = useMemo(() => {
     const q = search.trim().toLowerCase();
     let base: Note[];
     if (q) {
@@ -207,10 +259,37 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         return words.every(w => hay.includes(w));
       });
     }
-    return [...base].sort((a, b) =>
-      Number(b.pinned) - Number(a.pinned) || b.updatedAt.localeCompare(a.updatedAt));
+    return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds]);
+
+  // 絞り込みの選択肢(今の一覧に出てくる人・タグだけ。件数つき)
+  const ownerOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    baseNotes.forEach(n => m.set(n.owner, (m.get(n.owner) ?? 0) + 1));
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'));
+  }, [baseNotes]);
+  const tagOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    baseNotes.forEach(n => n.tags.forEach(t => m.set(t, (m.get(t) ?? 0) + 1)));
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ja'));
+  }, [baseNotes]);
+  // 選んでいた人・タグが一覧から無くなったら(削除など)、その絞り込みは無かったことにする
+  const activeOwner = ownerOptions.some(([o]) => o === ownerFilter) ? ownerFilter : '';
+  const activeTag = tagOptions.some(([t]) => t === tagFilter) ? tagFilter : '';
+  const showOwnerFilter = ownerOptions.length > 1;
+  const showTagFilter = tagOptions.length > 0;
+
+  const visibleNotes = useMemo(() => {
+    let list = baseNotes;
+    if (activeOwner) list = list.filter(n => n.owner === activeOwner);
+    if (activeTag) list = list.filter(n => n.tags.includes(activeTag));
+    const byKey = (a: Note, b: Note) =>
+      sortKey === 'title' ? (a.title || '').localeCompare(b.title || '', 'ja') || b.updatedAt.localeCompare(a.updatedAt)
+      : sortKey === 'created' ? b.createdAt.localeCompare(a.createdAt)
+      : b.updatedAt.localeCompare(a.updatedAt);
+    return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned) || byKey(a, b));
+  }, [baseNotes, activeOwner, activeTag, sortKey]);
 
   // 自分が非表示にした周知(「周知(お知らせ)」一覧の最下部に別枠で出す)
   const hiddenAnnouncements = useMemo(
@@ -293,6 +372,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       pinned: draft.pinned,
     });
     setDraft(null);
+    if (!recovered) clearBackup();
     setTagInput('');
     setSearch('');
     endEdit();
@@ -323,6 +403,63 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasUnsaved]);
+
+  // ── 書きかけの控え(保存し忘れ・画面が閉じたときの保険) ──────────
+  /** 前回開いたときに保存されないまま残った書きかけ(戻すか捨てるかを選んでもらう) */
+  const [recovered, setRecovered] = useState<NoteBackup | null>(() => loadBackup(me.name));
+  /** 今の書きかけを控えの形にする(書きかけが無ければ null) */
+  const makeBackup = (): NoteBackup | null => {
+    const savedAt = new Date().toISOString();
+    if (draft) return { kind: 'new', draft, tagInput, savedAt };
+    if (selected && isEditing && editDraft) {
+      return { kind: 'edit', draft: editDraft, tagInput, baseUpdatedAt: selected.updatedAt, savedAt };
+    }
+    return null;
+  };
+  const clearBackup = () => storeBackup(me.name, null);
+  // 入力のたびに(少し待ってから)控えを更新する。変更が無い状態に戻ったら控えも消す
+  useEffect(() => {
+    if (recovered) return;   // 前回の書きかけをどうするか決めるまでは、控えに触らない
+    if (!draft && !editDraft) return;   // 保存・破棄で閉じたときは、その場で明示的に消している
+    if (!hasUnsaved) { clearBackup(); return; }
+    const t = window.setTimeout(() => storeBackup(me.name, makeBackup()), 600);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recovered, hasUnsaved, draft, editDraft, tagInput, me.name]);
+
+  /** 控えから書きかけを戻す */
+  const restoreBackup = (b: NoteBackup) => {
+    setRecovered(null);
+    setLocalError(null);
+    setSearch('');
+    setSettingsOpen(false);
+    setTagInput(b.tagInput ?? '');
+    const folderOk = (id: string | null) => (id && myFolders.some(f => f.id === id) ? id : null);
+    const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && n.owner === me.name) : undefined;
+    if (b.kind === 'edit' && target) {
+      setDraft(null);
+      setView({ kind: 'mine' });
+      setSelectedId(target.id);
+      setEditingId(target.id);
+      setEditDraft({ ...b.draft, folderId: folderOk(b.draft.folderId) });
+    } else {
+      // 新規ノートの書きかけ。編集していた元のノートが見つからないときも、新規ノートとして戻す
+      setSelectedId(null);
+      endEdit();
+      if (view.kind === 'shared' || view.kind === 'announce') setView({ kind: 'mine' });
+      setDraft({
+        title: b.draft.title,
+        body: b.draft.body,
+        folderId: folderOk(b.draft.folderId),
+        visibility: b.draft.visibility,
+        sharedWith: b.draft.sharedWith ?? [],
+        tags: b.draft.tags ?? [],
+        pinned: b.kind === 'new' ? !!b.draft.pinned : false,
+      });
+    }
+    foldPanes();
+    setStep('note');
+  };
 
   /** 保存していない内容を捨てて別の操作をする。内容があるときは確認する */
   const guard = (fn: () => void) => {
@@ -430,6 +567,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
     if (tags.join('\n') !== n.tags.join('\n')) patch.tags = tags;
     if (Object.keys(patch).length > 0) await api.saveNote(n.id, patch);
+    if (!recovered) clearBackup();
     endEdit();
     setSettingsOpen(false);
     setTagInput('');
@@ -637,6 +775,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             isDarkMode={d}
             onChange={html => patch({ body: html })}
             onUploadImage={file => uploadNoteImage(file, me.name)}
+            onUploadFile={uploadNoteFile}
             templates={templates}
             onError={setLocalError}
           />
@@ -903,6 +1042,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               toolbarTop={isOwner ? 54 : 0}
               onChange={html => patchEdit({ body: html })}
               onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
+              onUploadFile={isEditing ? uploadNoteFile : undefined}
               templates={isEditing ? templates : undefined}
               onError={setLocalError}
             />}
@@ -973,6 +1113,35 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <button onClick={() => { setLocalError(null); api.clearError(); }} className="font-bold" aria-label="エラーを閉じる">×</button>
           </div>
         )}
+
+        {recovered && !unavailable && (() => {
+          const b = recovered;
+          const target = b.kind === 'edit' ? notes.find(n => n.id === b.draft.id && n.owner === me.name) : undefined;
+          const changedSince = !!target && b.kind === 'edit' && target.updatedAt !== b.baseUpdatedAt;
+          const stillLoading = loading && notes.length === 0;
+          return (
+            <div className={`px-4 py-2 text-sm border-b flex flex-wrap items-center gap-x-3 gap-y-1.5 ${d ? 'bg-amber-900/40 border-amber-700 text-amber-100' : 'bg-amber-50 border-amber-300 text-amber-900'}`}>
+              <span className="flex-1 min-w-[220px]">
+                <NoteIcon name="warning" /> 保存されていない書きかけが残っています:
+                <b className="mx-1">「{b.draft.title || '(無題)'}」</b>
+                <span className="text-xs opacity-80">
+                  ({b.kind === 'edit' && target ? '編集の途中' : '新規ノート'}・{fmtDateTime(b.savedAt)} 時点)
+                </span>
+                {changedSince && <span className="block text-xs mt-0.5">※ このノートはその後に更新されています。復元して保存すると、書きかけの内容で上書きされます。</span>}
+              </span>
+              <button
+                onClick={() => guard(() => restoreBackup(b))}
+                disabled={busy || stillLoading}
+                className="px-3 py-1 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
+              >復元する</button>
+              <button
+                onClick={() => { clearBackup(); setRecovered(null); }}
+                disabled={busy}
+                className={`px-3 py-1 rounded-md text-sm border ${d ? 'border-amber-600 hover:bg-amber-900/60' : 'border-amber-400 hover:bg-amber-100'} disabled:opacity-50`}
+              >破棄する</button>
+            </div>
+          );
+        })()}
 
         {unavailable ? (
           <div className="flex-1 flex items-center justify-center p-6">
@@ -1068,6 +1237,48 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   ><NoteIcon name="chevron-left" /></button>
                 )}
               </div>
+              {/* 絞り込み・並び順 */}
+              <div className={`px-2 py-1.5 border-b ${border} ${surface2} flex flex-wrap items-center gap-1.5`}>
+                {showOwnerFilter && (
+                  <select
+                    value={activeOwner}
+                    onChange={e => setOwnerFilter(e.target.value)}
+                    aria-label="作った人で絞り込む"
+                    title="作った人で絞り込む"
+                    className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeOwner ? '!border-[#0193be] font-bold' : ''}`}
+                  >
+                    <option value="">作った人: 全員</option>
+                    {ownerOptions.map(([o, c]) => <option key={o} value={o}>{o === me.name ? `${o}(自分)` : o} ({c})</option>)}
+                  </select>
+                )}
+                {showTagFilter && (
+                  <select
+                    value={activeTag}
+                    onChange={e => setTagFilter(e.target.value)}
+                    aria-label="タグで絞り込む"
+                    title="タグで絞り込む"
+                    className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeTag ? '!border-[#0193be] font-bold' : ''}`}
+                  >
+                    <option value="">タグ: すべて</option>
+                    {tagOptions.map(([t, c]) => <option key={t} value={t}>#{t} ({c})</option>)}
+                  </select>
+                )}
+                <select
+                  value={sortKey}
+                  onChange={e => changeSort(e.target.value as SortKey)}
+                  aria-label="並び順"
+                  title="並び順(ピン留めしたノートは常に上に出ます)"
+                  className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24`}
+                >
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k}>{SORT_LABELS[k]}</option>)}
+                </select>
+                {(activeOwner || activeTag) && (
+                  <button
+                    onClick={() => { setOwnerFilter(''); setTagFilter(''); }}
+                    className={`text-xs px-2 py-1 rounded border ${border} ${hoverRow} whitespace-nowrap`}
+                  >絞り込みを解除</button>
+                )}
+              </div>
               <div className="flex-1 overflow-y-auto">
                 {draft && (
                   <button
@@ -1085,7 +1296,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
                 ) : visibleNotes.length === 0 ? (
                   draft ? null : <div className={`p-4 text-sm ${muted}`}>
-                    {search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
+                    {(activeOwner || activeTag) ? '絞り込みに一致するノートがありません。' : search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
                 ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
                 {/* 「周知(お知らせ)」を開いているときだけ、一覧の一番下に非表示にした周知を出す */}
@@ -1170,6 +1381,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         onConfirm={() => {
           const fn = pendingAction;
           setPendingAction(null);
+          if (!recovered) clearBackup();   // 自分で「破棄」を選んだ書きかけは、控えも消す
           setDraft(null);
           endEdit();
           setTagInput('');
