@@ -5,6 +5,7 @@ import { CheckIcon, ClipboardDocumentIcon, PencilIcon, PhoneMissedIcon } from '.
 import InlineEditPopup from './InlineEditPopup';
 import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
+import AlertModal from './AlertModal';
 import EmojiPicker from './EmojiPicker';
 import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
 
@@ -377,7 +378,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
           updatedData = { ...updatedData, requester: currentUser.name };
       }
       // 回線前確タブで申込番号に値が入力された場合、インポート完了チェックを自動ON
-      if (isPrecheckTheme && updatedData.applicationNumber && updatedData.applicationNumber.trim() !== '') {
+      if (isPrecheckTheme && hasPrecheckPermission && updatedData.applicationNumber && updatedData.applicationNumber.trim() !== '') {
           updatedData = { ...updatedData, imported: true };
       }
       // 回線前確タブでランクが「IMP依頼」の案件に申込番号が入力された場合：
@@ -484,6 +485,10 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
 
   const hasPrecheckPermission = currentUser.isLinePrechecker;
   const hasElecPermission = currentUser.isElecChecker;
+  /** この一覧(回線前確 / 電気契確)の「対応者」「インポート」を操作できる権限があるか */
+  const canOperateChecks = isElecTheme ? !!hasElecPermission : !!hasPrecheckPermission;
+  /** 権限のないメンバーがチェックしようとしたときに出すお知らせ(押した項目名) */
+  const [permissionAlert, setPermissionAlert] = useState<string | null>(null);
 
   // 対応者重複チェック用モーダルの状態
   const [precheckerConflictCall, setPrecheckerConflictCall] = useState<CallRequest | null>(null);
@@ -497,7 +502,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
 
   const handlePrecheckerClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!(hasPrecheckPermission || hasElecPermission) || isCompleted) return;
+    if (isCompleted) return;
+    if (!canOperateChecks) { setPermissionAlert('対応者'); return; }
 
     if (call.prechecker) {
       if (call.prechecker === currentUser.name) {
@@ -527,7 +533,8 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
 
   const handleImportClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!hasPrecheckPermission || isCompleted) return;
+    if (isCompleted) return;
+    if (!canOperateChecks) { setPermissionAlert('インポート'); return; }
     
     const newImportedStatus = !call.imported;
     const updateData: Partial<Omit<CallRequest, 'id'>> = { imported: newImportedStatus };
@@ -888,13 +895,13 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
               {call.imported ? (
                 <button
                   onClick={handleImportClick}
-                  disabled={!hasPrecheckPermission || isCompleted}
+                  disabled={isCompleted}
                   className={`px-2 py-1 text-xs font-medium rounded transition ${
-                    !hasPrecheckPermission || isCompleted
+                    isCompleted
                       ? 'cursor-not-allowed bg-slate-100 text-slate-500'
                       : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
                   }`}
-                  title={hasPrecheckPermission ? "クリックして解除" : ""}
+                  title={canOperateChecks ? "クリックして解除" : ""}
                 >
                   完了
                 </button>
@@ -904,7 +911,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                     className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                       isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={!hasPrecheckPermission || isCompleted}
+                    disabled={isCompleted}
                     onClick={handleImportClick}
                     aria-label={`Mark import for call ${call.customerId}`}
                   />
@@ -935,11 +942,11 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
               {call.prechecker ? (
                 <button
                   onClick={handlePrecheckerClick}
-                  disabled={!(hasPrecheckPermission || hasElecPermission) || isCompleted}
+                  disabled={isCompleted}
                   className={`px-2 py-1 text-xs font-medium rounded transition ${
-                       !(hasPrecheckPermission || hasElecPermission) || isCompleted ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
+                       isCompleted ? 'cursor-not-allowed bg-slate-100 text-slate-500' : 'cursor-pointer bg-green-100 text-green-800 hover:bg-green-200'
                   }`}
-                  title={(hasPrecheckPermission || hasElecPermission) ? "クリックして変更/解除" : ""}
+                  title={canOperateChecks ? "クリックして変更/解除" : ""}
                 >
                   {call.prechecker}
                 </button>
@@ -949,7 +956,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                     className={`cursor-pointer h-5 w-5 rounded-full border-2 border-slate-400 bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                         isElecTheme ? 'focus:ring-[#2d5a9e]' : isPrecheckTheme ? 'focus:ring-[#118f82]' : 'focus:ring-[#0193be]'
                     } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    disabled={!(hasPrecheckPermission || hasElecPermission) || isCompleted}
+                    disabled={isCompleted}
                     onClick={handlePrecheckerClick}
                     aria-label={`Mark precheck for call ${call.customerId}`}
                   />
@@ -1037,6 +1044,16 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
           <p>顧客ID: <strong className="text-slate-800">{call.customerId}</strong> を完了しますか？</p>
         )}
       </ConfirmationModal>
+
+      <AlertModal
+        isOpen={!!permissionAlert}
+        onClose={() => setPermissionAlert(null)}
+        title="権限がありません"
+      >
+        <p>
+          「{permissionAlert}」のチェックは、{isElecTheme ? '電気契確' : '回線前確'}の権限を持っているメンバーだけが操作できます。
+        </p>
+      </AlertModal>
 
       <ConfirmationModal
         isOpen={!!precheckerConflictCall}

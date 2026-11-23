@@ -4636,8 +4636,8 @@ const App: React.FC = () => {
                     newCallIds={newCallIds}
                     members={assigneesForEditing}
                     users={users}
-                    isPrecheckTheme={isPrecheckTheme}
-                    isElecTheme={isElecTheme}
+                    isPrecheckTheme={isPrecheckContext}
+                    isElecTheme={isElecContext}
                     currentUser={currentUser}
                     normalDuplicateIds={normalDuplicateIds}
                     precheckDuplicateIds={precheckDuplicateIds}
