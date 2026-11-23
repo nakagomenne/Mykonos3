@@ -133,6 +133,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** 「周知・共同編集」の設定を開いているか */
+  const [moreOpen, setMoreOpen] = useState(false);
+  /** 上のバーの「⋯」(削除など)を開いているか */
+  const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -314,6 +318,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** 本文を編集できるか(オーナー、または共同編集がオンのノート) */
   const canEdit = !!selected && (isOwner || selected.allowEdit);
   const isEditing = !!selected && canEdit && editingId === selected.id;
+  // 別のノートに移ったら、開いていた設定やメニューは閉じる
+  const selectedNoteId = selected?.id ?? null;
+  useEffect(() => { setSettingsOpen(false); setMoreOpen(false); setMenuOpen(false); }, [selectedNoteId]);
   const [historyOpen, setHistoryOpen] = useState(false);
   /** 編集中に他の人がこのノートを更新していたときの「上書きしますか」確認 */
   const [overwriteConfirm, setOverwriteConfirm] = useState(false);
@@ -841,30 +848,100 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const folderName = n.folderId ? folders.find(f => f.id === n.folderId)?.name : undefined;
     const e = isEditing && editDraft && editDraft.id === n.id ? editDraft : null;
     const shown = e ?? n;   // 編集中は下書き、それ以外は保存済みの内容
+    const readNames = new Set(reads.filter(r => r.noteId === n.id).map(r => r.userName));
+    const readCount = recipients.filter(name => readNames.has(name)).length;
+    const chip = 'inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 border transition whitespace-nowrap';
+    const chipIdle = `${border} ${hoverRow}`;
+    const chipOn = 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]';
+    const tagCls = `text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`;
     return (
       <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {isEditing && (
-          <div className={`sticky top-0 z-20 px-4 py-2.5 flex items-center gap-2 border-b ${d ? 'bg-sky-900/40 border-sky-700' : 'bg-sky-50 border-sky-300'}`}>
+        {/* 上のバー: タイトルと主な操作。本文が長くても常に見える(高さは NoteEditor の toolbarTop と合わせる) */}
+        <div
+          style={{ height: 54 }}
+          className={`sticky top-0 z-20 shrink-0 px-3 flex items-center gap-2 border-b ${
+            isEditing ? (d ? 'bg-[#16283a] border-sky-700' : 'bg-sky-50 border-sky-300') : `${d ? 'bg-[#1a2234]' : 'bg-white'} ${border}`
+          }`}
+        >
+          <input
+            value={shown.title}
+            readOnly={!isEditing}
+            onChange={ev => patchEdit({ title: ev.target.value })}
+            placeholder={isEditing ? 'タイトル' : '(無題)'}
+            title={isEditing ? undefined : shown.title}
+            className={`flex-1 min-w-0 text-lg font-bold px-2 py-1 rounded-md border focus:outline-none ${
+              isEditing
+                ? `${d ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-300'} focus:border-[#0193be]`
+                : 'bg-transparent border-transparent cursor-default truncate'
+            }`}
+          />
+          {isOwner && (
+            <button
+              onClick={() => api.editNote(n.id, { pinned: !n.pinned }, { immediate: true })}
+              title={n.pinned ? 'ピン留めを外す' : 'ピン留め'}
+              className={`text-xl px-1 ${n.pinned ? 'text-amber-500' : muted}`}
+            >{n.pinned ? '★' : '☆'}</button>
+          )}
+          {isEditing ? (
             <>
-                <span className={`text-sm font-bold flex-1 min-w-0 truncate ${d ? 'text-sky-300' : 'text-[#01607a]'}`}>
-                  <NoteIcon name="pencil" /> 編集中
-                  <span className={`ml-2 text-xs font-normal ${editDirty ? 'text-amber-600' : muted}`}>
-                    {editDirty ? '未保存の変更があります' : '「保存」を押すと反映されます'}
-                  </span>
-                </span>
-                <button
-                  onClick={cancelEdit}
-                  disabled={busy}
-                  className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
-                >キャンセル</button>
-                <button
-                  onClick={() => handleSaveEdit()}
-                  disabled={busy}
-                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50"
-                >{busy ? '保存中…' : '保存'}</button>
+              <span className={`hidden lg:inline text-xs whitespace-nowrap ${editDirty ? 'text-amber-600' : muted}`}>
+                {editDirty ? '未保存の変更があります' : '編集中'}
+              </span>
+              <button
+                onClick={cancelEdit}
+                disabled={busy}
+                className={`text-sm px-3 py-1.5 rounded-md border whitespace-nowrap ${border} ${hoverRow} disabled:opacity-50`}
+              >キャンセル</button>
+              <button
+                onClick={() => handleSaveEdit()}
+                disabled={busy}
+                className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50 whitespace-nowrap"
+              >{busy ? '保存中…' : '保存'}</button>
             </>
-          </div>
-        )}
+          ) : (
+            <>
+              {canEdit && (
+                <button
+                  onClick={() => { setSettingsOpen(false); setMoreOpen(false); setMenuOpen(false); beginEdit(n); }}
+                  className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1 whitespace-nowrap"
+                ><NoteIcon name="pencil" /> 編集</button>
+              )}
+              {canEdit && (
+                <button
+                  onClick={() => setHistoryOpen(true)}
+                  title="これまでに保存した内容を見て、前の版に戻せます"
+                  className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} inline-flex items-center gap-1 whitespace-nowrap`}
+                ><NoteIcon name="clock" /><span className="hidden sm:inline"> 履歴</span></button>
+              )}
+              {!isOwner && (
+                <button onClick={handleCopy} disabled={busy} className={`${canEdit ? `border ${border} ${hoverRow}` : 'text-white bg-[#0193be] hover:bg-[#017a9c]'} text-sm px-3 py-1.5 rounded-md font-semibold disabled:opacity-50 whitespace-nowrap`}>
+                  <NoteIcon name="copy" /><span className="hidden sm:inline"> {canEdit ? '自分用にコピー' : '自分用にコピーして編集'}</span><span className="sm:hidden"> コピー</span>
+                </button>
+              )}
+              {isOwner && (
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen(o => !o)}
+                    aria-label="その他の操作" aria-expanded={menuOpen} title="その他の操作(削除など)"
+                    className={`text-lg leading-none px-2.5 py-1.5 rounded-md border ${border} ${hoverRow}`}
+                  >⋯</button>
+                  {menuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                      <div className={`absolute right-0 top-full mt-1 z-40 w-52 rounded-lg border shadow-xl py-1 ${d ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
+                        <button
+                          onClick={() => { setMenuOpen(false); setDeleteNoteTarget(n); }}
+                          className="w-full text-left text-sm px-3 py-2 text-red-500 hover:bg-red-500/10 flex items-center gap-2"
+                        ><TrashIcon className="w-4 h-4" />このノートを削除</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         {n.isAnnouncement && !isOwner && (
           <div className={`px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
             <span className="text-sm flex-1 min-w-[200px]">
@@ -895,84 +972,57 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             )}
           </div>
         )}
-        {n.isAnnouncement && (isOwner || isAdmin) && (
+        {n.isAnnouncement && isAdmin && !isOwner && (
           <div className={`px-4 py-2.5 border-b ${border}`}>
             <NoteReadStatus note={n} users={users} reads={reads} isDarkMode={d} />
           </div>
         )}
 
-        <div className="p-4 space-y-3">
-          {/* タイトル */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className={`flex-1 min-w-[14rem] rounded-lg border px-3 py-2 transition-colors ${border} ${surface2} ${isEditing ? 'focus-within:border-[#0193be]' : ''}`}>
-              <input
-                value={shown.title}
-                readOnly={!isEditing}
-                onChange={ev => patchEdit({ title: ev.target.value })}
-                placeholder={isEditing ? 'タイトル' : '(無題)'}
-                className={`w-full min-w-0 text-xl font-bold bg-transparent focus:outline-none ${isEditing ? '' : 'cursor-default'}`}
-              />
-            </div>
-            {isOwner && (
-              <button
-                onClick={() => api.editNote(n.id, { pinned: !n.pinned }, { immediate: true })}
-                title={n.pinned ? 'ピン留めを外す' : 'ピン留め'}
-                className={`text-xl px-1 ${n.pinned ? 'text-amber-500' : muted}`}
-              >{n.pinned ? '★' : '☆'}</button>
-            )}
-            {!isOwner && canEdit && !isEditing && (
-              <button
-                onClick={() => { setSettingsOpen(false); beginEdit(n); }}
-                className="ml-auto text-sm px-4 py-2 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1 whitespace-nowrap"
-              ><NoteIcon name="pencil" /> 編集</button>
-            )}
-            {!isOwner && !isEditing && (
-              <button onClick={handleCopy} disabled={busy} className={`${canEdit ? `border ${border} ${hoverRow}` : 'ml-auto text-white bg-[#0193be] hover:bg-[#017a9c]'} text-sm px-3 py-2 rounded-md font-semibold disabled:opacity-50 whitespace-nowrap`}>
-                <NoteIcon name="copy" /> {canEdit ? '自分用にコピー' : '自分用にコピーして編集'}
-              </button>
-            )}
-          </div>
-
-          {/* メタ情報 */}
-          <div className={`text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>
-            <span><NoteIcon name="user" /> {n.owner}</span>
-            <span>作成 {fmtDateTime(n.createdAt)}</span>
-            <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
-            {!isOwner && <span><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>}
-            {n.allowEdit && n.visibility !== 'private' && <span><NoteIcon name="users" /> 共同編集</span>}
-          </div>
-
-          {/* オーナー用設定 */}
+        <div className="px-4 pt-3 pb-4 space-y-3">
+          {/* 設定の要約(1行)。押すと、その場で変えられる */}
           {isOwner ? (
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => setSettingsOpen(o => !o)}
+                  onClick={() => { setMoreOpen(false); setSettingsOpen(o => !o); }}
                   title="このノートを誰が見られるかを変更します"
-                  className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition ${settingsOpen ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]' : `${border} ${hoverRow}`}`}
+                  aria-expanded={settingsOpen}
+                  className={`${chip} ${settingsOpen ? chipOn : chipIdle}`}
                 >
-                  <span className={`text-xs ${muted}`}>公開範囲</span>
-                  <span className="font-bold"><VisibilityIcon visibility={shown.visibility} /> {VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${shown.sharedWith.length}名)` : ''}</span>
-                  <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
+                  <VisibilityIcon visibility={shown.visibility} />
+                  <span className="font-bold">{VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${shown.sharedWith.length}名)` : ''}</span>
+                  <span className="text-[9px]">{settingsOpen ? '▲' : '▼'}</span>
                 </button>
-                <label className="inline-flex items-center gap-1.5">
-                  <span className={`text-xs ${muted}`}>フォルダ</span>
+                <label className="inline-flex items-center" title="入れるフォルダ">
+                  <span className="sr-only">フォルダ</span>
                   <select
                     value={shown.folderId ?? ''}
                     onChange={ev => changeFolder(n.id, ev.target.value || null)}
-                    className={inputCls}
+                    className={`text-xs rounded-full border px-2 py-1 max-w-[11rem] focus:outline-none focus:ring-2 focus:ring-[#0193be] ${d ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
                   >
-                    <option value="">未設定</option>
+                    <option value="">フォルダなし</option>
                     {folderOptions.map(({ folder, depth }) => (
                       <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
                     ))}
                   </select>
                 </label>
+                <button
+                  onClick={() => { setSettingsOpen(false); setMoreOpen(o => !o); }}
+                  title="周知(読んだか確認する)と、共同編集の設定を開きます"
+                  aria-expanded={moreOpen}
+                  className={`${chip} ${moreOpen ? chipOn : n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20 text-amber-400' : 'border-amber-300 bg-amber-50 text-amber-700') : chipIdle}`}
+                >
+                  <NoteIcon name="megaphone" />
+                  {n.isAnnouncement
+                    ? <span className="font-bold">周知中 {readCount}/{recipients.length}人</span>
+                    : <span>周知</span>}
+                  {n.visibility !== 'private' && <span>・共同編集{n.allowEdit ? ' オン' : ''}</span>}
+                  <span className="text-[9px]">{moreOpen ? '▲' : '▼'}</span>
+                </button>
                 {isEditing ? (
                   <div className="inline-flex items-center gap-1 flex-wrap">
-                    <span className={`text-xs ${muted}`}>タグ</span>
                     {shown.tags.map(t => (
-                      <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                      <span key={t} className={`inline-flex items-center gap-1 ${tagCls}`}>
                         #{t}
                         <button onClick={() => patchEdit({ tags: shown.tags.filter(x => x !== t) })} className="hover:text-red-500" aria-label={`タグ ${t} を外す`}>×</button>
                       </span>
@@ -986,7 +1036,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                       className={`${inputCls} w-24 !py-0.5 text-xs`}
                     />
                   </div>
-                ) : n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
+                ) : n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
               </div>
 
               {settingsOpen && (
@@ -1005,46 +1055,54 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 </div>
               )}
 
-              {/* 共同編集 */}
-              {n.visibility !== 'private' && (
-                <label className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer ${n.allowEdit ? (d ? 'border-sky-600 bg-sky-900/20' : 'border-sky-300 bg-sky-50') : `${border} ${surface2}`}`}>
-                  <input
-                    type="checkbox"
-                    checked={n.allowEdit}
-                    disabled={busy}
-                    onChange={ev => { const on = ev.target.checked; void run(() => api.saveNote(n.id, { allowEdit: on })); }}
-                    className="w-4 h-4 accent-[#0193be]"
-                  />
-                  <span className="text-sm"><NoteIcon name="users" /> <b>共同編集</b></span>
-                  <span className={`text-xs ${muted}`}>オンにすると、このノートを見られる人もタイトルと本文を編集できます(公開範囲・削除・周知は作った人だけ)</span>
-                </label>
+              {moreOpen && (
+                <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-3`}>
+                  {/* 周知 */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    {n.visibility === 'private' ? (
+                      <>
+                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
+                        <button onClick={() => { setMoreOpen(false); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
+                      </>
+                    ) : n.isAnnouncement ? (
+                      <>
+                        <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> 周知中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
+                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`} title={editDirty ? '先に「保存」してください' : '内容を直したときなど、もう一度確認してもらいます'}>再周知する</button>
+                        <button onClick={() => run(() => api.unannounce(n.id))} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}>周知をやめる</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
+                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} title={editDirty ? '先に「保存」してください' : undefined} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50"><NoteIcon name="megaphone" /> 周知する</button>
+                      </>
+                    )}
+                  </div>
+                  {n.isAnnouncement && (
+                    <NoteReadStatus note={n} users={users} reads={reads} isDarkMode={d} />
+                  )}
+                  {/* 共同編集 */}
+                  {n.visibility !== 'private' && (
+                    <label className={`pt-3 border-t ${border} flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer`}>
+                      <input
+                        type="checkbox"
+                        checked={n.allowEdit}
+                        disabled={busy}
+                        onChange={ev => { const on = ev.target.checked; void run(() => api.saveNote(n.id, { allowEdit: on })); }}
+                        className="w-4 h-4 accent-[#0193be]"
+                      />
+                      <span className="text-sm"><NoteIcon name="users" /> <b>共同編集</b></span>
+                      <span className={`text-xs ${muted}`}>オンにすると、このノートを見られる人もタイトルと本文を編集できます(公開範囲・削除・周知は作った人だけ)</span>
+                    </label>
+                  )}
+                </div>
               )}
-
-              {/* 周知 */}
-              <div className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-3 gap-y-2 ${n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
-                {n.visibility === 'private' ? (
-                  <>
-                    <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
-                    <button onClick={() => setSettingsOpen(true)} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
-                  </>
-                ) : n.isAnnouncement ? (
-                  <>
-                    <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> 周知中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
-                    <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`} title={editDirty ? '先に「保存」してください' : '内容を直したときなど、もう一度確認してもらいます'}>再周知する</button>
-                    <button onClick={() => run(() => api.unannounce(n.id))} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}>周知をやめる</button>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
-                    <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} title={editDirty ? '先に「保存」してください' : undefined} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50"><NoteIcon name="megaphone" /> 周知する</button>
-                  </>
-                )}
-              </div>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2 items-center">
-              {n.tags.map(t => <span key={t} className={`text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`}>#{t}</span>)}
-              <span className={`text-xs ${muted}`}>{canEdit ? '共同編集のノートです。「編集」からタイトルと本文を書き換えられます' : '他の人のノートは読み取り専用です'}</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+              {n.allowEdit && n.visibility !== 'private' && <span className={`${chip} ${border}`}><NoteIcon name="users" /> 共同編集</span>}
+              {n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
+              {!canEdit && <span className={`text-xs ${muted}`}>読み取り専用です</span>}
             </div>
           )}
 
@@ -1067,8 +1125,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           )}
 
-          {/* エディタ(ノートごとに作り直す) */}
-          <div className={isEditing ? '' : `rounded-lg border ${border} ${surface2} p-4 min-h-[8rem]`}>
+          {/* 本文(ノートごとに作り直す)。閲覧中は枠をつけず、広く見せる */}
+          <div className={isEditing ? '' : 'min-h-[8rem] px-1'}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
               value={e ? e.body : n.body}
@@ -1086,28 +1144,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             )}
           </div>
 
-          {canEdit && (
-            <div className="pt-2 flex justify-end items-center gap-2">
-              {!isEditing && (
-                <button
-                  onClick={() => setHistoryOpen(true)}
-                  title="これまでに保存した内容を見て、前の版に戻せます"
-                  className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} inline-flex items-center gap-1`}
-                ><NoteIcon name="clock" /> 履歴</button>
-              )}
-              {!isEditing && (
-                <button
-                  onClick={() => { setSettingsOpen(false); beginEdit(n); }}
-                  className="text-sm px-5 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1"
-                ><NoteIcon name="pencil" /> 編集</button>
-              )}
-              {isOwner && (
-                <button onClick={() => setDeleteNoteTarget(n)} className="text-sm px-3 py-1.5 rounded-md border border-red-300 text-red-500 hover:bg-red-50 inline-flex items-center gap-1">
-                  <TrashIcon className="w-4 h-4" />このノートを削除
-                </button>
-              )}
-            </div>
-          )}
+          {/* 作った人・日付(本文の下に小さく) */}
+          <div className={`pt-2 border-t ${border} text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>
+            <span><NoteIcon name="user" /> {n.owner}</span>
+            <span>作成 {fmtDateTime(n.createdAt)}</span>
+            <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
+          </div>
         </div>
       </div>
     );
