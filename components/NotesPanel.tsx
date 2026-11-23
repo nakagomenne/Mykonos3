@@ -114,7 +114,7 @@ const fmtDateTime = (iso: string) => {
  * (たたむ→開く、開く→たたむ で、ボタンがくるっと逆向きになったように見せる)
  */
 const FoldArrow: React.FC<{ dir: 'left' | 'right'; className?: string }> = ({ dir, className = '' }) => (
-  <svg viewBox="0 0 10 10" width="11" height="11" aria-hidden="true" className={`note-fold-arrow ${className}`}>
+  <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className={`note-fold-arrow ${className}`}>
     <path d={dir === 'left' ? 'M8 1 L2 5 L8 9 Z' : 'M2 1 L8 5 L2 9 Z'} fill="currentColor" />
   </svg>
 );
@@ -1306,7 +1306,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     onClick={() => setFoldersCollapsed(true)}
                     title="フォルダ欄をたたんで本文を広く表示します"
                     aria-label="フォルダ欄をたたむ"
-                    className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded text-xs ${muted} ${hoverRow}`}
+                    className={`hidden md:inline-flex items-center justify-center w-8 h-8 rounded-md text-xs ${muted} ${hoverRow}`}
                   ><FoldArrow key={foldersFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
@@ -1371,7 +1371,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     onClick={() => setListCollapsed(true)}
                     title="一覧をたたんで本文を広く表示します"
                     aria-label="一覧をたたむ"
-                    className={`hidden md:inline-flex flex-shrink-0 items-center justify-center w-6 h-6 rounded text-xs ${muted} ${hoverRow}`}
+                    className={`hidden md:inline-flex flex-shrink-0 items-center justify-center w-8 h-8 rounded-md text-xs ${muted} ${hoverRow}`}
                   ><FoldArrow key={listFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
