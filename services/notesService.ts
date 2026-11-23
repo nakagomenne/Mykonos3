@@ -126,6 +126,8 @@ export function rowToNote(row: any): Note {
     updatedAt:       row.updated_at,
     updatedBy:       row.updated_by ?? null,
     allowEdit:       row.allow_edit ?? false,
+    announceImportant: row.announce_important ?? false,
+    announceDue:     row.announce_due ?? null,
   };
 }
 
@@ -386,16 +388,45 @@ export async function copyNoteToMine(note: Note, me: string): Promise<Note> {
 // ────────────────────────────────────────────────────────────
 
 /** アナウンスする(再アナウンスの場合は既読をリセットして全員に再確認してもらう) */
-export async function announceNote(noteId: string, editor: string): Promise<Note> {
+/** アナウンスのオプション(重要 / 確認の期限) */
+export interface AnnounceOptions {
+  important?: boolean;
+  /** YYYY-MM-DD。期限なしは null */
+  due?: string | null;
+}
+
+const ANNOUNCE_OPT_SQL_HINT =
+  'データベースの更新が必要です(supabase/migrations/20261124_add_note_announce_options.sql を実行してください)';
+
+/** 期限が過ぎているか(期限の日の間はまだ過ぎていない) */
+export function isAnnounceOverdue(due: string | null | undefined): boolean {
+  if (!due) return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return due < today;
+}
+
+/** 期限を「11/25」の形にする */
+export function formatAnnounceDue(due: string): string {
+  const [, m, d] = due.split('-');
+  return `${Number(m)}/${Number(d)}`;
+}
+
+export async function announceNote(noteId: string, editor: string, opts: AnnounceOptions = {}): Promise<Note> {
   const { error: delErr } = await supabase.from('note_reads').delete().eq('note_id', noteId);
   if (delErr && !isMissingTableError(delErr)) fail('既読のリセットに失敗しました', delErr);
   const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from('notes')
-    .update({ is_announcement: true, announced_at: now, updated_at: now, updated_by: editor })
-    .eq('id', noteId)
-    .select('*')
-    .single();
+  const base = { is_announcement: true, announced_at: now, updated_at: now, updated_by: editor };
+  const extras = { announce_important: !!opts.important, announce_due: opts.due || null };
+  let { data, error } = await supabase
+    .from('notes').update({ ...base, ...extras }).eq('id', noteId).select('*').single();
+  if (error && /announce_important|announce_due/.test(String(error?.message ?? ''))) {
+    // 「重要」「期限」の項目がまだデータベースに無い場合
+    if (opts.important || opts.due) {
+      throw new Error(`「重要」「期限」を付けられませんでした: ${ANNOUNCE_OPT_SQL_HINT}`);
+    }
+    ({ data, error } = await supabase.from('notes').update(base).eq('id', noteId).select('*').single());
+  }
   if (error) fail('アナウンスに失敗しました', error);
   return rowToNote(data);
 }

@@ -4,6 +4,7 @@ import { CallRequest, User, CallStatus, AvailabilityStatus, EditHistory, EditCha
 import CallList from './components/CallList';
 import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon, QuestionMarkCircleIcon } from './components/icons';
+import { isAnnounceOverdue, formatAnnounceDue } from './services/notesService';
 import { useNotes } from './hooks/useNotes';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
@@ -272,6 +273,15 @@ const App: React.FC = () => {
     };
   }, []);
   const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce });
+
+  // 重要なアナウンス(未確認)を画面中央に出す。「あとで」を押したら、次に開く(再読み込みする)か、
+  // 新しい重要なアナウンスが来るまで出さない
+  const [importantDismissedKey, setImportantDismissedKey] = useState('');
+  const importantUnread = useMemo(
+    () => (notesApi.readsLoaded ? notesApi.unreadAnnouncements.filter(n => n.announceImportant) : []),
+    [notesApi.readsLoaded, notesApi.unreadAnnouncements]
+  );
+  const importantKey = importantUnread.map(n => `${n.id}@${n.announcedAt ?? ''}`).sort().join(',');
 
   // Mykonos を開いたとき、閉じていた間に出た未確認のアナウンスがあれば1回だけ通知する
   const unreadAnnouncementsRef = useRef(notesApi.unreadAnnouncements);
@@ -3758,10 +3768,16 @@ const App: React.FC = () => {
       
       <main className="px-4 sm:px-6 lg:px-8 py-4">
         {/* Mikonote の未確認アナウンス(確認すると消える。押すとそのノートを開く) */}
-        {notesApi.unreadAnnouncements.length > 0 && (() => {
-          const unread = notesApi.unreadAnnouncements;
+        {notesApi.readsLoaded && notesApi.unreadAnnouncements.length > 0 && (() => {
+          // 重要なもの → 期限の近いもの の順に並べる
+          const unread = [...notesApi.unreadAnnouncements].sort((a, b) =>
+            (Number(b.announceImportant) - Number(a.announceImportant)) ||
+            (a.announceDue ?? '9999').localeCompare(b.announceDue ?? '9999'));
           const text = `Mikonoteに未確認のアナウンスがあります(${unread.length}件)　` +
-            unread.map(x => `「${x.title || '(無題)'}」${x.owner}`).join('　／　');
+            unread.map(x =>
+              `${x.announceImportant ? '【重要】' : ''}「${x.title || '(無題)'}」${x.owner}` +
+              (x.announceDue ? `(${isAnnounceOverdue(x.announceDue) ? '期限切れ' : '期限'} ${formatAnnounceDue(x.announceDue)})` : '')
+            ).join('　／　');
           return (
             <button
               type="button"
@@ -4743,6 +4759,50 @@ const App: React.FC = () => {
         onChange={handleIconFileChange}
       />
       
+      {/* 重要なアナウンス(未確認): 画面中央に表示 */}
+      {importantUnread.length > 0 && !isNotesOpen && importantKey !== importantDismissedKey && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[44]">
+          <div className={`${isDarkMode ? 'bg-[#1a2234] text-slate-200' : 'bg-white text-slate-700'} rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col`} role="dialog" aria-modal="true" aria-label="重要なアナウンス">
+            <div className="p-4 border-b border-red-300 bg-red-500 text-white rounded-t-xl">
+              <h2 className="text-lg font-bold">重要なアナウンスがあります</h2>
+              <p className="text-xs mt-0.5 opacity-90">Mikonote に、まだ確認していない重要なアナウンスが {importantUnread.length} 件あります。</p>
+            </div>
+            <div className="p-3 overflow-y-auto space-y-2">
+              {importantUnread.map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => { setImportantDismissedKey(importantKey); setNotesInitialId(n.id); setIsNotesOpen(true); }}
+                  className={`w-full text-left rounded-lg border px-3 py-2 transition ${isDarkMode ? 'border-slate-600 hover:bg-slate-700/60' : 'border-slate-200 hover:bg-slate-100'}`}
+                >
+                  <div className="font-bold text-sm">{n.title || '(無題)'}</div>
+                  <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {n.owner} さんから
+                    {n.announceDue && (
+                      <span className={isAnnounceOverdue(n.announceDue) ? 'ml-2 font-bold text-red-500' : 'ml-2 font-bold'}>
+                        {isAnnounceOverdue(n.announceDue) ? '期限切れ' : '期限'} {formatAnnounceDue(n.announceDue)}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className={`p-3 border-t flex justify-end gap-2 ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <button
+                type="button"
+                onClick={() => setImportantDismissedKey(importantKey)}
+                className={`px-4 py-2 rounded-md text-sm border ${isDarkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'}`}
+              >あとで</button>
+              <button
+                type="button"
+                onClick={() => { setImportantDismissedKey(importantKey); setNotesInitialId(importantUnread[0].id); setIsNotesOpen(true); }}
+                className="px-5 py-2 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
+              >開いて確認する</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <CallDetailModal 
         calls={selectedCall ? [selectedCall] : searchResults}
         duplicateCalls={pendingDuplicate?.existingCalls}

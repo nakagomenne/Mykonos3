@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Note, NoteFolder, NoteTemplate, NoteVisibility, User } from '../types';
 import type { NotesApi } from '../hooks/useNotes';
 import {
-  VISIBILITY_LABELS, fetchTemplates, getRecipients, uploadNoteImage, uploadNoteFile,
+  VISIBILITY_LABELS, fetchTemplates, getRecipients, isAnnounceOverdue, formatAnnounceDue, uploadNoteImage, uploadNoteFile,
 } from '../services/notesService';
 import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
@@ -42,6 +42,10 @@ interface NoteDraft {
   pinned: boolean;
   /** 保存と同時にアナウンスするか */
   announce?: boolean;
+  /** アナウンスを「重要」にするか */
+  announceImportant?: boolean;
+  /** アナウンスの確認期限(YYYY-MM-DD。なしは空文字) */
+  announceDue?: string;
 }
 
 /** 既存ノートの「編集中」の内容(「保存」を押すまでDBには反映しない) */
@@ -111,6 +115,48 @@ const fmtDateTime = (iso: string) => {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+/** アナウンスのオプション(重要 / 確認の期限)を選ぶ欄。新規ノートと「アナウンスしますか?」の両方で使う */
+const AnnounceOptionFields: React.FC<{
+  important: boolean; due: string; dark: boolean;
+  onChange: (next: { important: boolean; due: string }) => void;
+}> = ({ important, due, dark, onChange }) => {
+  const sub = dark ? 'text-slate-400' : 'text-slate-500';
+  return (
+    <div className={`rounded-lg border px-3 py-2 space-y-2 ${dark ? 'border-slate-600' : 'border-slate-200'}`}>
+      <label className="flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer">
+        <input type="checkbox" checked={important} onChange={e => onChange({ important: e.target.checked, due })} className="w-4 h-4 accent-red-500" />
+        <span className="text-sm font-bold text-red-500">重要</span>
+        <span className={`text-xs ${sub}`}>まだ確認していない人には、Mykonos を開いたときに画面の中央に表示します</span>
+      </label>
+      <label className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-sm font-bold">確認の期限</span>
+        <input
+          type="date" value={due} onChange={e => onChange({ important, due: e.target.value })}
+          className={`text-sm rounded-md border px-2 py-1 ${dark ? 'bg-slate-800 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+        />
+        {due
+          ? <button type="button" onClick={() => onChange({ important, due: '' })} className={`text-xs underline ${sub}`}>期限をなくす</button>
+          : <span className={`text-xs ${sub}`}>なしでもかまいません</span>}
+      </label>
+    </div>
+  );
+};
+
+/** アナウンスの「重要」「期限」の札(一覧や本文の上で使う) */
+const AnnounceBadges: React.FC<{ note: Note; done?: boolean }> = ({ note, done = false }) => {
+  const overdue = !done && isAnnounceOverdue(note.announceDue);
+  return (
+    <>
+      {note.announceImportant && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap">重要</span>}
+      {note.announceDue && (
+        <span className={`text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap border ${overdue ? 'border-red-500 text-red-500' : 'border-current opacity-80'}`}>
+          {overdue ? '期限切れ' : '期限'} {formatAnnounceDue(note.announceDue)}
+        </span>
+      )}
+    </>
+  );
+};
+
 /**
  * たたむ(◀)/開く(▶)の三角。表示されるたびに、反対向きから180度まわって今の向きになる
  * (たたむ→開く、開く→たたむ で、ボタンがくるっと逆向きになったように見せる)
@@ -176,6 +222,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [deleteNoteTarget, setDeleteNoteTarget] = useState<Note | null>(null);
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<NoteFolder | null>(null);
   const [announceTarget, setAnnounceTarget] = useState<Note | null>(null);
+  /** 「アナウンスしますか?」で選ぶオプション(開くたびに、そのノートの今の設定から始める) */
+  const [announceOpts, setAnnounceOpts] = useState<{ important: boolean; due: string }>({ important: false, due: '' });
+  useEffect(() => {
+    if (announceTarget) setAnnounceOpts({ important: announceTarget.announceImportant, due: announceTarget.announceDue ?? '' });
+  }, [announceTarget]);
   const [confirmTarget, setConfirmTarget] = useState<Note | null>(null);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -454,7 +505,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     let announceFailed = false;
     if (draft.announce) {
       // ノートは作成済みなので、アナウンスだけ失敗しても下書きには戻さない(二重に作らないため)
-      try { await api.announce(note.id); } catch { announceFailed = true; }
+      try { await api.announce(note.id, { important: !!draft.announceImportant, due: draft.announceDue || null }); } catch { announceFailed = true; }
     }
     setDraft(null);
     if (!recovered) clearBackup();
@@ -586,7 +637,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   });
 
   const handleAnnounce = () => announceTarget && run(async () => {
-    await api.announce(announceTarget.id);
+    await api.announce(announceTarget.id, { important: announceOpts.important, due: announceOpts.due || null });
     setAnnounceTarget(null);
   });
 
@@ -749,7 +800,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <div className="flex items-center gap-1.5">
           {n.pinned && <span className="text-amber-500 text-xs">★</span>}
           <span className={`truncate flex-1 text-sm font-semibold ${n.title ? '' : muted}`}>{n.title || '(無題)'}</span>
-          {unread && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5">未確認</span>}
+          {unread && <AnnounceBadges note={n} />}
+          {unread && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap">未確認</span>}
           {n.isAnnouncement && !unread && <span title="アナウンス"><NoteIcon name="megaphone" /></span>}
           <span title={VISIBILITY_LABELS[n.visibility]} className="text-xs"><VisibilityIcon visibility={n.visibility} /></span>
         </div>
@@ -858,6 +910,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {(() => {
             const count = dr.visibility === 'private' ? 0 : getRecipients({ owner: me.name, visibility: dr.visibility, sharedWith: dr.sharedWith }, users).length;
             return (
+              <>
               <label className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer ${dr.announce ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
                 <input
                   type="checkbox"
@@ -879,6 +932,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                       : `保存すると、見られる ${count} 名に通知します`}
                 </span>
               </label>
+              {dr.announce && (
+                <AnnounceOptionFields
+                  important={!!dr.announceImportant}
+                  due={dr.announceDue ?? ''}
+                  dark={d}
+                  onChange={next => patch({ announceImportant: next.important, announceDue: next.due })}
+                />
+              )}
+              </>
             );
           })()}
 
@@ -1045,7 +1107,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <span className="text-sm flex-1 min-w-[200px]">
               {iRead
                 ? <><NoteIcon name="check-circle" /> {iHidden ? '確認済みで、アナウンスの一覧では非表示にしています' : 'このお知らせを確認済みです'}</>
-                : <><NoteIcon name="megaphone" /> {n.owner} さんからのアナウンスです。内容を読んだら「確認しました」を押してください。</>}
+                : <><NoteIcon name="megaphone" /> <span className="inline-flex items-center gap-1 align-middle mr-1"><AnnounceBadges note={n} /></span>{n.owner} さんからのアナウンスです。{n.announceDue ? `${formatAnnounceDue(n.announceDue)} までに、` : ''}内容を読んだら「確認しました」を押してください。</>}
             </span>
             {!iRead && (
               <button
@@ -1112,7 +1174,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 >
                   <NoteIcon name="megaphone" />
                   {n.isAnnouncement
-                    ? <span className="font-bold">アナウンス中 {readCount}/{recipients.length}人</span>
+                    ? <><span className="font-bold">アナウンス中 {readCount}/{recipients.length}人</span><AnnounceBadges note={n} done={readCount >= recipients.length} /></>
                     : <span>アナウンス</span>}
                   {n.visibility !== 'private' && <span>・共同編集{n.allowEdit ? ' オン' : ''}</span>}
                   <span className="text-[9px]">{moreOpen ? '▲' : '▼'}</span>
@@ -1654,6 +1716,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <p>「{announceTarget.title || '(無題)'}」を、閲覧できる {getRecipients(announceTarget, users).length} 名にアナウンスします。</p>
             <p className="mt-2 text-sm">対象の方にはプッシュ通知(通知を許可している場合)とヘッダーのバッジでお知らせし、「確認しました」の状況を確認できます。</p>
             {announceTarget.isAnnouncement && <p className="mt-2 text-sm text-amber-600">再アナウンスすると、これまでの確認状況はリセットされます。</p>}
+            <div className="mt-3">
+              <AnnounceOptionFields important={announceOpts.important} due={announceOpts.due} dark={false} onChange={setAnnounceOpts} />
+            </div>
           </>
         )}
       </ConfirmationModal>

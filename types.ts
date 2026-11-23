@@ -185,6 +185,10 @@ export interface Note {
   updatedBy: string | null;
   /** 共同編集: true なら、見られる人(公開範囲に入っている人)も本文を編集できる */
   allowEdit: boolean;
+  /** 重要なアナウンスか(未確認の人には、Mykonos を開いたときに画面中央へ表示する) */
+  announceImportant: boolean;
+  /** アナウンスの確認期限(YYYY-MM-DD)。なければ null */
+  announceDue: string | null;
 }
 
 /** ノートの編集履歴(保存するたびに、保存前の内容を1件残したもの) */

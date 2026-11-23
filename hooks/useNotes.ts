@@ -24,6 +24,8 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [reads, setReads] = useState<NoteRead[]>([]);
+  /** 確認済みの情報を1回は読み込み終えたか(読み込み前に「未確認」と誤って出さないため) */
+  const [readsLoaded, setReadsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,8 +76,9 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
 
   const loadReads = useCallback(async () => {
     const ids = notesRef.current.filter(n => n.isAnnouncement).map(n => n.id);
-    if (ids.length === 0) { setReads([]); return; }
+    if (ids.length === 0) { setReads([]); setReadsLoaded(true); return; }
     try { setReads(await svc.fetchNoteReads(ids)); } catch { /* 既読は補助情報なので無視 */ }
+    setReadsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -250,11 +253,11 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     return created;
   }, []);
 
-  const announce = useCallback(async (id: string) => {
+  const announce = useCallback(async (id: string, opts: svc.AnnounceOptions = {}) => {
     const v = viewerRef.current;
     if (!v) return;
     await flush(id); // 直前の編集内容を保存してからアナウンス
-    const updated = await svc.announceNote(id, v.name);
+    const updated = await svc.announceNote(id, v.name, opts);
     setReads(prev => prev.filter(r => r.noteId !== id));
     setNotes(prev => prev.map(n => (n.id === id ? { ...updated, body: n.body } : n)));
   }, [flush]);
@@ -360,7 +363,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
 
   return {
     notes, folders, reads, loading, unavailable, error, saveState,
-    myReadIds, myHiddenIds, unreadAnnouncements,
+    myReadIds, myHiddenIds, unreadAnnouncements, readsLoaded,
     reload: load, flushAll, clearError: () => setError(null),
     editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
