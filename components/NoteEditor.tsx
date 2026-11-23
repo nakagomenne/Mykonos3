@@ -7,6 +7,8 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
+import { TextStyle, Color, BackgroundColor, FontSize } from '@tiptap/extension-text-style';
+import { TextAlign } from '@tiptap/extension-text-align';
 import { NoteIcon } from './NoteIcons';
 
 interface NoteEditorProps {
@@ -50,6 +52,42 @@ export function htmlToPlainText(html: string): string {
   return (el.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+/** 文字サイズの選択肢(「標準」は指定なし = 15px) */
+const FONT_SIZES: { label: string; value: string }[] = [
+  { label: '小', value: '12px' },
+  { label: '標準', value: '' },
+  { label: '大', value: '18px' },
+  { label: '特大', value: '24px' },
+];
+/** すぐ選べる文字色(明るい画面でも暗い画面でも読める色) */
+const TEXT_COLORS: { label: string; value: string }[] = [
+  { label: '赤', value: '#dc2626' },
+  { label: 'オレンジ', value: '#ea580c' },
+  { label: '緑', value: '#16a34a' },
+  { label: '水色', value: '#0193be' },
+  { label: '青', value: '#2563eb' },
+  { label: '紫', value: '#9333ea' },
+  { label: 'ピンク', value: '#db2777' },
+  { label: 'グレー', value: '#64748b' },
+];
+/** すぐ選べるマーカー(文字の背景色) */
+const MARKER_COLORS: { label: string; value: string }[] = [
+  { label: '黄', value: '#fef08a' },
+  { label: '緑', value: '#bbf7d0' },
+  { label: '水色', value: '#bae6fd' },
+  { label: 'ピンク', value: '#fbcfe8' },
+  { label: 'オレンジ', value: '#fed7aa' },
+  { label: 'グレー', value: '#e2e8f0' },
+];
+
+/** 色の表記を #rrggbb にそろえる(ブラウザは rgb(…) で返すことがあるため) */
+function toHex(color: string | undefined): string {
+  if (!color) return '';
+  const m = color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!m) return color.toLowerCase();
+  return '#' + [m[1], m[2], m[3]].map(v => Number(v).toString(16).padStart(2, '0')).join('');
+}
+
 /** ツールバーの1行(ラベル + ボタン群)。再描画で作り直されないようコンポーネント外に定義 */
 const ToolRow: React.FC<{ label: string; dark: boolean; children: React.ReactNode }> = ({ label, dark, children }) => (
   <div className="flex flex-wrap items-center gap-0.5">
@@ -69,6 +107,8 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   const [uploading, setUploading] = useState(false);
   const [isTemplateOpen, setIsTemplateOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  /** 開いている色えらびの小窓(文字色 / マーカー) */
+  const [palette, setPalette] = useState<'color' | 'marker' | null>(null);
 
   // onUploadImage / onError は props が変わっても editor を作り直さないよう ref 経由で参照
   const uploadRef = useRef(onUploadImage);
@@ -149,9 +189,24 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       TableCell,
       TaskList,
       TaskItem.configure({ nested: true }),
+      TextStyle,
+      Color,
+      BackgroundColor,
+      FontSize,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     editorProps: {
       attributes: { class: 'note-prose' },
+      // 文字としてコピーしたとき、段落・箇条書きの間に空行が入らないようにする(1段落 = 1行)
+      clipboardTextSerializer: slice => {
+        const lines: string[] = [];
+        slice.content.descendants(node => {
+          if (!node.isTextblock) return true;
+          lines.push(node.textBetween(0, node.content.size, '', leaf => (leaf.type.name === 'hardBreak' ? '\n' : '')));
+          return false;
+        });
+        return lines.join('\n');
+      },
       handlePaste: (_view, event) => {
         if (!addFiles(Array.from(event.clipboardData?.files ?? []))) return false;
         event.preventDefault();
@@ -197,6 +252,12 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       bold: !!ed?.isActive('bold'),
       italic: !!ed?.isActive('italic'),
       strike: !!ed?.isActive('strike'),
+      underline: !!ed?.isActive('underline'),
+      fontSize: (ed?.getAttributes('textStyle').fontSize as string | undefined) ?? '',
+      color: toHex(ed?.getAttributes('textStyle').color as string | undefined),
+      marker: toHex(ed?.getAttributes('textStyle').backgroundColor as string | undefined),
+      alignCenter: !!ed?.isActive({ textAlign: 'center' }),
+      alignRight: !!ed?.isActive({ textAlign: 'right' }),
       h2: !!ed?.isActive('heading', { level: 2 }),
       h3: !!ed?.isActive('heading', { level: 3 }),
       bullet: !!ed?.isActive('bulletList'),
@@ -229,11 +290,74 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       {editable && (
         <div style={{ top: toolbarTop }} className={`sticky z-10 rounded-t-md border-b ${isDarkMode ? 'bg-[#1a2234] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
           {/* 常に表示する細いバー(書式メニューの開閉 + 元に戻す/やり直し) */}
-          <div className="flex items-center gap-1 px-2 py-1.5">
+          <div className="flex flex-wrap items-center gap-1 px-2 py-1.5">
+            {/* 色えらびの小窓を開いている間、外側を押したら閉じる */}
+            {palette && (
+              <div className="fixed inset-0 z-20" onMouseDown={e => { e.preventDefault(); setPalette(null); }} />
+            )}
+            {/* よく使う書式(文字を選んでから押す) */}
+            <select
+              value={FONT_SIZES.some(f => f.value === (state?.fontSize ?? '')) ? (state?.fontSize ?? '') : 'custom'}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === 'custom') return;
+                if (v) editor.chain().focus().setFontSize(v).run();
+                else editor.chain().focus().unsetFontSize().run();
+              }}
+              title="文字の大きさ(文字を選んでから変えます)"
+              aria-label="文字の大きさ"
+              className={`px-1.5 py-1.5 rounded-md text-[13px] border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
+            >
+              {FONT_SIZES.map(f => <option key={f.label} value={f.value}>{f.label}</option>)}
+              {!FONT_SIZES.some(f => f.value === (state?.fontSize ?? '')) && <option value="custom">{parseInt(state?.fontSize ?? '', 10) || '?'}</option>}
+            </select>
+            <button type="button" title="太字" className={`${btn(!!state?.bold)} font-bold`}
+              onMouseDown={run(() => editor.chain().focus().toggleBold().run())}>B</button>
+            <div className="relative">
+              <button type="button" title="文字の色" aria-expanded={palette === 'color'} className={btn(palette === 'color')}
+                onMouseDown={e => { e.preventDefault(); setPalette(p => (p === 'color' ? null : 'color')); }}>
+                <span className="font-bold" style={{ borderBottom: `3px solid ${state?.color || (isDarkMode ? '#e2e8f0' : '#1e293b')}` }}>A</span> 色
+              </button>
+              {palette === 'color' && (
+                <div className={`absolute left-0 top-full mt-1 z-30 w-48 p-2 rounded-lg border shadow-xl ${isDarkMode ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {TEXT_COLORS.map(c => (
+                      <button key={c.value} type="button" title={c.label} aria-label={`文字色: ${c.label}`}
+                        className={`h-8 rounded-md border text-sm font-bold ${state?.color === c.value ? 'ring-2 ring-[#0193be]' : ''} ${isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-200 bg-white'}`}
+                        style={{ color: c.value }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().setColor(c.value).run(); setPalette(null); }}>A</button>
+                    ))}
+                  </div>
+                  <button type="button" className={`mt-2 w-full text-xs py-1.5 rounded-md border ${isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetColor().run(); setPalette(null); }}>色を元に戻す</button>
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button type="button" title="マーカー(文字の背景に色をつけます)" aria-expanded={palette === 'marker'} className={btn(palette === 'marker')}
+                onMouseDown={e => { e.preventDefault(); setPalette(p => (p === 'marker' ? null : 'marker')); }}>
+                <span className="px-1 rounded-sm text-slate-800" style={{ backgroundColor: state?.marker || '#fef08a' }}>あ</span> マーカー
+              </button>
+              {palette === 'marker' && (
+                <div className={`absolute left-0 top-full mt-1 z-30 w-48 p-2 rounded-lg border shadow-xl ${isDarkMode ? 'bg-[#1a2234] border-slate-600' : 'bg-white border-slate-200'}`}>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {MARKER_COLORS.map(c => (
+                      <button key={c.value} type="button" title={c.label} aria-label={`マーカー: ${c.label}`}
+                        className={`h-8 rounded-md border border-slate-300 text-sm text-slate-800 ${state?.marker === c.value ? 'ring-2 ring-[#0193be]' : ''}`}
+                        style={{ backgroundColor: c.value }}
+                        onMouseDown={e => { e.preventDefault(); editor.chain().focus().setBackgroundColor(c.value).run(); setPalette(null); }}>あ</button>
+                    ))}
+                  </div>
+                  <button type="button" className={`mt-2 w-full text-xs py-1.5 rounded-md border ${isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-600 hover:bg-slate-100'}`}
+                    onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetBackgroundColor().run(); setPalette(null); }}>マーカーを消す</button>
+                </div>
+              )}
+            </div>
+            <span className={`mx-0.5 h-5 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-300'}`} aria-hidden="true" />
             <button
               type="button"
               aria-expanded={toolsOpen}
-              title="文字の装飾・箇条書き・表・画像などのメニューを開閉します"
+              title="見出し・箇条書き・表・画像・添付や、細かい文字の設定を開閉します"
               onClick={() => setToolsOpen(o => !o)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-medium border transition whitespace-nowrap ${
                 toolsOpen
@@ -241,7 +365,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   : isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-100'
               }`}
             >
-              <span><NoteIcon name="wrench" /> 書式・添付</span>
+              <span><NoteIcon name="wrench" /> もっと(書式・添付)</span>
               <span className="text-[10px]">{toolsOpen ? '▲' : '▼'}</span>
             </button>
             <button type="button" title="元に戻す" disabled={!state?.canUndo} className={btn(false, !state?.canUndo)}
@@ -250,7 +374,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               onMouseDown={run(() => editor.chain().focus().redo().run())}><NoteIcon name="redo" /></button>
             {uploading && <span className={`text-xs ml-1 ${mutedText}`}><NoteIcon name="clock" /> 送信中…</span>}
             {!toolsOpen && !uploading && (
-              <span className={`hidden sm:inline text-xs ml-1 truncate ${mutedText}`}>見出し・箇条書き・表・画像など</span>
+              <span className={`hidden lg:inline text-xs ml-1 truncate ${mutedText}`}>見出し・箇条書き・表・画像・細かい設定</span>
             )}
           </div>
 
@@ -269,6 +393,46 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   onMouseDown={run(() => editor.chain().focus().toggleItalic().run())}>I 斜体</button>
                 <button type="button" title="取り消し線" className={`${btn(!!state?.strike)} line-through`}
                   onMouseDown={run(() => editor.chain().focus().toggleStrike().run())}>S 取消線</button>
+                <button type="button" title="下線" className={`${btn(!!state?.underline)} underline`}
+                  onMouseDown={run(() => editor.chain().focus().toggleUnderline().run())}>U 下線</button>
+              </ToolRow>
+              <ToolRow dark={isDarkMode} label="そろえ">
+                <button type="button" title="左にそろえる" className={btn(!state?.alignCenter && !state?.alignRight)}
+                  onMouseDown={run(() => editor.chain().focus().unsetTextAlign().run())}>左</button>
+                <button type="button" title="中央にそろえる" className={btn(!!state?.alignCenter)}
+                  onMouseDown={run(() => editor.chain().focus().setTextAlign('center').run())}>中央</button>
+                <button type="button" title="右にそろえる" className={btn(!!state?.alignRight)}
+                  onMouseDown={run(() => editor.chain().focus().setTextAlign('right').run())}>右</button>
+              </ToolRow>
+              <ToolRow dark={isDarkMode} label="詳しく">
+                <label className={`inline-flex items-center gap-1 px-1.5 text-[13px] ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} title="文字の大きさを数字で指定します(10〜48)">
+                  サイズ
+                  <input
+                    type="number" min={10} max={48} step={1}
+                    value={parseInt(state?.fontSize ?? '', 10) || 15}
+                    onChange={e => {
+                      const n = Math.round(Number(e.target.value));
+                      if (!Number.isFinite(n) || n < 10 || n > 48) return;
+                      if (n === 15) editor.chain().unsetFontSize().run();
+                      else editor.chain().setFontSize(`${n}px`).run();
+                    }}
+                    className={`w-14 px-1 py-1 rounded border text-[13px] ${isDarkMode ? 'bg-slate-800 border-slate-600 text-slate-100' : 'bg-white border-slate-300 text-slate-800'}`}
+                  />
+                </label>
+                <label className={`inline-flex items-center gap-1 px-1.5 text-[13px] cursor-pointer ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} title="文字の色を自由に選びます">
+                  文字色
+                  <input type="color" value={/^#[0-9a-f]{6}$/i.test(state?.color ?? '') ? state!.color : '#1e293b'}
+                    onChange={e => editor.chain().setColor(e.target.value).run()}
+                    className="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer" />
+                </label>
+                <label className={`inline-flex items-center gap-1 px-1.5 text-[13px] cursor-pointer ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`} title="マーカー(背景)の色を自由に選びます">
+                  マーカー色
+                  <input type="color" value={/^#[0-9a-f]{6}$/i.test(state?.marker ?? '') ? state!.marker : '#fef08a'}
+                    onChange={e => editor.chain().setBackgroundColor(e.target.value).run()}
+                    className="w-7 h-7 p-0 border-0 bg-transparent cursor-pointer" />
+                </label>
+                <button type="button" title="選んだ文字の装飾(太字・色・大きさなど)をすべて外します" className={btn(false)}
+                  onMouseDown={run(() => editor.chain().focus().unsetAllMarks().run())}>装飾をすべて外す</button>
               </ToolRow>
               <ToolRow dark={isDarkMode} label="リスト">
                 <button type="button" title="箇条書き" className={btn(!!state?.bullet)}

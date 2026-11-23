@@ -36,9 +36,13 @@
   /* ────────────────────────────────────────────
      ノートエディタ (TipTap)
   ──────────────────────────────────────────── */
-  .note-prose { outline: none; padding: 16px 20px 40px; min-height: 240px; line-height: 1.75; font-size: 15px; color: #1e293b; word-break: break-word; }
+  .note-prose { outline: none; padding: 16px 20px 40px; min-height: 240px; line-height: 1.5; font-size: 15px; color: #1e293b; word-break: break-word; }
   .note-editor-dark .note-prose { color: #e2e8f0; }
-  .note-prose > * + * { margin-top: 0.6em; }
+  /* 段落どうしのすき間はつめる(Enter で改行しても行が空かない)。見出し・表・区切り線などは下の個別指定で間を取る */
+  .note-prose > * + * { margin-top: 0.1em; }
+  .note-prose > ul, .note-prose > ol, .note-prose > blockquote { margin-top: 0.3em; margin-bottom: 0.3em; }
+  /* マーカー(背景色)を引いた文字は、ダークモードでも読めるように濃い文字色にする */
+  .note-editor-dark .note-prose span[style*="background-color"] { color: #1e293b; }
   .note-prose h2 { font-size: 1.4em; font-weight: 700; margin-top: 1.2em; padding-bottom: 0.2em; border-bottom: 2px solid rgba(1,147,190,0.25); }
   .note-prose h3 { font-size: 1.15em; font-weight: 700; margin-top: 1em; }
   .note-prose ul { list-style: disc; padding-left: 1.5em; }
