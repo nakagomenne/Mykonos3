@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_AP_RETURN_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
+import { LIST_TYPE_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, TODAY_ONLY_TIME_OPTIONS, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_AP_RETURN_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import RankSelector from './RankSelector';
@@ -188,9 +188,9 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
       setAssignee(PRECHECKER_ASSIGNEE_NAME);
       // 依頼者 → チェックを入れたメンバー（currentUserName）
       if (currentUserName) setRequester(currentUserName);
-      // 日時 → 今日の「このあとOK」
+      // 日時 → 今日の「順次」
       setDate(today);
-      setTime('このあとOK');
+      setTime('順次');
       // 備考 → 先頭に2行改行を追加
       setNotes(prev => '\n\n' + prev);
       // ★ クリア
@@ -218,7 +218,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
       setAssignee(ELEC_ASSIGNEE_NAME);
       if (currentUserName) setRequester(currentUserName);
       setDate(today);
-      setTime('このあとOK');
+      setTime('順次');
       setNotes(prev => '\n\n' + prev);
       setEmoji('');
     } else {
@@ -235,7 +235,12 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
   // 電気タブでAP戻し時は専用選択肢（立ち上げ・キャッチ）
   const effectiveIsPrecheckForRank = isLineOrder ? true : isApReturn ? false : isPrecheckTheme;
 
-  const timeOptions = isPrecheckTheme ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
+  // 回線前確・電気契確の案件(このタブの案件、または「回線受注」「電気受注」で新しく作る案件)は「順次」、
+  // それ以外(AP戻しで営業に返す場合を含む)は「このあとOK」を選択肢に出す
+  const usesPrecheckTimes = isApReturn ? false : (assignee === PRECHECKER_ASSIGNEE_NAME || assignee === ELEC_ASSIGNEE_NAME || isLineOrder || isElecOrder || isPrecheckTheme || isElecTheme);
+  const baseTimeOptions = usesPrecheckTimes ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
+  // 以前の選択肢で保存された時間(例: 前確の「このあとOK」)も、そのまま表示できるようにする
+  const timeOptions = time && /^\D/.test(time) && !baseTimeOptions.includes(time) ? [time, ...baseTimeOptions] : baseTimeOptions;
 
   const rankOptionsForEdit = useMemo(() => {
     const options = isElecTheme && isApReturn ? ELEC_AP_RETURN_RANK_OPTIONS
@@ -327,8 +332,7 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
         return;
     }
     
-    const specialTimesForToday = isPrecheckTheme ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
-    if (specialTimesForToday.includes(time) && time !== '待機中' && date !== today) {
+    if (TODAY_ONLY_TIME_OPTIONS.includes(time) && date !== today) {
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
         return;

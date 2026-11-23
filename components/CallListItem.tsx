@@ -178,7 +178,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       }
       // All subsequent rules are for today
       else if (callDay.getTime() === today.getTime()) {
-          const isUrgent = ['至急', 'このあとOK'].includes(timePart);
+          const isUrgent = ['至急', 'このあとOK', '順次'].includes(timePart);
           
           const timeRegex = /^\d{2}:\d{2}$/;
           let isOverdue = false;
@@ -293,7 +293,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
     try {
       const [datePart, timePart] = call.dateTime.split('T');
       
-      const isSpecialTime = ['待機中', '至急', 'このあとOK', '時設なし', '入電待ち'].includes(timePart);
+      const isSpecialTime = ['待機中', '至急', 'このあとOK', '順次', '時設なし', '入電待ち'].includes(timePart);
 
       const callDate = new Date(isSpecialTime ? datePart : call.dateTime);
       if (isNaN(callDate.getTime())) return <span className="text-red-500">Invalid Date</span>;

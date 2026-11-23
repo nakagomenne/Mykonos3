@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { LIST_TYPE_OPTIONS, RANK_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, TIME_SLOTS, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS } from '../constants';
+import { LIST_TYPE_OPTIONS, RANK_OPTIONS, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, TODAY_ONLY_TIME_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, TIME_SLOTS, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS } from '../constants';
 import { ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 
@@ -89,7 +89,9 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
         return new Set(user?.nonWorkingDays || []);
     }, [call.assignee, users]);
 
-    const timeOptions = isPrecheckTheme ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
+    const baseTimeOptions = (isPrecheckTheme || isElecTheme || call.assignee === PRECHECKER_ASSIGNEE_NAME || call.assignee === ELEC_ASSIGNEE_NAME) ? PRECHECK_ALL_TIME_OPTIONS : ALL_TIME_OPTIONS;
+    // 以前の選択肢で保存された時間(例: 前確の「このあとOK」)も、そのまま表示できるようにする
+    const timeOptions = time && /^\D/.test(time) && !baseTimeOptions.includes(time) ? [time, ...baseTimeOptions] : baseTimeOptions;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -162,8 +164,7 @@ const InlineEditPopup: React.FC<InlineEditPopupProps> = ({ field, call, onSave, 
         let updatedData: Partial<Omit<CallRequest, 'id'>> = {};
         switch (field) {
             case 'dateTime':
-                const specialTimesForToday = isPrecheckTheme ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
-                if (specialTimesForToday.includes(time) && time !== '待機中' && date !== today) {
+                if (TODAY_ONLY_TIME_OPTIONS.includes(time) && date !== today) {
                     setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
                     setIsAlertOpen(true);
                     return;

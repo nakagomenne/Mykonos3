@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CallRequest, ListType, Rank, User } from '../types';
-import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, SPECIAL_TIME_OPTIONS_TOP, PRECHECK_SPECIAL_TIME_OPTIONS_TOP, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_ASSIGNEE_NAME } from '../constants';
+import { RANK_OPTIONS, TIME_SLOTS, AVAILABILITY_STATUS_STYLES, ALL_TIME_OPTIONS, PRECHECK_ALL_TIME_OPTIONS, TODAY_ONLY_TIME_OPTIONS, LIST_TYPE_OPTIONS, PRECHECK_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, NON_PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, ELEC_ASSIGNEE_NAME } from '../constants';
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
 import AlertModal from './AlertModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -194,7 +194,8 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     if (prefilledDate) {
         isPrefillActiveRef.current = true;
         setDate(prefilledDate);
-        setTime(prefilledDate > today ? '11:00' : 'このあとOK');
+        // 回線前確・電気契確は「順次」(当日以外でも選べる)
+        setTime(isPrecheckMode ? '順次' : prefilledDate > today ? '11:00' : 'このあとOK');
     }
     if (prefilledAssignee) {
         setAssignee(prefilledAssignee);
@@ -326,7 +327,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
     if (isPrecheckMode) {
         setListType('回線');
         setDate(new Date().toISOString().split('T')[0]);
-        setTime('このあとOK');
+        setTime('順次');
         return;
     }
 
@@ -421,8 +422,7 @@ const CallRequestForm: React.FC<CallRequestFormProps> = ({ onAddCall, defaultAss
         return;
     }
 
-    const specialTimesForToday = isPrecheckMode ? PRECHECK_SPECIAL_TIME_OPTIONS_TOP : SPECIAL_TIME_OPTIONS_TOP;
-    if (specialTimesForToday.includes(time) && time !== '待機中' && date !== today) {
+    if (TODAY_ONLY_TIME_OPTIONS.includes(time) && date !== today) {
         setAlertContent({ title: '日付エラー', message: `「${time}」が選択されている場合、日付は本日である必要があります。` });
         setIsAlertOpen(true);
         return;

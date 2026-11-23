@@ -1010,7 +1010,7 @@ const App: React.FC = () => {
         myCalls.forEach(call => {
           try {
             const [, timePart] = call.dateTime.split('T');
-            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+            if (!timePart || ['至急', 'このあとOK', '順次', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
               return;
             }
 
@@ -1050,7 +1050,7 @@ const App: React.FC = () => {
         precheckCalls.forEach(call => {
           try {
             const [, timePart] = call.dateTime.split('T');
-            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+            if (!timePart || ['至急', 'このあとOK', '順次', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
               return;
             }
 
@@ -1090,7 +1090,7 @@ const App: React.FC = () => {
         elecCalls.forEach(call => {
           try {
             const [, timePart] = call.dateTime.split('T');
-            if (!timePart || ['至急', 'このあとOK', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
+            if (!timePart || ['至急', 'このあとOK', '順次', '時設なし', '入電待ち', '待機中'].includes(timePart)) {
               return;
             }
 
@@ -1449,7 +1449,7 @@ const App: React.FC = () => {
       }
       
       if (assigneeUser?.availabilityStatus === '一時受付不可' && requestDate === todayStr) {
-          const isUrgentOrSoon = ['至急', 'このあとOK'].includes(requestTime);
+          const isUrgentOrSoon = ['至急', 'このあとOK', '順次'].includes(requestTime);
           let isWithinTwoHours = false;
           
           if (!isUrgentOrSoon && !['時設なし', '入電待ち'].includes(requestTime)) {
@@ -2535,7 +2535,7 @@ const App: React.FC = () => {
     if (!timeStr) return 99999;
     if (timeStr === '待機中') return -3;
     if (timeStr === '至急') return -2;
-    if (timeStr === 'このあとOK') return -1;
+    if (timeStr === 'このあとOK' || timeStr === '順次') return -1;
     if (timeStr === '時設なし') return 9999;
     if (timeStr === '入電待ち') return 10000;
     const parts = timeStr.split(':');
@@ -4623,7 +4623,7 @@ const App: React.FC = () => {
                         assignee: data.assignee ?? ELEC_ASSIGNEE_NAME,
                         listType: data.listType ?? '回線',
                         rank: data.rank ?? 'ジライフ契確',
-                        dateTime: data.dateTime ?? `${now.split('T')[0]}Tこのあと OK`,
+                        dateTime: data.dateTime ?? `${now.split('T')[0]}T順次`,
                         notes: data.notes ?? '',
                         emoji: data.emoji ?? '',
                         absenceCount: data.absenceCount ?? 0,

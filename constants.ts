@@ -168,7 +168,12 @@ const generateTimeSlots = (): string[] => {
 export const TIME_SLOTS = generateTimeSlots();
 
 export const SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', 'このあとOK'];
-export const PRECHECK_SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', 'このあとOK'];
+// 回線前確・電気契確の案件では「このあとOK」の代わりに「順次」を使う(順次は当日以外の日付でも選べる)
+export const PRECHECK_SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', '順次'];
+/** 日付が本日のときだけ選べる時間 */
+export const TODAY_ONLY_TIME_OPTIONS = ['至急', 'このあとOK'];
+/** 時刻ではない時間の指定(並び替え・表示・通知の対象外判定などで使う) */
+export const NON_CLOCK_TIME_OPTIONS = ['待機中', '至急', 'このあとOK', '順次', '時設なし', '入電待ち'];
 export const SPECIAL_TIME_OPTIONS_BOTTOM = ['時設なし', '入電待ち'];
 export const ALL_TIME_OPTIONS = [
   ...SPECIAL_TIME_OPTIONS_TOP,

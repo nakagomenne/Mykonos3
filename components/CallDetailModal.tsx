@@ -42,7 +42,7 @@ const formatHistoryValue = (field: string, value: any) => {
     if (field === 'dateTime') {
         try {
             const [date, time] = String(value).split('T');
-            const specialTimes = ['至急', 'このあとOK', '時設なし', '入電待ち'];
+            const specialTimes = ['至急', 'このあとOK', '順次', '時設なし', '入電待ち'];
             if (time && specialTimes.includes(time)) {
                 return `${date} ${time}`;
             }
@@ -108,7 +108,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
   };
 
   const formatDetailDateTime = (dateTime: string) => {
-    const specialTimes = ['待機中', '至急', 'このあとOK', '時設なし', '入電待ち'];
+    const specialTimes = ['待機中', '至急', 'このあとOK', '順次', '時設なし', '入電待ち'];
     try {
         const parts = dateTime.split('T');
         const timePart = parts[1];
