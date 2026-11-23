@@ -110,6 +110,16 @@ const fmtDateTime = (iso: string) => {
 };
 
 /**
+ * たたむ(◀)/開く(▶)の三角。表示されるたびに、反対向きから180度まわって今の向きになる
+ * (たたむ→開く、開く→たたむ で、ボタンがくるっと逆向きになったように見せる)
+ */
+const FoldArrow: React.FC<{ dir: 'left' | 'right'; className?: string }> = ({ dir, className = '' }) => (
+  <svg viewBox="0 0 10 10" width="11" height="11" aria-hidden="true" className={`note-fold-arrow ${className}`}>
+    <path d={dir === 'left' ? 'M8 1 L2 5 L8 9 Z' : 'M2 1 L8 5 L2 9 Z'} fill="currentColor" />
+  </svg>
+);
+
+/**
  * たてにスクロールする枠。上や下に隠れている部分があるときだけ、その側にうすい影(グラデーション)を出して、
  * 「まだ続きがある」ことが分かるようにする
  */
@@ -1297,7 +1307,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     title="フォルダ欄をたたんで本文を広く表示します"
                     aria-label="フォルダ欄をたたむ"
                     className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded text-xs ${muted} ${hoverRow}`}
-                  ><NoteIcon name="chevron-left" /></button>
+                  ><FoldArrow key={foldersFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
               <SideItem v={{ kind: 'mine' }} icon={<NoteIcon name="file-text" />} label="すべて" count={myNotes.length} />
@@ -1339,7 +1349,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 aria-label="フォルダ欄を開く"
                 className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-3 pt-3 border-r ${border} ${surface2} ${hoverRow} transition`}
               >
-                <NoteIcon name="chevron-right" className={`text-sm ${d ? 'text-sky-300' : 'text-[#0193be]'}`} />
+                <FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} />
                 <span className={`text-xs font-semibold whitespace-nowrap flex-shrink-0 ${muted}`} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', height: '5em' }}>
                   フォルダ
                 </span>
@@ -1362,7 +1372,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     title="一覧をたたんで本文を広く表示します"
                     aria-label="一覧をたたむ"
                     className={`hidden md:inline-flex flex-shrink-0 items-center justify-center w-6 h-6 rounded text-xs ${muted} ${hoverRow}`}
-                  ><NoteIcon name="chevron-left" /></button>
+                  ><FoldArrow key={listFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
               {/* 絞り込み・並び順 */}
@@ -1457,7 +1467,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 aria-label="ノート一覧を開く"
                 className={`hidden md:flex w-9 flex-shrink-0 flex-col items-center gap-3 pt-3 border-r ${border} ${surface2} ${hoverRow} transition`}
               >
-                <NoteIcon name="chevron-right" className={`text-sm ${d ? 'text-sky-300' : 'text-[#0193be]'}`} />
+                <FoldArrow dir="right" className={d ? 'text-sky-300' : 'text-[#0193be]'} />
                 <span className={`text-xs font-semibold whitespace-nowrap flex-shrink-0 ${muted}`} style={{ writingMode: 'vertical-rl', letterSpacing: '0.15em', height: '6em' }}>
                   ノート一覧
                 </span>
