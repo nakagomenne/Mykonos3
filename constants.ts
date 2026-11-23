@@ -3,7 +3,7 @@ import { ListType, Rank, CallStatus, User, AvailabilityStatus } from './types';
 export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG', '保険'];
 
 // 回線前確専用ランク（通常ランクの選択肢からは除外される）
-export const PRECHECK_ONLY_RANK_OPTIONS: Rank[] = ['SB光前確', 'AIR前確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち', 'CB対応', 'キャンセル依頼'];
+export const PRECHECK_ONLY_RANK_OPTIONS: Rank[] = ['SB光前確', 'SB光後確', 'AIR前確', 'AIR後確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち', 'CB対応', 'キャンセル依頼'];
 // 回線前確タブの選択肢（専用ランク + 通常ランクと共通の「対応」「共有」）
 export const PRECHECK_RANK_OPTIONS: Rank[] = [...PRECHECK_ONLY_RANK_OPTIONS, '対応', '共有'];
 
@@ -107,7 +107,10 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   '対応': { backgroundColor: '#b10202', color: '#ffcfc9' },
   '立ち上げ': { backgroundColor: '#e2e2e2', color: '#fd0000' },
   'SB光前確': { backgroundColor: '#ffeb00', color: '#0193be' },
+  // 後確は前確の配色を反転（同じ商材だと分かり、前確と見分けがつくように）
+  'SB光後確': { backgroundColor: '#0193be', color: '#ffeb00' },
   'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
+  'AIR後確': { backgroundColor: '#003361', color: '#e8eaed' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
   '決済待ち': { backgroundColor: '#e2e2e2', color: '#008b7c' },
   'ET待ち':  { backgroundColor: '#e2e2e2', color: '#f55d00' },
