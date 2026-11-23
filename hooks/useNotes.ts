@@ -26,6 +26,8 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
   const [reads, setReads] = useState<NoteRead[]>([]);
   /** 確認済みの情報を1回は読み込み終えたか(読み込み前に「未確認」と誤って出さないため) */
   const [readsLoaded, setReadsLoaded] = useState(false);
+  /** ノートの一覧を1回は読み込み終えたか */
+  const notesLoadedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +62,9 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
       const [f, n] = await Promise.all([svc.fetchFolders(v), svc.fetchNotes(v)]);
       setFolders(f);
       setNotes(n);
+      notesLoadedRef.current = true;
+      // アナウンスが1件も無ければ、確認済みの情報を取りに行く必要がないので「読み込み済み」にする
+      if (!n.some(x => x.isAnnouncement)) setReadsLoaded(true);
       setUnavailable(false);
       setError(null);
     } catch (e: any) {
@@ -76,7 +81,12 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
 
   const loadReads = useCallback(async () => {
     const ids = notesRef.current.filter(n => n.isAnnouncement).map(n => n.id);
-    if (ids.length === 0) { setReads([]); setReadsLoaded(true); return; }
+    if (ids.length === 0) {
+      setReads([]);
+      // ノートの一覧がまだ届いていないときは「読み込み済み」にしない(未確認を誤って出さないため)
+      if (notesLoadedRef.current) setReadsLoaded(true);
+      return;
+    }
     try { setReads(await svc.fetchNoteReads(ids)); } catch { /* 既読は補助情報なので無視 */ }
     setReadsLoaded(true);
   }, []);

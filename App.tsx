@@ -318,6 +318,27 @@ const App: React.FC = () => {
     [notesApi.readsLoaded, notesApi.unreadAnnouncements]
   );
   const importantKey = importantUnread.map(n => `${n.id}@${n.announcedAt ?? ''}`).sort().join(',');
+  /** ダイアログに並べる未確認のアナウンス(重要 → 期限の近い順) */
+  const unreadForDialog = useMemo(
+    () => (notesApi.readsLoaded
+      ? [...notesApi.unreadAnnouncements].sort((a, b) =>
+          (Number(b.announceImportant) - Number(a.announceImportant)) ||
+          (a.announceDue ?? '9999').localeCompare(b.announceDue ?? '9999'))
+      : []),
+    [notesApi.readsLoaded, notesApi.unreadAnnouncements]
+  );
+  // 重要でないアナウンスは、Mykonos を開いたとき(ログイン時)に1回だけダイアログを出す。
+  // 開いたあとに届いた分は、帯と通知で知らせる(作業中に画面をふさがないため)
+  const [openDialogDone, setOpenDialogDone] = useState(false);
+  const openDialogCheckedRef = useRef(false);
+  useEffect(() => {
+    if (!notesApi.readsLoaded || openDialogCheckedRef.current) return;
+    openDialogCheckedRef.current = true;
+    if (notesApi.unreadAnnouncements.length === 0) setOpenDialogDone(true);
+  }, [notesApi.readsLoaded, notesApi.unreadAnnouncements]);
+  const hasImportantToShow = importantUnread.length > 0 && importantKey !== importantDismissedKey;
+  const showAnnounceDialog = !isNotesOpen && unreadForDialog.length > 0 && (hasImportantToShow || !openDialogDone);
+  const closeAnnounceDialog = () => { setImportantDismissedKey(importantKey); setOpenDialogDone(true); };
 
   // Mykonos を開いたとき、閉じていた間に出た未確認のアナウンスがあれば1回だけ通知する
   const unreadAnnouncementsRef = useRef(notesApi.unreadAnnouncements);
@@ -4784,23 +4805,30 @@ const App: React.FC = () => {
         onChange={handleIconFileChange}
       />
       
-      {/* 重要なアナウンス(未確認): 画面中央に表示 */}
-      {importantUnread.length > 0 && !isNotesOpen && importantKey !== importantDismissedKey && (
+      {/* 未確認のアナウンス: 画面中央に表示(重要なものがあれば赤、なければ青) */}
+      {showAnnounceDialog && (() => {
+        const hasImportant = importantUnread.length > 0;
+        return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[44]">
-          <div className={`${isDarkMode ? 'bg-[#1a2234] text-slate-200' : 'bg-white text-slate-700'} rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col`} role="dialog" aria-modal="true" aria-label="重要なアナウンス">
-            <div className="p-4 border-b border-red-300 bg-red-500 text-white rounded-t-xl">
-              <h2 className="text-lg font-bold">重要なアナウンスがあります</h2>
-              <p className="text-xs mt-0.5 opacity-90">Mikonote に、まだ確認していない重要なアナウンスが {importantUnread.length} 件あります。</p>
+          <div className={`${isDarkMode ? 'bg-[#1a2234] text-slate-200' : 'bg-white text-slate-700'} rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col`} role="dialog" aria-modal="true" aria-label="未確認のアナウンス">
+            <div className={`p-4 border-b text-white rounded-t-xl ${hasImportant ? 'border-red-300 bg-red-500' : 'border-[#0193be] bg-[#0193be]'}`}>
+              <h2 className="text-lg font-bold">{hasImportant ? '重要なアナウンスがあります' : '未確認のアナウンスがあります'}</h2>
+              <p className="text-xs mt-0.5 opacity-90">
+                Mikonote に、まだ確認していないアナウンスが {unreadForDialog.length} 件あります{hasImportant ? `(うち重要 ${importantUnread.length} 件)` : ''}。
+              </p>
             </div>
             <div className="p-3 overflow-y-auto space-y-2">
-              {importantUnread.map(n => (
+              {unreadForDialog.map(n => (
                 <button
                   key={n.id}
                   type="button"
-                  onClick={() => { setImportantDismissedKey(importantKey); setNotesInitialId(n.id); setIsNotesOpen(true); }}
+                  onClick={() => { closeAnnounceDialog(); setNotesInitialId(n.id); setIsNotesOpen(true); }}
                   className={`w-full text-left rounded-lg border px-3 py-2 transition ${isDarkMode ? 'border-slate-600 hover:bg-slate-700/60' : 'border-slate-200 hover:bg-slate-100'}`}
                 >
-                  <div className="font-bold text-sm">{n.title || '(無題)'}</div>
+                  <div className="font-bold text-sm flex items-center gap-1.5">
+                    {n.announceImportant && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap">重要</span>}
+                    <span className="truncate">{n.title || '(無題)'}</span>
+                  </div>
                   <div className={`text-xs mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     {n.owner} さんから
                     {n.announceDue && (
@@ -4815,18 +4843,19 @@ const App: React.FC = () => {
             <div className={`p-3 border-t flex justify-end gap-2 ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
               <button
                 type="button"
-                onClick={() => setImportantDismissedKey(importantKey)}
+                onClick={closeAnnounceDialog}
                 className={`px-4 py-2 rounded-md text-sm border ${isDarkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'}`}
               >あとで</button>
               <button
                 type="button"
-                onClick={() => { setImportantDismissedKey(importantKey); setNotesInitialId(importantUnread[0].id); setIsNotesOpen(true); }}
+                onClick={() => { closeAnnounceDialog(); setNotesInitialId(unreadForDialog[0].id); setIsNotesOpen(true); }}
                 className="px-5 py-2 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
               >開いて確認する</button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <CallDetailModal 
         calls={selectedCall ? [selectedCall] : searchResults}
