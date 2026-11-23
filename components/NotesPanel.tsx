@@ -1125,8 +1125,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           )}
 
-          {/* 本文(ノートごとに作り直す)。閲覧中は枠をつけず、広く見せる */}
-          <div className={isEditing ? '' : 'min-h-[8rem] px-1'}>
+          {/* 本文(ノートごとに作り直す)。閲覧中は枠で囲む */}
+          <div className={isEditing ? '' : `rounded-lg border ${border} ${surface2} p-4 min-h-[8rem]`}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
               value={e ? e.body : n.body}
