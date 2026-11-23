@@ -109,6 +109,43 @@ const fmtDateTime = (iso: string) => {
   return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+/**
+ * たてにスクロールする枠。上や下に隠れている部分があるときだけ、その側にうすい影(グラデーション)を出して、
+ * 「まだ続きがある」ことが分かるようにする
+ */
+const ScrollFade: React.FC<{ dark: boolean; children: React.ReactNode }> = ({ dark, children }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [fade, setFade] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const update = () => {
+      const top = el.scrollTop > 2;
+      const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
+      setFade(f => (f.top === top && f.bottom === bottom ? f : { top, bottom }));
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    // 画像の読み込みや、画面の大きさ・本文の変化でも見直す
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (innerRef.current) ro.observe(innerRef.current);
+    return () => { el.removeEventListener('scroll', update); ro.disconnect(); };
+  }, []);
+  const shade = dark ? 'rgba(0,0,0,0.55)' : 'rgba(15,23,42,0.16)';
+  const edge = 'pointer-events-none absolute inset-x-0 h-6 z-[15] transition-opacity duration-200';
+  return (
+    <div className="relative flex-1 min-h-0 flex flex-col">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto">
+        <div ref={innerRef}>{children}</div>
+      </div>
+      <div aria-hidden="true" className={`${edge} top-0 ${fade.top ? 'opacity-100' : 'opacity-0'}`} style={{ background: `linear-gradient(to bottom, ${shade}, transparent)` }} />
+      <div aria-hidden="true" className={`${edge} bottom-0 ${fade.bottom ? 'opacity-100' : 'opacity-0'}`} style={{ background: `linear-gradient(to top, ${shade}, transparent)` }} />
+    </div>
+  );
+};
+
 const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = false, initialNoteId = null, onClose }) => {
   const {
     notes, folders, reads, loading, unavailable, error, saveState, myReadIds, myHiddenIds, unreadAnnouncements,
@@ -855,13 +892,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const chipOn = 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]';
     const tagCls = `text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`;
     return (
-      <div className={`flex-1 flex flex-col min-h-0 overflow-y-auto p-2 md:p-3 ${d ? 'bg-[#0f1624]' : 'bg-slate-100'}`}>
+      <div className={`flex-1 flex flex-col min-h-0 p-2 md:p-3 ${d ? 'bg-[#0f1624]' : 'bg-slate-100'}`}>
        {/* ノート1枚ぶんの枠: タイトル・設定・本文・日付をひとまとまりに見せる */}
-       <div className={`rounded-xl border shadow-sm ${d ? 'border-slate-600 bg-[#1a2234]' : 'border-slate-300 bg-white'}`}>
-        {/* 上のバー: タイトルと主な操作。本文が長くても常に見える(高さは NoteEditor の toolbarTop と合わせる) */}
+       <div className={`flex flex-col min-h-0 overflow-hidden rounded-xl border shadow-sm ${d ? 'border-slate-600 bg-[#1a2234]' : 'border-slate-300 bg-white'}`}>
+        {/* 上のバー: タイトルと主な操作。スクロールするのはこの下だけなので、常に見える */}
         <div
           style={{ height: 54 }}
-          className={`sticky top-0 z-20 shrink-0 px-3 flex items-center gap-2 border-b rounded-t-xl ${
+          className={`relative z-20 shrink-0 px-3 flex items-center gap-2 border-b ${
             isEditing ? (d ? 'bg-[#16283a] border-sky-700' : 'bg-sky-50 border-sky-300') : `${d ? 'bg-[#1a2234]' : 'bg-white'} ${border}`
           }`}
         >
@@ -944,6 +981,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
         </div>
 
+        <ScrollFade key={n.id} dark={d}>
         {n.isAnnouncement && !isOwner && (
           <div className={`px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
             <span className="text-sm flex-1 min-w-[200px]">
@@ -1134,7 +1172,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               value={e ? e.body : n.body}
               editable={isEditing}
               isDarkMode={d}
-              toolbarTop={isEditing ? 54 : 0}
+              toolbarTop={0}
               onChange={html => patchEdit({ body: html })}
               onUploadImage={isEditing ? file => uploadNoteImage(file, me.name) : undefined}
               onUploadFile={isEditing ? uploadNoteFile : undefined}
@@ -1153,6 +1191,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
           </div>
         </div>
+        </ScrollFade>
        </div>
       </div>
     );
