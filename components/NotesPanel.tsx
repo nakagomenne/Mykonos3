@@ -855,11 +855,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const chipOn = 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]';
     const tagCls = `text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`;
     return (
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+      <div className={`flex-1 flex flex-col min-h-0 overflow-y-auto p-2 md:p-3 ${d ? 'bg-[#0f1624]' : 'bg-slate-100'}`}>
+       {/* ノート1枚ぶんの枠: タイトル・設定・本文・日付をひとまとまりに見せる */}
+       <div className={`rounded-xl border shadow-sm ${d ? 'border-slate-600 bg-[#1a2234]' : 'border-slate-300 bg-white'}`}>
         {/* 上のバー: タイトルと主な操作。本文が長くても常に見える(高さは NoteEditor の toolbarTop と合わせる) */}
         <div
           style={{ height: 54 }}
-          className={`sticky top-0 z-20 shrink-0 px-3 flex items-center gap-2 border-b ${
+          className={`sticky top-0 z-20 shrink-0 px-3 flex items-center gap-2 border-b rounded-t-xl ${
             isEditing ? (d ? 'bg-[#16283a] border-sky-700' : 'bg-sky-50 border-sky-300') : `${d ? 'bg-[#1a2234]' : 'bg-white'} ${border}`
           }`}
         >
@@ -978,10 +980,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           </div>
         )}
 
-        <div className="px-4 pt-3 pb-4 space-y-3">
+        <div>
           {/* 設定の要約(1行)。押すと、その場で変えられる */}
           {isOwner ? (
-            <div className="space-y-2">
+            <div className={`px-4 py-2 space-y-2 border-b ${border} ${surface2}`}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => { setMoreOpen(false); setSettingsOpen(o => !o); }}
@@ -1040,7 +1042,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               </div>
 
               {settingsOpen && (
-                <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
+                <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-2`}>
                   <div className={`text-xs ${muted}`}>
                     このノートを誰が見られるかを選びます。{isEditing ? '「保存」を押すと反映されます。' : '選ぶとすぐに反映されます。'}
                   </div>
@@ -1056,7 +1058,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               )}
 
               {moreOpen && (
-                <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-3`}>
+                <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-3`}>
                   {/* 周知 */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     {n.visibility === 'private' ? (
@@ -1098,7 +1100,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               )}
             </div>
           ) : (
-            <div className="flex flex-wrap gap-1.5 items-center">
+            <div className={`px-4 py-2 flex flex-wrap gap-1.5 items-center border-b ${border} ${surface2}`}>
               <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
               {n.allowEdit && n.visibility !== 'private' && <span className={`${chip} ${border}`}><NoteIcon name="users" /> 共同編集</span>}
               {n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
@@ -1107,12 +1109,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
 
           {n.isAnnouncement && isOwner && recipients.length === 0 && (
-            <div className="text-xs text-amber-600">※ 周知の対象者がいません(特定メンバーの選択を確認してください)。</div>
+            <div className="px-4 pt-2 text-xs text-amber-600">※ 周知の対象者がいません(特定メンバーの選択を確認してください)。</div>
           )}
 
           {/* 元案件 */}
           {snap && (
-            <div className={`rounded-lg border ${border} ${surface2} px-3 py-2 text-xs ${muted}`}>
+            <div className={`mx-4 mt-3 rounded-lg border ${border} ${surface2} px-3 py-2 text-xs ${muted}`}>
               <div className="font-semibold mb-0.5"><NoteIcon name="paperclip" /> 元になった案件</div>
               <div className="flex flex-wrap gap-x-4 gap-y-0.5">
                 {snap.customerId && <span>顧客ID: {snap.customerId}</span>}
@@ -1125,8 +1127,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           )}
 
-          {/* 本文(ノートごとに作り直す)。閲覧中は枠で囲む */}
-          <div className={isEditing ? '' : `rounded-lg border ${border} ${surface2} p-4 min-h-[8rem]`}>
+          {/* 本文(ノートごとに作り直す)。ノートの枠の中に、そのまま置く */}
+          <div className={isEditing ? 'p-3' : 'px-5 py-4 min-h-[10rem]'}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
               value={e ? e.body : n.body}
@@ -1145,12 +1147,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           </div>
 
           {/* 作った人・日付(本文の下に小さく) */}
-          <div className={`pt-2 border-t ${border} text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>
+          <div className={`px-4 py-2 border-t ${border} ${surface2} rounded-b-xl text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>
             <span><NoteIcon name="user" /> {n.owner}</span>
             <span>作成 {fmtDateTime(n.createdAt)}</span>
             <span>更新 {fmtDateTime(n.updatedAt)}{n.updatedBy && n.updatedBy !== n.owner ? `(${n.updatedBy})` : ''}</span>
           </div>
         </div>
+       </div>
       </div>
     );
   };
