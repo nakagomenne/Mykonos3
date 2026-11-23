@@ -52,8 +52,6 @@
   .note-prose hr { border: none; border-top: 2px dashed #cbd5e1; margin: 1.2em 0; }
   .note-prose img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.4em 0; cursor: default; }
   .note-prose img.ProseMirror-selectednode { outline: 3px solid #0193be; }
-  /* Mikonote の未確認アナウンスの帯(同じ文を2つ並べ、半分ぶん流して切れ目なく繰り返す) */
-  @keyframes note-announce-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   /* ノートの「たたむ◀ / 開く▶」: 欄の開閉(0.2秒)が終わった直後に、反対向きから180度まわる。待っている間は前の向きのまま */
   @keyframes note-fold-spin { from { transform: rotate(180deg); } to { transform: rotate(0deg); } }
   .note-fold-arrow { animation: note-fold-spin 0.35s ease-out 0.2s backwards; }

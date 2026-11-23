@@ -94,6 +94,42 @@ const buildCallDetailLines = (call: { rank?: string; notes?: string }): string =
   return lines.length > 0 ? '\n' + lines.join('\n') : '';
 };
 
+/**
+ * Mikonote の未確認アナウンスを流す帯の中身。管理画面からのお知らせと同じ流し方:
+ * 同じ文を画面幅の3倍ぶん以上ならべ、1つぶんの幅だけ動かして繰り返す(間が空かず、文字数に関わらず同じ速さ)
+ */
+const NoteAnnounceMarquee: React.FC<{ text: string; className: string }> = ({ text, className }) => {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [repeat, setRepeat] = useState(4);
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const measure = () => {
+      const span = track.querySelector<HTMLSpanElement>('span');
+      const spanWidth = span ? span.getBoundingClientRect().width : 0;
+      if (!spanWidth) return;
+      setRepeat(Math.max(3, Math.ceil((window.innerWidth * 3) / spanWidth)));
+      const PX_PER_SEC = 80; // 管理画面からのお知らせと同じ速さ
+      track.style.setProperty('--marquee-duration', `${Math.max(4, spanWidth / PX_PER_SEC)}s`);
+      track.style.setProperty('--marquee-span-width', `${spanWidth}px`);
+    };
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', measure); };
+  }, [text]);
+  return (
+    <div
+      ref={trackRef}
+      className="flex whitespace-nowrap"
+      style={{ animation: 'marquee-item var(--marquee-duration, 8s) linear infinite' }}
+    >
+      {Array.from({ length: repeat }).map((_, i) => (
+        <span key={i} aria-hidden={i > 0} className={className}>{text}</span>
+      ))}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   // ──────────────────────────────────────────────────────────
   // ローディング・エラー状態
@@ -3789,21 +3825,10 @@ const App: React.FC = () => {
                 : { background: 'linear-gradient(135deg, #e0f4fa 0%, #c9ecf6 100%)', border: '1px solid rgba(1,147,190,0.45)' }}
             >
               <div className="py-2 overflow-hidden">
-                <div
-                  className="flex whitespace-nowrap w-max"
-                  style={{ animation: `note-announce-marquee ${Math.max(14, Math.round(text.length * 0.45))}s linear infinite` }}
-                >
-                  {[0, 1].map(i => (
-                    <span
-                      key={i}
-                      aria-hidden={i === 1}
-                      className={`font-semibold tracking-wider px-12 flex-shrink-0 ${isDarkMode ? 'text-sky-200' : 'text-[#01607a]'}`}
-                      style={{ minWidth: '100vw' }}
-                    >
-                      {text}
-                    </span>
-                  ))}
-                </div>
+                <NoteAnnounceMarquee
+                  text={text}
+                  className={`font-semibold tracking-wider px-12 flex-shrink-0 ${isDarkMode ? 'text-sky-200' : 'text-[#01607a]'}`}
+                />
               </div>
             </button>
           );
