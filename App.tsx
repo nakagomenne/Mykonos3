@@ -252,11 +252,16 @@ const App: React.FC = () => {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [notesInitialId, setNotesInitialId] = useState<string | null>(null);
   const [moveToNoteCall, setMoveToNoteCall] = useState<CallRequest | null>(null);
-  const handleNoteAnnounce = useCallback((note: Note) => {
+  const handleNoteAnnounce = useCallback((note: Note, isReminder = false) => {
+    // マイメニュー > 通知設定 の「ミコノートの通知」がオフなら出さない
+    if (notificationSettingsRef.current.noteAnnounceNotify === false) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    const n = new Notification(`周知: ${note.title || '(無題)'}`, {
-      body: `${note.owner} さんからの周知です。内容を確認してください。`,
-      tag: `note_announce_${note.id}`,
+    const n = new Notification(`${isReminder ? '【再通知】' : ''}アナウンス: ${note.title || '(無題)'}`, {
+      body: isReminder
+        ? `${note.owner} さんのアナウンスが、まだ未確認です。内容を確認してください。`
+        : `${note.owner} さんからのアナウンスです。内容を確認してください。`,
+      // 再通知は、前の通知が残っていてももう一度出るように別の通知として出す
+      tag: isReminder ? `note_announce_${note.id}_${Date.now()}` : `note_announce_${note.id}`,
       icon: '/favicon.ico',
     });
     n.onclick = () => {
@@ -267,6 +272,37 @@ const App: React.FC = () => {
     };
   }, []);
   const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce });
+
+  // Mykonos を開いたとき、閉じていた間に出た未確認のアナウンスがあれば1回だけ通知する
+  const unreadAnnouncementsRef = useRef(notesApi.unreadAnnouncements);
+  useEffect(() => { unreadAnnouncementsRef.current = notesApi.unreadAnnouncements; }, [notesApi.unreadAnnouncements]);
+  const notesWereLoadingRef = useRef(false);
+  const openNotifiedRef = useRef(false);
+  useEffect(() => {
+    if (notesApi.loading) { notesWereLoadingRef.current = true; return; }
+    if (!notesWereLoadingRef.current || openNotifiedRef.current) return;
+    openNotifiedRef.current = true;
+    // 確認済みの情報が読み込まれるのを少し待ってから数える
+    const timer = window.setTimeout(() => {
+      const unread = unreadAnnouncementsRef.current;
+      if (unread.length === 0) return;
+      if (notificationSettingsRef.current.noteAnnounceNotify === false) return;
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const first = unread[0];
+      const n = new Notification(`未確認のアナウンスが ${unread.length} 件あります`, {
+        body: unread.slice(0, 3).map(x => `・${x.title || '(無題)'}`).join('\n') + (unread.length > 3 ? '\nほか' : ''),
+        tag: 'note_announce_unread_on_open',
+        icon: '/favicon.ico',
+      });
+      n.onclick = () => {
+        window.focus();
+        setNotesInitialId(first.id);
+        setIsNotesOpen(true);
+        n.close();
+      };
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [notesApi.loading]);
 
   /** "HH:MM" → "H時MM分" 形式（MM=00 の場合は "H時"）*/
   const formatWorkTime = (hhmm?: string): string => {
@@ -3721,6 +3757,41 @@ const App: React.FC = () => {
       </header>
       
       <main className="px-4 sm:px-6 lg:px-8 py-4">
+        {/* Mikonote の未確認アナウンス(確認すると消える。押すとそのノートを開く) */}
+        {notesApi.unreadAnnouncements.length > 0 && (() => {
+          const unread = notesApi.unreadAnnouncements;
+          const text = `Mikonoteに未確認のアナウンスがあります(${unread.length}件)　` +
+            unread.map(x => `「${x.title || '(無題)'}」${x.owner}`).join('　／　');
+          return (
+            <button
+              type="button"
+              onClick={() => { setNotesInitialId(unread[0].id); setIsNotesOpen(true); }}
+              title="クリックすると、未確認のアナウンスを開きます"
+              className="mb-4 block w-full overflow-hidden rounded-xl shadow-sm text-left cursor-pointer"
+              style={isDarkMode
+                ? { background: 'linear-gradient(135deg, #0b2a36 0%, #0d3442 100%)', border: '1px solid rgba(1,147,190,0.5)' }
+                : { background: 'linear-gradient(135deg, #e0f4fa 0%, #c9ecf6 100%)', border: '1px solid rgba(1,147,190,0.45)' }}
+            >
+              <div className="py-2 overflow-hidden">
+                <div
+                  className="flex whitespace-nowrap w-max"
+                  style={{ animation: `note-announce-marquee ${Math.max(14, Math.round(text.length * 0.45))}s linear infinite` }}
+                >
+                  {[0, 1].map(i => (
+                    <span
+                      key={i}
+                      aria-hidden={i === 1}
+                      className={`font-semibold tracking-wider px-12 flex-shrink-0 ${isDarkMode ? 'text-sky-200' : 'text-[#01607a]'}`}
+                      style={{ minWidth: '100vw' }}
+                    >
+                      {text}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </button>
+          );
+        })()}
         {announcement && (() => {
           // 重要度別スタイル設定
           const priorityStyle = announcementPriority === 'high'

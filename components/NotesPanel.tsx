@@ -40,6 +40,8 @@ interface NoteDraft {
   sharedWith: string[];
   tags: string[];
   pinned: boolean;
+  /** 保存と同時にアナウンスするか */
+  announce?: boolean;
 }
 
 /** 既存ノートの「編集中」の内容(「保存」を押すまでDBには反映しない) */
@@ -180,8 +182,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [tagInput, setTagInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  /** 「周知・共同編集」の設定を開いているか */
+  /** 「アナウンス・共同編集」の設定を開いているか */
   const [moreOpen, setMoreOpen] = useState(false);
+  /** 「未確認の人に再通知」を送り終えたノートのID(ボタンの表示を「送りました」にする) */
+  const [remindedId, setRemindedId] = useState<string | null>(null);
   /** 上のバーの「⋯」(削除など)を開いているか */
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -346,16 +350,16 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned) || byKey(a, b));
   }, [baseNotes, activeOwner, activeTag, sortKey]);
 
-  // 自分が非表示にした周知(「周知(お知らせ)」一覧の最下部に別枠で出す)
+  // 自分が非表示にしたアナウンス(「アナウンス(お知らせ)」一覧の最下部に別枠で出す)
   const hiddenAnnouncements = useMemo(
     () => notes.filter(n => n.isAnnouncement && myHiddenIds.has(n.id))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
     [notes, myHiddenIds]);
 
-  // 「非表示の周知」バーの開閉(初期は閉じる。開いている非表示周知を選んでいる間は自動で開く)
+  // 「非表示のアナウンス」バーの開閉(初期は閉じる。開いている非表示アナウンスを選んでいる間は自動で開く)
   const [hiddenOpen, setHiddenOpen] = useState(false);
 
-  // 非表示の周知を開いたとき(通知からの遷移など)は、バーも一緒に開いて選択中のノートが見えるようにする
+  // 非表示のアナウンスを開いたとき(通知からの遷移など)は、バーも一緒に開いて選択中のノートが見えるようにする
   useEffect(() => {
     if (selectedId && hiddenAnnouncements.some(n => n.id === selectedId)) setHiddenOpen(true);
   }, [selectedId, hiddenAnnouncements]);
@@ -429,6 +433,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     if (!draft.title.trim() && !draft.body) {
       throw new Error('タイトルか本文を入力してから保存してください');
     }
+    if (draft.announce) {
+      if (draft.visibility === 'private') {
+        setSettingsOpen(true);
+        throw new Error('アナウンスするには、公開範囲を「自分だけ」以外にしてください');
+      }
+      if (getRecipients({ owner: me.name, visibility: draft.visibility, sharedWith: draft.sharedWith }, users).length === 0) {
+        throw new Error('アナウンスの対象者がいません。公開範囲を確認してください');
+      }
+    }
     const note = await api.addNote({
       title: draft.title,
       body: draft.body,
@@ -438,6 +451,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       tags,
       pinned: draft.pinned,
     });
+    let announceFailed = false;
+    if (draft.announce) {
+      // ノートは作成済みなので、アナウンスだけ失敗しても下書きには戻さない(二重に作らないため)
+      try { await api.announce(note.id); } catch { announceFailed = true; }
+    }
     setDraft(null);
     if (!recovered) clearBackup();
     setTagInput('');
@@ -445,6 +463,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     endEdit();
     setSelectedId(note.id);
     setStep('note');
+    if (announceFailed) throw new Error('ノートは保存しましたが、アナウンスに失敗しました。ノートを開いて、もう一度アナウンスしてください');
   });
 
   const draftDirty = !!draft && (
@@ -571,7 +590,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setAnnounceTarget(null);
   });
 
-  /** 周知の「確認しました」ダイアログで、キャンセル以外を選んだとき(確認済み+非表示。必要ならコピーも作る) */
+  /** アナウンスの「確認しました」ダイアログで、キャンセル以外を選んだとき(確認済み+非表示。必要ならコピーも作る) */
   const handleConfirmHide = (copy: boolean) => confirmTarget && run(async () => {
     const target = confirmTarget;
     // 先に「確認済み+非表示」を記録する(DBの更新漏れなどで失敗したとき、コピーだけが増えないように)
@@ -581,7 +600,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       try {
         created = await api.copyToMine(target);
       } catch (e) {
-        try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくても周知一覧の最下部から見られる */ }
+        try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくてもアナウンス一覧の最下部から見られる */ }
         throw e;
       }
     }
@@ -594,7 +613,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       foldPanes();
       setStep('note');
     } else if (view.kind === 'announce' && selectedId === target.id) {
-      setSelectedId(null);   // 非表示にした周知は上の一覧から最下部の「非表示の周知」へ移るので、開いたままにしない
+      setSelectedId(null);   // 非表示にしたアナウンスは上の一覧から最下部の「非表示のアナウンス」へ移るので、開いたままにしない
       setStep('list');
     }
   });
@@ -712,7 +731,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       case 'pinned': return <>★ ピン留め</>;
       case 'unsorted': return <><NoteIcon name="inbox" /> フォルダ未設定</>;
       case 'mine': return <><NoteIcon name="file-text" /> 自分のノート(すべて)</>;
-      case 'announce': return <><NoteIcon name="megaphone" /> 周知(お知らせ)</>;
+      case 'announce': return <><NoteIcon name="megaphone" /> アナウンス(お知らせ)</>;
       case 'shared': return <><NoteIcon name="globe" /> 共有されたノート</>;
       case 'folder': return <><NoteIcon name="folder" /> {currentFolder?.name ?? 'フォルダ'}</>;
     }
@@ -731,7 +750,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {n.pinned && <span className="text-amber-500 text-xs">★</span>}
           <span className={`truncate flex-1 text-sm font-semibold ${n.title ? '' : muted}`}>{n.title || '(無題)'}</span>
           {unread && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5">未確認</span>}
-          {n.isAnnouncement && !unread && <span title="周知"><NoteIcon name="megaphone" /></span>}
+          {n.isAnnouncement && !unread && <span title="アナウンス"><NoteIcon name="megaphone" /></span>}
           <span title={VISIBILITY_LABELS[n.visibility]} className="text-xs"><VisibilityIcon visibility={n.visibility} /></span>
         </div>
         <div className={`text-xs mt-0.5 truncate ${muted}`}>{preview || '(本文なし)'}</div>
@@ -836,7 +855,32 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           )}
 
-          <div className={`text-xs ${muted}`}>※ 「周知」は、保存してから行えます。</div>
+          {(() => {
+            const count = dr.visibility === 'private' ? 0 : getRecipients({ owner: me.name, visibility: dr.visibility, sharedWith: dr.sharedWith }, users).length;
+            return (
+              <label className={`rounded-lg border px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1 cursor-pointer ${dr.announce ? (d ? 'border-amber-600 bg-amber-900/20' : 'border-amber-300 bg-amber-50') : `${border} ${surface2}`}`}>
+                <input
+                  type="checkbox"
+                  checked={!!dr.announce}
+                  onChange={ev => {
+                    const on = ev.target.checked;
+                    patch({ announce: on });
+                    // 「自分だけ」のままではアナウンスできないので、公開範囲を選ぶ欄を開く
+                    if (on && dr.visibility === 'private') setSettingsOpen(true);
+                  }}
+                  className="w-4 h-4 accent-amber-500"
+                />
+                <span className="text-sm"><NoteIcon name="megaphone" /> <b>保存と同時にアナウンスする</b></span>
+                <span className={`text-xs ${dr.announce && dr.visibility === 'private' ? 'text-amber-600 font-semibold' : muted}`}>
+                  {!dr.announce
+                    ? '読んでほしい人に通知し、誰が確認したかを見られます'
+                    : dr.visibility === 'private'
+                      ? '公開範囲を「自分だけ」以外にしてください'
+                      : `保存すると、見られる ${count} 名に通知します`}
+                </span>
+              </label>
+            );
+          })()}
 
           <NoteEditor
             key="draft"
@@ -882,7 +926,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <button onClick={() => setHelpOpen(true)} className={`px-4 py-2 rounded-md text-sm font-semibold border ${border} ${hoverRow}`}><NoteIcon name="help" /> 使い方を見る</button>
             </div>
             <ul className={`text-left text-sm space-y-1.5 rounded-lg border ${border} ${surface2} p-4 ${d ? 'text-slate-300' : 'text-slate-600'}`}>
-              <li><NoteIcon name="megaphone" /> <b>周知</b>:読んでほしいノートを、みんなに通知して確認状況も見られます</li>
+              <li><NoteIcon name="megaphone" /> <b>アナウンス</b>:読んでほしいノートを、みんなに通知して確認状況も見られます</li>
               <li><NoteIcon name="lock" /> <b>公開範囲</b>:自分だけ / 全員 / 管理者 / 選んだメンバー</li>
               <li><NoteIcon name="paperclip" /> 案件の備考は、詳細画面の「ノートに保存」から移せます</li>
             </ul>
@@ -1000,8 +1044,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           <div className={`px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2 border-b ${border} ${iRead ? (d ? 'bg-emerald-900/30' : 'bg-emerald-50') : (d ? 'bg-amber-900/30' : 'bg-amber-50')}`}>
             <span className="text-sm flex-1 min-w-[200px]">
               {iRead
-                ? <><NoteIcon name="check-circle" /> {iHidden ? '確認済みで、周知の一覧では非表示にしています' : 'このお知らせを確認済みです'}</>
-                : <><NoteIcon name="megaphone" /> {n.owner} さんからの周知です。内容を読んだら「確認しました」を押してください。</>}
+                ? <><NoteIcon name="check-circle" /> {iHidden ? '確認済みで、アナウンスの一覧では非表示にしています' : 'このお知らせを確認済みです'}</>
+                : <><NoteIcon name="megaphone" /> {n.owner} さんからのアナウンスです。内容を読んだら「確認しました」を押してください。</>}
             </span>
             {!iRead && (
               <button
@@ -1022,7 +1066,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 onClick={() => run(() => api.unhideAnnouncement(n.id))}
                 disabled={busy}
                 className={`px-3 py-1.5 rounded-md text-sm font-bold border ${border} ${hoverRow} disabled:opacity-50`}
-              >周知の一覧に戻す</button>
+              >アナウンスの一覧に戻す</button>
             )}
           </div>
         )}
@@ -1062,14 +1106,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 </label>
                 <button
                   onClick={() => { setSettingsOpen(false); setMoreOpen(o => !o); }}
-                  title="周知(読んだか確認する)と、共同編集の設定を開きます"
+                  title="アナウンス(読んだか確認する)と、共同編集の設定を開きます"
                   aria-expanded={moreOpen}
                   className={`${chip} ${moreOpen ? chipOn : n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20 text-amber-400' : 'border-amber-300 bg-amber-50 text-amber-700') : chipIdle}`}
                 >
                   <NoteIcon name="megaphone" />
                   {n.isAnnouncement
-                    ? <span className="font-bold">周知中 {readCount}/{recipients.length}人</span>
-                    : <span>周知</span>}
+                    ? <span className="font-bold">アナウンス中 {readCount}/{recipients.length}人</span>
+                    : <span>アナウンス</span>}
                   {n.visibility !== 'private' && <span>・共同編集{n.allowEdit ? ' オン' : ''}</span>}
                   <span className="text-[9px]">{moreOpen ? '▲' : '▼'}</span>
                 </button>
@@ -1111,23 +1155,29 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
               {moreOpen && (
                 <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-3`}>
-                  {/* 周知 */}
+                  {/* アナウンス */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     {n.visibility === 'private' ? (
                       <>
-                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にすると周知できます</span></span>
+                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>アナウンス</b><span className={`ml-2 text-xs ${muted}`}>読んでほしい内容は、公開範囲を「自分だけ」以外にするとアナウンスできます</span></span>
                         <button onClick={() => { setMoreOpen(false); setSettingsOpen(true); }} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow}`}>公開範囲を変える</button>
                       </>
                     ) : n.isAnnouncement ? (
                       <>
-                        <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> 周知中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
-                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`} title={editDirty ? '先に「保存」してください' : '内容を直したときなど、もう一度確認してもらいます'}>再周知する</button>
-                        <button onClick={() => run(() => api.unannounce(n.id))} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}>周知をやめる</button>
+                        <span className="text-sm font-bold text-amber-600 flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> アナウンス中<span className={`ml-2 text-xs font-normal ${muted}`}>{n.announcedAt ? fmtDateTime(n.announcedAt) : ''}</span></span>
+                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`} title={editDirty ? '先に「保存」してください' : '内容を直したときなど、全員にもう一度確認してもらいます(確認状況はリセットされます)'}>再アナウンスする</button>
+                        <button
+                          onClick={() => run(async () => { await api.remindUnread(n.id); setRemindedId(n.id); })}
+                          disabled={busy || readCount >= recipients.length || remindedId === n.id}
+                          className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}
+                          title="まだ確認していない人にだけ、もう一度通知します(確認済みの人には届かず、確認状況もそのままです)"
+                        >{remindedId === n.id ? '再通知しました' : '未確認の人に再通知'}</button>
+                        <button onClick={() => run(() => api.unannounce(n.id))} disabled={editDirty} className={`text-xs px-2.5 py-1 rounded-md border ${border} ${hoverRow} disabled:opacity-50`}>アナウンスをやめる</button>
                       </>
                     ) : (
                       <>
-                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>周知</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
-                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} title={editDirty ? '先に「保存」してください' : undefined} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50"><NoteIcon name="megaphone" /> 周知する</button>
+                        <span className="text-sm flex-1 min-w-[200px]"><NoteIcon name="megaphone" /> <b>アナウンス</b><span className={`ml-2 text-xs ${muted}`}>通知を送り、誰が読んだかを確認できます</span></span>
+                        <button onClick={() => setAnnounceTarget(n)} disabled={editDirty} title={editDirty ? '先に「保存」してください' : undefined} className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50"><NoteIcon name="megaphone" /> アナウンスする</button>
                       </>
                     )}
                   </div>
@@ -1145,7 +1195,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                         className="w-4 h-4 accent-[#0193be]"
                       />
                       <span className="text-sm"><NoteIcon name="users" /> <b>共同編集</b></span>
-                      <span className={`text-xs ${muted}`}>オンにすると、このノートを見られる人もタイトルと本文を編集できます(公開範囲・削除・周知は作った人だけ)</span>
+                      <span className={`text-xs ${muted}`}>オンにすると、このノートを見られる人もタイトルと本文を編集できます(公開範囲・削除・アナウンスは作った人だけ)</span>
                     </label>
                   )}
                 </div>
@@ -1161,7 +1211,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
 
           {n.isAnnouncement && isOwner && recipients.length === 0 && (
-            <div className="px-4 pt-2 text-xs text-amber-600">※ 周知の対象者がいません(特定メンバーの選択を確認してください)。</div>
+            <div className="px-4 pt-2 text-xs text-amber-600">※ アナウンスの対象者がいません(特定メンバーの選択を確認してください)。</div>
           )}
 
           {/* 元案件 */}
@@ -1319,7 +1369,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
-              <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="周知(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
+              <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
               <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={otherNotes.length} />
 
               <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
@@ -1438,10 +1488,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
                 ) : visibleNotes.length === 0 ? (
                   draft ? null : <div className={`p-4 text-sm ${muted}`}>
-                    {(activeOwner || activeTag) ? '絞り込みに一致するノートがありません。' : search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? '周知されているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
+                    {(activeOwner || activeTag) ? '絞り込みに一致するノートがありません。' : search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? 'アナウンスされているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
                 ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
-                {/* 「周知(お知らせ)」を開いているときだけ、一覧の一番下に非表示にした周知を出す */}
+                {/* 「アナウンス(お知らせ)」を開いているときだけ、一覧の一番下に非表示にしたアナウンスを出す */}
                 {view.kind === 'announce' && !search.trim() && hiddenAnnouncements.length > 0 && (
                   <>
                     <button
@@ -1450,7 +1500,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                       className={`w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold tracking-wide border-b ${border} ${surface2} ${muted} ${hoverRow}`}
                     >
                       <NoteIcon name="chevron-right" className={`transition-transform duration-200 ${hiddenOpen ? 'rotate-90' : ''}`} />
-                      <span className="flex-1 text-left">非表示の周知（{hiddenAnnouncements.length}件）</span>
+                      <span className="flex-1 text-left">非表示のアナウンス（{hiddenAnnouncements.length}件）</span>
                     </button>
                     <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${hiddenOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                       <div className="overflow-hidden min-h-0" {...(hiddenOpen ? {} : { inert: true } as object)}>
@@ -1596,14 +1646,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         isOpen={!!announceTarget}
         onClose={() => setAnnounceTarget(null)}
         onConfirm={handleAnnounce}
-        title={announceTarget?.isAnnouncement ? '再周知しますか?' : '周知しますか?'}
-        confirmLabel={announceTarget?.isAnnouncement ? '再周知する' : '周知する'}
+        title={announceTarget?.isAnnouncement ? '再アナウンスしますか?' : 'アナウンスしますか?'}
+        confirmLabel={announceTarget?.isAnnouncement ? '再アナウンスする' : 'アナウンスする'}
       >
         {announceTarget && (
           <>
-            <p>「{announceTarget.title || '(無題)'}」を、閲覧できる {getRecipients(announceTarget, users).length} 名に周知します。</p>
+            <p>「{announceTarget.title || '(無題)'}」を、閲覧できる {getRecipients(announceTarget, users).length} 名にアナウンスします。</p>
             <p className="mt-2 text-sm">対象の方にはプッシュ通知(通知を許可している場合)とヘッダーのバッジでお知らせし、「確認しました」の状況を確認できます。</p>
-            {announceTarget.isAnnouncement && <p className="mt-2 text-sm text-amber-600">再周知すると、これまでの確認状況はリセットされます。</p>}
+            {announceTarget.isAnnouncement && <p className="mt-2 text-sm text-amber-600">再アナウンスすると、これまでの確認状況はリセットされます。</p>}
           </>
         )}
       </ConfirmationModal>

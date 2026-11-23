@@ -14,7 +14,7 @@ interface NoteConfirmDialogProps {
   onCancel: () => void;
 }
 
-/** 周知の「確認しました」: コピーして非表示 / コピーせず非表示 / キャンセル を選ぶダイアログ */
+/** アナウンスの「確認しました」: コピーして非表示 / コピーせず非表示 / キャンセル を選ぶダイアログ */
 const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle, busy = false, error = null, onCopyAndHide, onHide, onCancel }) => {
   if (!isOpen) return null;
   return createPortal(
@@ -23,18 +23,18 @@ const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle
       onClick={busy ? undefined : onCancel}
       role="dialog"
       aria-modal="true"
-      aria-label="周知の確認"
+      aria-label="アナウンスの確認"
     >
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-slate-800">この周知を確認済みにします</h2>
+          <h2 className="text-lg font-bold text-slate-800">このアナウンスを確認済みにします</h2>
           <button onClick={onCancel} disabled={busy} className="text-slate-500 hover:text-slate-800 transition" aria-label="閉じる">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
         <div className="p-5 text-slate-600 space-y-3 overflow-y-auto">
-          <p className="text-sm">「{noteTitle || '(無題)'}」を確認済みにして、周知の一覧から非表示にします。</p>
-          <p className="text-xs text-slate-500">非表示にした周知は、あとから「周知(お知らせ)」一覧の一番下の「非表示の周知」バーから見られます。</p>
+          <p className="text-sm">「{noteTitle || '(無題)'}」を確認済みにして、アナウンスの一覧から非表示にします。</p>
+          <p className="text-xs text-slate-500">非表示にしたアナウンスは、あとから「アナウンス(お知らせ)」一覧の一番下の「非表示のアナウンス」バーから見られます。</p>
           {error && (
             <div role="alert" className="text-sm rounded-md border border-red-200 bg-red-50 text-red-700 px-3 py-2"><NoteIcon name="warning" /> {error}</div>
           )}
@@ -45,7 +45,7 @@ const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle
               className="w-full text-left rounded-lg border border-[#0193be] bg-[#0193be] text-white px-4 py-2.5 hover:bg-[#017a9a] disabled:opacity-50 transition"
             >
               <div className="font-bold text-sm">自分用にコピーして非表示</div>
-              <div className="text-xs opacity-90">「自分のノート」にコピーを作り、周知は非表示にします</div>
+              <div className="text-xs opacity-90">「自分のノート」にコピーを作り、アナウンスは非表示にします</div>
             </button>
             <button
               onClick={onHide}
@@ -53,7 +53,7 @@ const NoteConfirmDialog: React.FC<NoteConfirmDialogProps> = ({ isOpen, noteTitle
               className="w-full text-left rounded-lg border border-slate-300 bg-white text-slate-700 px-4 py-2.5 hover:bg-slate-50 disabled:opacity-50 transition"
             >
               <div className="font-bold text-sm">コピーせず非表示</div>
-              <div className="text-xs text-slate-500">コピーは作らず、周知だけ非表示にします</div>
+              <div className="text-xs text-slate-500">コピーは作らず、アナウンスだけ非表示にします</div>
             </button>
           </div>
         </div>

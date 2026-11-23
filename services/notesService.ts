@@ -71,7 +71,7 @@ export function canView(item: Shareable, viewer: Viewer): boolean {
   }
 }
 
-/** 公開範囲ごとの「読む人」の名前一覧(オーナー本人を除く)。周知の既読確認の対象 */
+/** 公開範囲ごとの「読む人」の名前一覧(オーナー本人を除く)。アナウンスの既読確認の対象 */
 export function getRecipients(item: Shareable, users: User[]): string[] {
   const names = users.map(u => u.name).filter(n => n !== item.owner);
   switch (item.visibility) {
@@ -293,7 +293,7 @@ export async function updateNote(id: string, patch: NotePatch, editor: string): 
   if (patch.pinned     !== undefined) row.pinned      = patch.pinned;
   if (patch.tags       !== undefined) row.tags        = patch.tags;
   if (patch.allowEdit  !== undefined) row.allow_edit  = patch.allowEdit;
-  // 非公開に戻したら周知も解除
+  // 非公開に戻したらアナウンスも解除
   if (patch.visibility === 'private') { row.is_announcement = false; }
   const { data, error } = await supabase.from('notes').update(row).eq('id', id).select('*').single();
   if (error) {
@@ -382,10 +382,10 @@ export async function copyNoteToMine(note: Note, me: string): Promise<Note> {
 }
 
 // ────────────────────────────────────────────────────────────
-// 周知 / 既読確認
+// アナウンス / 既読確認
 // ────────────────────────────────────────────────────────────
 
-/** 周知する(再周知の場合は既読をリセットして全員に再確認してもらう) */
+/** アナウンスする(再アナウンスの場合は既読をリセットして全員に再確認してもらう) */
 export async function announceNote(noteId: string, editor: string): Promise<Note> {
   const { error: delErr } = await supabase.from('note_reads').delete().eq('note_id', noteId);
   if (delErr && !isMissingTableError(delErr)) fail('既読のリセットに失敗しました', delErr);
@@ -396,7 +396,7 @@ export async function announceNote(noteId: string, editor: string): Promise<Note
     .eq('id', noteId)
     .select('*')
     .single();
-  if (error) fail('周知に失敗しました', error);
+  if (error) fail('アナウンスに失敗しました', error);
   return rowToNote(data);
 }
 
@@ -407,11 +407,11 @@ export async function unannounceNote(noteId: string, editor: string): Promise<No
     .eq('id', noteId)
     .select('*')
     .single();
-  if (error) fail('周知の解除に失敗しました', error);
+  if (error) fail('アナウンスの解除に失敗しました', error);
   return rowToNote(data);
 }
 
-/** 閲覧可能な周知ノートの既読情報を取得 */
+/** 閲覧可能なアナウンスノートの既読情報を取得 */
 export async function fetchNoteReads(noteIds: string[]): Promise<NoteRead[]> {
   if (noteIds.length === 0) return [];
   const { data, error } = await supabase.from('note_reads').select('*').in('note_id', noteIds);
@@ -427,7 +427,7 @@ function failHidden(prefix: string, error: any): never {
   return fail(prefix, error);
 }
 
-/** 「確認しました」を記録する。hidden=true なら、同時に周知の一覧から非表示にする */
+/** 「確認しました」を記録する。hidden=true なら、同時にアナウンスの一覧から非表示にする */
 export async function markNoteRead(noteId: string, userName: string, hidden = false): Promise<NoteRead> {
   const row: Record<string, unknown> = { note_id: noteId, user_name: userName, read_at: new Date().toISOString() };
   if (hidden) row.hidden = true;   // 非表示にしない場合は hidden 列に触れない(未適用のDBでも確認だけは通る)
@@ -440,7 +440,7 @@ export async function markNoteRead(noteId: string, userName: string, hidden = fa
   return rowToRead(data);
 }
 
-/** 既に確認済みの周知の「非表示」だけを切り替える(確認日時は変えない) */
+/** 既に確認済みのアナウンスの「非表示」だけを切り替える(確認日時は変えない) */
 export async function setNoteReadHidden(noteId: string, userName: string, hidden: boolean): Promise<NoteRead> {
   const { data, error } = await supabase
     .from('note_reads')
@@ -591,6 +591,31 @@ export async function uploadNoteFile(file: File): Promise<{ url: string; name: s
   if (error) throw new Error(`ファイルのアップロードに失敗しました: ${error.message}`);
   const url = supabase.storage.from(NOTE_IMAGE_BUCKET).getPublicUrl(path, { download: name }).data.publicUrl;
   return { url, name, kind: isAudio ? 'audio' : 'file' };
+}
+
+// ────────────────────────────────────────────────────────────
+// アナウンスの再通知(まだ確認していない人にだけ、もう一度知らせる)
+// DB は書き換えず、いま Mykonos を開いている人へ合図だけを送る
+// ────────────────────────────────────────────────────────────
+
+export function subscribeToAnnounceReminders(onRemind: (noteId: string) => void): {
+  send: (noteId: string) => Promise<void>;
+  unsubscribe: () => void;
+} {
+  const channel = supabase
+    .channel('mykonos_note_remind')
+    .on('broadcast', { event: 'remind' }, (msg: any) => {
+      const id = msg?.payload?.noteId;
+      if (typeof id === 'string') onRemind(id);
+    })
+    .subscribe();
+  return {
+    send: async (noteId: string) => {
+      const res = await channel.send({ type: 'broadcast', event: 'remind', payload: { noteId } });
+      if (res !== 'ok') throw new Error('再通知を送れませんでした。少し待ってから、もう一度お試しください');
+    },
+    unsubscribe: () => { void supabase.removeChannel(channel); },
+  };
 }
 
 // ────────────────────────────────────────────────────────────

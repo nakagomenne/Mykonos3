@@ -24,6 +24,8 @@ export interface NotificationSettings {
   elecInstantNotify: boolean;
   /** 電気契確の架電時間通知タイミング（複数選択可） */
   elecCallNotifyTimings: NotifyTiming[];
+  /** ミコノート(Mikonote)のアナウンスを通知するか */
+  noteAnnounceNotify: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -34,6 +36,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   assigneeInstantNotify: false,
   elecInstantNotify: false,
   elecCallNotifyTimings: ['exact'],
+  noteAnnounceNotify: true,
 };
 
 const TIMING_LABELS: Record<NotifyTiming, string> = {
@@ -94,6 +97,15 @@ const NotificationSettingsModal: React.FC<Props> = ({
       onChange({ ...settings, assigneeInstantNotify: true });
     } else {
       onChange({ ...settings, assigneeInstantNotify: false });
+    }
+  };
+
+  const handleNoteAnnounceToggle = async () => {
+    if (!settings.noteAnnounceNotify) {
+      if (!await ensurePermission()) return;
+      onChange({ ...settings, noteAnnounceNotify: true });
+    } else {
+      onChange({ ...settings, noteAnnounceNotify: false });
     }
   };
 
@@ -264,6 +276,35 @@ const NotificationSettingsModal: React.FC<Props> = ({
                   aria-hidden="true"
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                     settings.assigneeInstantNotify ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </section>
+
+          {/* ── ミコノートの通知 ── */}
+          <section className="border-t border-slate-100 pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-slate-800">ミコノートの通知</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Mikonote で自分あてのアナウンスがあったとき(新しいアナウンス・再通知・開いたときの未確認)に通知します
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleNoteAnnounceToggle}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-2 ${
+                  settings.noteAnnounceNotify ? 'bg-[#0193be]' : 'bg-slate-200'
+                }`}
+                role="switch"
+                aria-checked={settings.noteAnnounceNotify}
+                aria-label="ミコノートの通知"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    settings.noteAnnounceNotify ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>

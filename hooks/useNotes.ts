@@ -2,8 +2,8 @@
 // ============================================================
 // ノート機能の状態管理フック
 //   - 取得 / Realtime 反映 / 楽観的更新 + デバウンス保存
-//   - 未確認の周知の集計
-// App で1回だけ呼び出し、NotesPanel に渡す(ヘッダーのバッジ・周知通知のため
+//   - 未確認のアナウンスの集計
+// App で1回だけ呼び出し、NotesPanel に渡す(ヘッダーのバッジ・アナウンス通知のため
 // パネルを閉じていても常に動かす)
 // ============================================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,8 +14,8 @@ export type NoteSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 interface UseNotesOptions {
   me: User | null;
-  /** 他の人が周知したときに呼ばれる(プッシュ通知用) */
-  onAnnounce?: (note: Note) => void;
+  /** 他の人がアナウンスしたときに呼ばれる(プッシュ通知用) */
+  onAnnounce?: (note: Note, isReminder?: boolean) => void;
 }
 
 const SAVE_DEBOUNCE_MS = 900;
@@ -89,7 +89,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     return () => { cancelled = true; };
   }, [viewer, load]);
 
-  // 周知ノートの集合が変わったら既読を取り直す
+  // アナウンスノートの集合が変わったら既読を取り直す
   const announcedKey = useMemo(
     () => notes.filter(n => n.isAnnouncement).map(n => `${n.id}:${n.announcedAt ?? ''}`).sort().join(','),
     [notes]
@@ -121,7 +121,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
           setNotes(p => p.filter(n => n.id !== note.id));
           return;
         }
-        // 他の人の周知を検知(再周知は announced_at が変わる)
+        // 他の人のアナウンスを検知(再アナウンスは announced_at が変わる)
         if (
           note.isAnnouncement && note.owner !== v.name && note.announcedAt &&
           note.announcedAt !== prev?.announcedAt
@@ -253,7 +253,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
   const announce = useCallback(async (id: string) => {
     const v = viewerRef.current;
     if (!v) return;
-    await flush(id); // 直前の編集内容を保存してから周知
+    await flush(id); // 直前の編集内容を保存してからアナウンス
     const updated = await svc.announceNote(id, v.name);
     setReads(prev => prev.filter(r => r.noteId !== id));
     setNotes(prev => prev.map(n => (n.id === id ? { ...updated, body: n.body } : n)));
@@ -273,7 +273,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     setReads(prev => [...prev.filter(x => !(x.noteId === noteId && x.userName === v.name)), r]);
   }, []);
 
-  /** 確認済みにして、周知の一覧から非表示にする(未確認なら確認も同時に記録) */
+  /** 確認済みにして、アナウンスの一覧から非表示にする(未確認なら確認も同時に記録) */
   const hideAnnouncement = useCallback(async (noteId: string) => {
     const v = viewerRef.current;
     if (!v) return;
@@ -284,7 +284,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     setReads(prev => [...prev.filter(x => !(x.noteId === noteId && x.userName === v.name)), r]);
   }, []);
 
-  /** 非表示にした周知を、周知の一覧に戻す */
+  /** 非表示にしたアナウンスを、アナウンスの一覧に戻す */
   const unhideAnnouncement = useCallback(async (noteId: string) => {
     const v = viewerRef.current;
     if (!v) return;
@@ -319,17 +319,40 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     await load();
   }, [load]);
 
+  // ── アナウンスの再通知 ─────────────────────────────────
+  const remindRef = useRef<{ send: (noteId: string) => Promise<void> } | null>(null);
+  useEffect(() => {
+    if (!viewer || unavailable) return;
+    const sub = svc.subscribeToAnnounceReminders(noteId => {
+      const v = viewerRef.current;
+      if (!v) return;
+      // 自分が見られて、まだ確認していないアナウンスのときだけ知らせる
+      const note = notesRef.current.find(n => n.id === noteId);
+      if (!note || !note.isAnnouncement || note.owner === v.name) return;
+      if (readsRef.current.some(r => r.noteId === noteId && r.userName === v.name)) return;
+      onAnnounceRef.current?.(note, true);
+    });
+    remindRef.current = sub;
+    return () => { remindRef.current = null; sub.unsubscribe(); };
+  }, [viewer, unavailable]);
+
+  /** まだ確認していない人にだけ、もう一度通知する(確認状況はリセットしない) */
+  const remindUnread = useCallback(async (id: string) => {
+    if (!remindRef.current) throw new Error('再通知を送れませんでした。少し待ってから、もう一度お試しください');
+    await remindRef.current.send(id);
+  }, []);
+
   // ── 集計 ─────────────────────────────────────────────
   const myReadIds = useMemo(
     () => new Set(reads.filter(r => r.userName === meName).map(r => r.noteId)),
     [reads, meName]
   );
-  /** 自分が「確認済みにして非表示」にした周知のID */
+  /** 自分が「確認済みにして非表示」にしたアナウンスのID */
   const myHiddenIds = useMemo(
     () => new Set(reads.filter(r => r.userName === meName && r.hidden).map(r => r.noteId)),
     [reads, meName]
   );
-  /** 自分宛ての、まだ「確認しました」を押していない周知 */
+  /** 自分宛ての、まだ「確認しました」を押していないアナウンス */
   const unreadAnnouncements = useMemo(
     () => notes.filter(n => n.isAnnouncement && n.owner !== meName && !myReadIds.has(n.id)),
     [notes, meName, myReadIds]
@@ -339,7 +362,7 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     notes, folders, reads, loading, unavailable, error, saveState,
     myReadIds, myHiddenIds, unreadAnnouncements,
     reload: load, flushAll, clearError: () => setError(null),
-    editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, markRead, hideAnnouncement, unhideAnnouncement,
+    editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
   };
 }

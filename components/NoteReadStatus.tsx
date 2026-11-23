@@ -10,7 +10,7 @@ interface NoteReadStatusProps {
   isDarkMode?: boolean;
 }
 
-/** 周知ノートの「誰が確認済み/未確認か」(オーナーと管理者に表示) */
+/** アナウンスノートの「誰が確認済み/未確認か」(オーナーと管理者に表示) */
 const NoteReadStatus: React.FC<NoteReadStatusProps> = ({ note, users, reads, isDarkMode = false }) => {
   const [open, setOpen] = useState(false);
   const recipients = getRecipients(note, users);
