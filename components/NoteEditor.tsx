@@ -11,6 +11,7 @@ import { TextStyle, Color, BackgroundColor, FontSize } from '@tiptap/extension-t
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NoteIcon } from './NoteIcons';
 import { NoteAudio, NoteVideo, toVideoEmbedUrl, isAutoEmbedVideoUrl } from './noteMedia';
+import { getNoteLinkApi, noteIdFromUrl } from './noteLinks';
 import { CommentAnchorExtension, NoteCommentContext, anchorFromSelection, resolveAnchors } from './noteCommentAnchors';
 
 interface NoteEditorProps {
@@ -236,6 +237,17 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       handlePaste: (_view, event) => {
         // YouTube などの動画リンクだけを貼ったときは、ノートの中で再生できる形で入れる
         const pasted = event.clipboardData?.getData('text/plain') ?? '';
+        // ノートリンクだけを貼ったときは、長い URL ではなく「📝 ノートのタイトル」という文字のリンクにする
+        const linkedNoteId = event.clipboardData?.files?.length ? null : noteIdFromUrl(pasted);
+        if (linkedNoteId && editorRef.current) {
+          event.preventDefault();
+          const title = getNoteLinkApi()?.titleOf(linkedNoteId) || 'ノート';
+          editorRef.current.chain().focus()
+            .insertContent({ type: 'text', text: `📝 ${title}`, marks: [{ type: 'link', attrs: { href: pasted.trim() } }] })
+            .insertContent(' ')
+            .run();
+          return true;
+        }
         if (!event.clipboardData?.files?.length && isAutoEmbedVideoUrl(pasted)) {
           const src = toVideoEmbedUrl(pasted);
           if (src && editorRef.current) {
@@ -385,7 +397,21 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     : '';
 
   return (
-    <div className={`note-editor flex flex-col min-h-0 ${frame} ${isDarkMode ? 'note-editor-dark' : ''}`}>
+    <div
+      className={`note-editor flex flex-col min-h-0 ${frame} ${isDarkMode ? 'note-editor-dark' : ''}`}
+      onClickCapture={e => {
+        // 見ているとき: 本文の中のノートリンクは、別のタブを開かずに、その場でそのノートを開く
+        if (editable) return;
+        const a = (e.target as HTMLElement).closest?.('a[href]') as HTMLAnchorElement | null;
+        const id = a ? noteIdFromUrl(a.getAttribute('href')) : null;
+        const api = id ? getNoteLinkApi() : null;
+        if (!id || !api) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (api.titleOf(id) === null) { window.alert('このノートは見られません(削除されたか、公開範囲に入っていません)'); return; }
+        api.open(id);
+      }}
+    >
       {editable && (
         <div style={{ top: toolbarTop }} className={`sticky z-10 rounded-t-md border-b ${isDarkMode ? 'bg-[#1a2234] border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
           {/* 常に表示する細いバー(書式メニューの開閉 + 元に戻す/やり直し) */}

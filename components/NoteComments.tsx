@@ -6,6 +6,7 @@ import {
   fetchNoteComments, addNoteComment, deleteNoteComment, subscribeToNoteComments, fetchNoteCommentAnchorsAvailable,
 } from '../services/notesService';
 import { NoteIcon } from './NoteIcons';
+import { NoteLinkText } from './noteLinks';
 import {
   NoteCommentContext, COMMENT_ANCHOR_MAX,
 } from './noteCommentAnchors';
@@ -404,7 +405,7 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
             <button onClick={() => setConfirmId(c.id)} className={`text-xs ${muted} hover:text-red-500`}>削除</button>
           ))}
         </div>
-        <div className={`${small ? 'text-[13px]' : 'text-sm'} whitespace-pre-wrap break-words mt-0.5`}>{c.body}</div>
+        <div className={`${small ? 'text-[13px]' : 'text-sm'} whitespace-pre-wrap break-words mt-0.5`}><NoteLinkText text={c.body} /></div>
       </div>
     );
   };

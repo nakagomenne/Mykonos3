@@ -11,6 +11,7 @@ import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
 import NoteReadStatus from './NoteReadStatus';
 import NoteComments from './NoteComments';
+import { noteLinkUrl } from './noteLinks';
 import NoteConfirmDialog from './NoteConfirmDialog';
 import NotesHelpModal from './NotesHelpModal';
 import NoteHistoryModal from './NoteHistoryModal';
@@ -243,6 +244,38 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [remindedId, setRemindedId] = useState<string | null>(null);
   /** 上のバーの「⋯」(削除など)を開いているか */
   const [menuOpen, setMenuOpen] = useState(false);
+  /** 「リンクをコピー」を押した直後のノート(ボタンの表示を「コピーしました」にする) */
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  const copyNoteLink = (n: Note) => {
+    const url = noteLinkUrl(n.id);
+    const done = () => {
+      setCopiedLinkId(n.id);
+      window.setTimeout(() => setCopiedLinkId(id => (id === n.id ? null : id)), 4000);
+    };
+    const fallback = () => {
+      // 古いブラウザ向け: 見えない入力欄からコピーする
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch { setLocalError('リンクをコピーできませんでした'); }
+      ta.remove();
+    };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(done).catch(fallback); else fallback();
+  };
+  /** ノートへのリンクをコピーするボタン(ミコポス・案件の備考・ほかのノートなどに貼ると、このノートへ飛べる) */
+  const linkChip = (n: Note, cls: string) => (
+    <>
+      <button
+        data-note-copy-link
+        onClick={() => copyNoteLink(n)}
+        title="このノートへのリンクをコピーします。ミコポス・案件の備考・ほかのノートやコメントに貼ると、押すだけでこのノートが開きます"
+        className={cls}
+      ><NoteIcon name="link" /> {copiedLinkId === n.id ? 'コピーしました' : 'リンクをコピー'}</button>
+      {copiedLinkId === n.id && n.visibility === 'private' && (
+        <span className="text-xs text-amber-600">このノートは「自分だけ」なので、ほかの人は開けません</span>
+      )}
+    </>
+  );
   /** 歯車のメニュー(サブフォルダ・設定・削除)を開いているフォルダ */
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -1301,6 +1334,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     />
                   </div>
                 ) : n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
+                {!isEditing && linkChip(n, `${chip} ${chipIdle}`)}
               </div>
 
               {settingsOpen && (
@@ -1390,6 +1424,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               )}
               {n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
               {!canEdit && <span className={`text-xs ${muted}`}>読み取り専用です</span>}
+              {!isEditing && linkChip(n, `${chip} ${chipIdle}`)}
             </div>
           )}
 
@@ -1455,7 +1490,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const saveLabel: React.ReactNode = saveState === 'saving' ? '保存中…' : saveState === 'saved' ? '✓ 保存しました' : saveState === 'error' ? <><NoteIcon name="warning" /> 保存に失敗</> : '';
 
   return createPortal(
-    <div className="fixed inset-0 z-[45] bg-black/60 flex items-stretch justify-center md:p-4" onClick={requestClose}>
+    <div className="fixed inset-0 z-[55] bg-black/60 flex items-stretch justify-center md:p-4" onClick={requestClose}>
       <div className={`${surface} w-full max-w-7xl md:rounded-xl shadow-2xl flex flex-col min-h-0 overflow-hidden`} onClick={e => e.stopPropagation()}>
         {/* ヘッダー */}
         <div className="px-3 md:px-4 py-2.5 flex items-center gap-2 md:gap-3 text-white" style={{ backgroundColor: '#0193be' }}>

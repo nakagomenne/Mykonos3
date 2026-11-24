@@ -4,6 +4,7 @@ import { XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowRightIcon, PencilIcon
 import StatusBadge from './StatusBadge';
 import { fetchCallHistory } from '../services/apiService';
 import { NoteIcon } from './NoteIcons';
+import { NoteLinkText } from './noteLinks';
 
 interface CallDetailModalProps {
   calls?: CallRequest[] | null;
@@ -208,7 +209,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                     ><NoteIcon name="book" /> ノートに保存</button>
                   )}
                 </div>
-                <p className={`${mainColorClass} whitespace-pre-wrap`}>{callToRender.notes}</p>
+                <p className={`${mainColorClass} whitespace-pre-wrap`}><NoteLinkText text={callToRender.notes} /></p>
               </div>
             )}
         </div>
@@ -312,7 +313,7 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
                                     {dupCall.notes && (
                                         <>
                                             <strong className={`text-right ${mainColorClassLight} self-start pt-1`}>備考:</strong>
-                                            <p className={`${mainColorClass} whitespace-pre-wrap bg-white p-1.5 rounded text-xs border`}>{dupCall.notes}</p>
+                                            <p className={`${mainColorClass} whitespace-pre-wrap bg-white p-1.5 rounded text-xs border`}><NoteLinkText text={dupCall.notes} /></p>
                                         </>
                                     )}
                                 </div>

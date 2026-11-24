@@ -6,6 +6,7 @@ import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon, QuestionMarkCircleIcon } from './components/icons';
 import { isAnnounceOverdue, formatAnnounceDue } from './services/notesService';
 import { useNotes } from './hooks/useNotes';
+import { setNoteLinkApi, replaceNoteLinks } from './components/noteLinks';
 import { useMikopos } from './hooks/useMikopos';
 import type { MikoposNotice } from './hooks/useMikopos';
 import MikoposTimeline from './components/MikoposTimeline';
@@ -91,7 +92,8 @@ const NOTIFY_NOTES_MAX_LENGTH = 80;
 const buildCallDetailLines = (call: { rank?: string; notes?: string }): string => {
   const lines: string[] = [];
   if (call.rank) lines.push(`ランク: ${call.rank}`);
-  const notes = (call.notes ?? '').replace(/\s+/g, ' ').trim();
+  // ノートリンク(長い URL)は「📝ノート」に置き換える
+  const notes = replaceNoteLinks(call.notes ?? '').replace(/\s+/g, ' ').trim();
   if (notes) {
     lines.push(`備考: ${notes.length > NOTIFY_NOTES_MAX_LENGTH ? notes.slice(0, NOTIFY_NOTES_MAX_LENGTH) + '…' : notes}`);
   }
@@ -388,6 +390,50 @@ const App: React.FC = () => {
     };
   }, []);
   const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce, onComment: handleNoteComment });
+
+  // ── ノートリンク(ミコポス・案件の備考・コメントなどに貼った、ノートへのリンク) ──
+  /** ノートの一覧を1回は読み込み終えたか */
+  const [notesEverLoaded, setNotesEverLoaded] = useState(false);
+  const notesLoadSeenRef = useRef(false);
+  useEffect(() => {
+    if (!currentUser) { notesLoadSeenRef.current = false; setNotesEverLoaded(false); return; }
+    if (notesApi.loading) { notesLoadSeenRef.current = true; return; }
+    // 読み込みが始まって終わった、またはノートが1件でも届いた / 使えないと分かったら「読み込み済み」
+    if (notesLoadSeenRef.current || notesApi.notes.length > 0 || notesApi.unavailable) setNotesEverLoaded(true);
+  }, [currentUser, notesApi.loading, notesApi.notes.length, notesApi.unavailable]);
+  // 読み込みの合図が来ない場合に備えて、少し待ったら読み込み済みとして扱う
+  useEffect(() => {
+    if (!currentUser || notesEverLoaded) return;
+    const timer = window.setTimeout(() => setNotesEverLoaded(true), 4000);
+    return () => window.clearTimeout(timer);
+  }, [currentUser, notesEverLoaded]);
+  const openNoteById = useCallback((noteId: string) => {
+    // 同じノートをもう一度指定しても開き直せるように、いったん外してから入れる
+    setNotesInitialId(null);
+    window.setTimeout(() => { setNotesInitialId(noteId); setIsNotesOpen(true); }, 0);
+  }, []);
+  useEffect(() => {
+    if (!currentUser) { setNoteLinkApi(null); return; }
+    const titles = new Map(notesApi.notes.map(n => [n.id, n.title] as const));
+    setNoteLinkApi({
+      ready: notesEverLoaded,
+      titleOf: id => (titles.has(id) ? titles.get(id) ?? '' : null),
+      open: openNoteById,
+    });
+  }, [currentUser, notesApi.notes, notesEverLoaded, openNoteById]);
+  // アドレスに ?note=ID が付いているとき(Mykonos の外に貼ったリンクから来たとき)は、そのノートを開く
+  useEffect(() => {
+    if (!currentUser || !notesEverLoaded) return;
+    const params = new URLSearchParams(window.location.search);
+    const noteId = params.get('note');
+    if (!noteId) return;
+    params.delete('note');
+    const rest = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+    if (notesApi.notes.some(n => n.id === noteId)) openNoteById(noteId);
+    else alert('このノートは見られません(削除されたか、公開範囲に入っていません)。');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, notesEverLoaded]);
 
   // 重要なアナウンス(未確認)を画面中央に出す。「あとで」を押したら、次に開く(再読み込みする)か、
   // 新しい重要なアナウンスが来るまで出さない

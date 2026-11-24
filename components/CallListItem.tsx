@@ -7,6 +7,7 @@ import CallEditForm from './CallEditForm';
 import ConfirmationModal from './ConfirmationModal';
 import AlertModal from './AlertModal';
 import EmojiPicker from './EmojiPicker';
+import { replaceNoteLinks, useNoteLinkApi } from './noteLinks';
 import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
 
 interface CallListItemProps {
@@ -38,6 +39,8 @@ interface EditingState {
 }
 
 const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreateCall, onSelectCall, selectedMember = '全体', isHighlighted, isRecentlyUpdated = false, isNewCall = false, showRequesterColumn, members, users, isPrecheckTheme = false, isElecTheme = false, currentUser, isDuplicate, isDarkMode = false, allCallsForPrecheckerCheck }) => {
+  /** 備考に貼られたノートリンクを「📝タイトル」と出すための窓口 */
+  const noteLinkApi = useNoteLinkApi();
   const [isCopied, setIsCopied] = useState(false);
   const [isAppNumCopied, setIsAppNumCopied] = useState(false);
   const [editingState, setEditingState] = useState<EditingState | null>(null);
@@ -930,9 +933,9 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
                 }} 
                 disabled={isFieldDisabled} 
                 className={`${editableFieldClasses} text-left cursor-pointer`} 
-                title={call.notes}
+                title={replaceNoteLinks(call.notes ?? '', noteLinkApi?.titleOf)}
               >
-                {call.notes || '-'}
+                {replaceNoteLinks(call.notes ?? '', noteLinkApi?.titleOf) || '-'}
               </button>
             </div>
           )}

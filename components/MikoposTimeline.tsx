@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { NoteLinkText, lengthWithoutNoteLinks, noteLinksLength, replaceNoteLinks } from './noteLinks';
 import type { User } from '../types';
 import type { MikoposApi } from '../hooks/useMikopos';
 import type { MikoposPost } from '../services/mikoposService';
@@ -105,7 +106,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
   const [replyText, setReplyText] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MikoposPost | null>(null);
 
-  const remaining = MIKOPOS_BODY_MAX - body.length;
+  const remaining = MIKOPOS_BODY_MAX - lengthWithoutNoteLinks(body);
   const validPoll = pollOpen ? pollOptions.map(o => o.trim()).filter(Boolean) : [];
   const pollIncomplete = pollOpen && validPoll.length < MIKOPOS_POLL_MIN;
   const canPost = !busy && remaining >= 0 && !pollIncomplete && (body.trim() !== '' || !!image || validPoll.length >= MIKOPOS_POLL_MIN);
@@ -171,7 +172,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
         pollOptions: validPoll,
         mentions: extractMentions(trimmed, userNames.filter(n => n !== me.name)),
       });
-      if (trimmed) onLatestBodyChange(trimmed);
+      if (trimmed) onLatestBodyChange(replaceNoteLinks(trimmed));
       setBody('');
       clearImage();
       setPollOpen(false);
@@ -192,7 +193,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
       const mine = api.posts.filter(p => p.author === me.name);
       const wasLatest = mine[0]?.id === post.id;
       await api.removePost(post.id);
-      if (wasLatest) onLatestBodyChange(mine.find(p => p.id !== post.id && p.body)?.body ?? '');
+      if (wasLatest) onLatestBodyChange(replaceNoteLinks(mine.find(p => p.id !== post.id && p.body)?.body ?? ''));
     } catch (e: any) {
       setError(e?.message ?? '削除に失敗しました');
     }
@@ -200,7 +201,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
 
   const handleReply = async (postId: string) => {
     const t = replyText.trim();
-    if (!t || t.length > MIKOPOS_REPLY_MAX) return;
+    if (!t || lengthWithoutNoteLinks(t) > MIKOPOS_REPLY_MAX) return;
     setError('');
     try {
       await api.reply(postId, t);
@@ -354,7 +355,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                 )}
               </div>
 
-              {post.body && <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{renderBody(post.body, post.mentions)}</p>}
+              {post.body && <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><NoteLinkText text={post.body} renderText={part => renderBody(part, post.mentions)} /></p>}
 
               {post.imageUrl && (
                 <a href={post.imageUrl} target="_blank" rel="noopener noreferrer" title="画像を大きく開く" style={{ display: 'block', marginTop: 8 }}>
@@ -421,7 +422,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ fontWeight: 700 }}>{r.author}</span>
                         <span style={{ color: sub, fontSize: 11, marginLeft: 6 }}>{fmtWhen(r.createdAt)}</span>
-                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.body}</div>
+                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><NoteLinkText text={r.body} /></div>
                       </div>
                       {r.author === me.name && (
                         <button type="button" onClick={() => run(() => api.removeReply(r.id))} aria-label="この返信を削除" title="この返信を削除" style={{ ...smallBtn, padding: '0 6px', fontSize: 11, alignSelf: 'flex-start' }}>×</button>
@@ -432,7 +433,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                     <div style={{ display: 'flex', gap: 6 }}>
                       <input
                         value={replyText}
-                        maxLength={MIKOPOS_REPLY_MAX}
+                        maxLength={MIKOPOS_REPLY_MAX + noteLinksLength(replyText) + (replyText.includes('?note=') ? 0 : 120)}
                         autoFocus
                         onChange={e => setReplyText(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); void handleReply(post.id); } }}
