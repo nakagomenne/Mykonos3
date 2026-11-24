@@ -655,6 +655,23 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   });
 
   /** アナウンスの「確認しました」ダイアログで、キャンセル以外を選んだとき(確認済み+非表示。必要ならコピーも作る) */
+  /** 「確認しました」→ 原本を自分のフォルダに入れて、アナウンスは非表示にする */
+  const handleConfirmPlace = (folderId: string) => confirmTarget && run(async () => {
+    const target = confirmTarget;
+    await api.hideAnnouncement(target.id);
+    try {
+      await api.placeNote(target.id, folderId);
+    } catch (e) {
+      try { await api.unhideAnnouncement(target.id); } catch { /* 戻せなくてもアナウンス一覧の最下部から見られる */ }
+      throw e;
+    }
+    setConfirmTarget(null);
+    if (view.kind === 'announce' && selectedId === target.id) {
+      setSelectedId(null);
+      setStep('list');
+    }
+  });
+
   const handleConfirmHide = (copy: boolean) => confirmTarget && run(async () => {
     const target = confirmTarget;
     // 先に「確認済み+非表示」を記録する(DBの更新漏れなどで失敗したとき、コピーだけが増えないように)
@@ -1770,6 +1787,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         noteTitle={confirmTarget?.title ?? ''}
         busy={busy}
         error={localError}
+        folders={api.placementsAvailable ? flatFolders.map(({ folder, depth }) => ({ id: folder.id, name: folder.name, depth })) : []}
+        onPlaceAndHide={handleConfirmPlace}
         onCopyAndHide={() => handleConfirmHide(true)}
         onHide={() => handleConfirmHide(false)}
         onCancel={() => { setConfirmTarget(null); setLocalError(null); }}
