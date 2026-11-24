@@ -236,7 +236,14 @@ const App: React.FC = () => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(() => {
     const saved = localStorage.getItem('mykonosNotificationSettings');
     try {
-      return saved ? { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(saved) } : DEFAULT_NOTIFICATION_SETTINGS;
+      let settings: NotificationSettings = saved ? { ...DEFAULT_NOTIFICATION_SETTINGS, ...JSON.parse(saved) } : DEFAULT_NOTIFICATION_SETTINGS;
+      // 「回線前確 即時通知」の初期値をオンに変えた(2026-11)。これまでの設定は、一度も触っていなくても
+      // 「オフ」として保存されているので、このブラウザで1回だけオンに切り替える(そのあと本人がオフにすれば、オフのまま)
+      if (!localStorage.getItem('mykonosPrecheckNotifyDefaultOn')) {
+        settings = { ...settings, precheckInstantNotify: true };
+        localStorage.setItem('mykonosPrecheckNotifyDefaultOn', '1');
+      }
+      return settings;
     } catch {
       return DEFAULT_NOTIFICATION_SETTINGS;
     }

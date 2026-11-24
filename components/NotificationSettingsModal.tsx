@@ -31,7 +31,8 @@ export interface NotificationSettings {
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   callNotifyEnabled: false,
   callNotifyTimings: ['exact'],
-  precheckInstantNotify: false,
+  // 初期値はオン(後確の案件を回線前確者全員に知らせるため)。届くのは、ブラウザの通知を許可している人
+  precheckInstantNotify: true,
   precheckCallNotifyTimings: ['exact'],
   assigneeInstantNotify: false,
   elecInstantNotify: false,
