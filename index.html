@@ -54,6 +54,8 @@
   .note-prose img.ProseMirror-selectednode { outline: 3px solid #0193be; }
   /* コメントの付いた場所: ▼本文▼ のように、かなり小さな ▼ ではさむ。乗せると中身が出るので、乗せたときだけうすく色をつける */
   .note-cmt-mark { display: inline-block; font-size: 7px; line-height: 1; color: #0193be; vertical-align: 0.9em; margin: 0 1px; cursor: help; user-select: none; -webkit-user-select: none; }
+  /* まだ見ていないコメントの ▼ は、オレンジにする(中身を見ると青に戻る) */
+  .note-cmt-mark.note-cmt-mark-new { color: #f59e0b; font-size: 9px; }
   .note-prose .note-cmt-range { cursor: help; border-radius: 2px; transition: background-color 0.15s; }
   .note-prose .note-cmt-range:hover { background-color: rgba(1,147,190,0.16); }
   /* 大きさを変えられる画像(四すみの丸をドラッグ)。せまい画面では、はみ出さないように縮める(たてよこの比は保つ) */

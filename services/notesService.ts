@@ -805,3 +805,55 @@ export async function setNotePlacement(noteId: string, userName: string, folderI
     throw new Error(`フォルダに入れられませんでした: ${res.error?.message ?? res.error}`);
   }
 }
+
+// ────────────────────────────────────────────────────────────
+// コメントの数と、「どこまで見たか」(人ごと)
+// ────────────────────────────────────────────────────────────
+
+/** 一覧に件数や「まだ見ていない」の印を出すための、コメントの最小限の情報 */
+export interface NoteCommentMeta {
+  noteId: string;
+  author: string;
+  createdAt: string;
+}
+
+/** すべてのコメントの最小限の情報(新しいものから5000件まで)。テーブルが無いときは空 */
+export async function fetchNoteCommentMeta(): Promise<NoteCommentMeta[]> {
+  const { data, error } = await supabase
+    .from('note_comments').select('note_id,author,created_at').order('created_at', { ascending: false }).limit(5000);
+  if (error) {
+    if (isMissingTableError(error)) return [];
+    throw new Error(`コメントの件数の取得に失敗しました: ${error?.message ?? error}`);
+  }
+  return (data ?? []).map((r: any) => ({ noteId: r.note_id, author: r.author, createdAt: r.created_at }));
+}
+
+/**
+ * 自分が各ノートのコメントを最後に見た日時(ノートID → 日時)。
+ * テーブルがまだ無い(SQL 未実行)ときは null(このときは「まだ見ていない」の印を出さない)
+ */
+export async function fetchNoteCommentSeen(userName: string): Promise<Record<string, string> | null> {
+  const { data, error } = await supabase.from('note_comment_seen').select('*').eq('user_name', userName);
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw new Error(`コメントの確認状況の取得に失敗しました: ${error?.message ?? error}`);
+  }
+  const map: Record<string, string> = {};
+  for (const row of data ?? []) if (row.note_id && row.seen_at) map[row.note_id] = row.seen_at;
+  return map;
+}
+
+/** このノートのコメントを「ここまで見た」と記録する */
+export async function markNoteCommentsSeen(noteId: string, userName: string, seenAt: string): Promise<void> {
+  const { error } = await supabase
+    .from('note_comment_seen')
+    .upsert({ note_id: noteId, user_name: userName, seen_at: seenAt }, { onConflict: 'note_id,user_name' });
+  if (error && !isMissingTableError(error)) throw new Error(`コメントの確認状況を保存できませんでした: ${error?.message ?? error}`);
+}
+
+/** 自分が編集したことのあるノート(編集履歴に自分の版が残っているもの)。取れないときは空 */
+export async function fetchMyEditedNoteIds(userName: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('note_versions').select('note_id').eq('edited_by', userName).limit(5000);
+  if (error) return new Set();
+  return new Set((data ?? []).map((r: any) => r.note_id).filter(Boolean));
+}

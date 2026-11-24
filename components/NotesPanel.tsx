@@ -865,6 +865,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <div className="flex items-baseline gap-1.5">
           {n.pinned && <span className="text-amber-500 text-xs">★</span>}
           <span className={`truncate flex-1 text-sm font-semibold ${n.title ? '' : muted}`}>{n.title || '(無題)'}</span>
+          {(api.commentInfo.unseen[n.id] ?? 0) > 0 && (
+            <span data-comment-dot className="self-center flex-shrink-0 w-2 h-2 rounded-full bg-[#0193be]" title={`まだ見ていないコメントが${api.commentInfo.unseen[n.id]}件あります`} aria-label="まだ見ていないコメントがあります" />
+          )}
           {unread && <AnnounceBadges note={n} />}
           {unread && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap">未確認</span>}
           <span className={`text-[11px] whitespace-nowrap ${muted}`}>{fmtDate(n.updatedAt)}</span>
@@ -876,6 +879,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           {n.isAnnouncement && !unread && <span><NoteIcon name="megaphone" /> {announceText}</span>}
           <span title={VISIBILITY_LABELS[n.visibility]}><VisibilityIcon visibility={n.visibility} /> {visibilityText}</span>
           {!mine && <span className="truncate"><NoteIcon name="user" /> {n.owner}</span>}
+          {(api.commentInfo.counts[n.id] ?? 0) > 0 && (
+            <span data-comment-count title={`コメント ${api.commentInfo.counts[n.id]}件`}>💬 {api.commentInfo.counts[n.id]}</span>
+          )}
           {n.tags.length > 0 && (
             <span className="truncate" title={n.tags.map(t => `#${t}`).join(' ')}>
               #{n.tags[0]}{n.tags.length > 1 ? ` +${n.tags.length - 1}` : ''}
@@ -1381,7 +1387,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
           {/* 本文(ノートごとに作り直す)。ノートの枠の中に、そのまま置く。
               コメント(「自分だけ」のノートと、編集中は出さない)は、本文の文字を選んで付けるものと、本文の下の欄がある */}
-          <NoteComments key={n.id} note={n} me={me} isDarkMode={d} enabled={!isEditing && n.visibility !== 'private'}>
+          <NoteComments
+            key={n.id} note={n} me={me} isDarkMode={d} enabled={!isEditing && n.visibility !== 'private'}
+            seen={api.commentSeenAvailable ? { ready: api.commentSeenLoaded, at: api.commentSeen[n.id] ?? null, watching: api.commentInfo.watching.has(n.id) } : null}
+            onSeen={latest => { void api.markCommentsSeen(n.id, latest); }}
+            onChanged={() => { void api.reloadCommentMeta(); }}
+          >
           <div className={isEditing ? 'p-3' : 'px-5 py-4 min-h-[10rem]'}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}

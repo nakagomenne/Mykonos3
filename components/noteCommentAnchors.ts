@@ -17,6 +17,8 @@ export interface CommentAnchor {
   text: string;
   prefix: string;
   suffix: string;
+  /** まだ見ていないコメントが付いているか(▼ をオレンジにする) */
+  fresh?: boolean;
 }
 
 /** 本文で選んだ範囲から作る、新しいコメントの場所 */
@@ -80,7 +82,7 @@ const commonPrefixLen = (a: string, b: string) => {
   return n;
 };
 
-export interface ResolvedAnchor { id: string; from: number; to: number }
+export interface ResolvedAnchor { id: string; from: number; to: number; fresh: boolean }
 
 /** コメントの場所を、今の本文の中から探す(同じ文字が何回も出るときは、前後の文字がいちばん合うところ) */
 export function resolveAnchors(doc: PMNode, anchors: CommentAnchor[]): ResolvedAnchor[] {
@@ -100,7 +102,7 @@ export function resolveAnchors(doc: PMNode, anchors: CommentAnchor[]): ResolvedA
     const from = pos[best];
     const last = pos[best + a.text.length - 1];
     if (from < 0 || last < 0) continue;
-    out.push({ id: a.id, from, to: last + 1 });
+    out.push({ id: a.id, from, to: last + 1, fresh: !!a.fresh });
   }
   return out;
 }
@@ -139,9 +141,9 @@ export function anchorFromSelection(view: EditorView): NewCommentAnchor | null {
 
 const anchorsKey = new PluginKey('noteCommentAnchors');
 
-const mark = (id: string): HTMLElement => {
+const mark = (id: string, fresh: boolean): HTMLElement => {
   const el = document.createElement('span');
-  el.className = 'note-cmt-mark';
+  el.className = fresh ? 'note-cmt-mark note-cmt-mark-new' : 'note-cmt-mark';
   el.dataset.cmt = id;
   el.setAttribute('aria-hidden', 'true');
   el.contentEditable = 'false';
@@ -165,9 +167,9 @@ export const CommentAnchorExtension = Extension.create<Record<string, never>, { 
       if (resolved.length === 0) return DecorationSet.empty;
       const decos: Decoration[] = [];
       for (const r of resolved) {
-        decos.push(Decoration.widget(r.from, () => mark(r.id), { side: -1, key: `cmt-s-${r.id}`, ignoreSelection: true }));
+        decos.push(Decoration.widget(r.from, () => mark(r.id, r.fresh), { side: -1, key: `cmt-s-${r.id}-${r.fresh ? 'n' : 'o'}`, ignoreSelection: true }));
         decos.push(Decoration.inline(r.from, r.to, { class: 'note-cmt-range', 'data-cmt': r.id }));
-        decos.push(Decoration.widget(r.to, () => mark(r.id), { side: 1, key: `cmt-e-${r.id}`, ignoreSelection: true }));
+        decos.push(Decoration.widget(r.to, () => mark(r.id, r.fresh), { side: 1, key: `cmt-e-${r.id}-${r.fresh ? 'n' : 'o'}`, ignoreSelection: true }));
       }
       return DecorationSet.create(doc, decos);
     };

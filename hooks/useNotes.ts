@@ -16,7 +16,7 @@ interface UseNotesOptions {
   me: User | null;
   /** 他の人がアナウンスしたときに呼ばれる(プッシュ通知用) */
   onAnnounce?: (note: Note, isReminder?: boolean) => void;
-  /** 自分のノート / 自分もコメントしたノートに、他の人がコメントしたときに呼ばれる(プッシュ通知用) */
+  /** 自分が作った・編集した・コメントしたノートに、他の人がコメントしたときに呼ばれる(プッシュ通知用) */
   onComment?: (note: Note, comment: svc.NoteComment) => void;
 }
 
@@ -370,10 +370,93 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     }
   }, [loadPlacements]);
 
+  // ── コメントの数と、まだ見ていないコメント ───────────────
+  const [commentMeta, setCommentMeta] = useState<svc.NoteCommentMeta[]>([]);
+  /** 自分が各ノートのコメントを最後に見た日時 */
+  const [commentSeen, setCommentSeen] = useState<Record<string, string>>({});
+  /** 「どこまで見たか」を覚えるテーブルがあるか(SQL 未実行なら false。このときは「まだ見ていない」の印を出さない) */
+  const [commentSeenAvailable, setCommentSeenAvailable] = useState(false);
+  /** 「どこまで見たか」を1回は読み込み終えたか(読み込み前に、全部を「まだ見ていない」と出さないため) */
+  const [commentSeenLoaded, setCommentSeenLoaded] = useState(false);
+  /** 自分が編集したことのあるノート */
+  const [editedNoteIds, setEditedNoteIds] = useState<Set<string>>(new Set());
+  const commentMetaRef = useRef<svc.NoteCommentMeta[]>([]);
+  useEffect(() => { commentMetaRef.current = commentMeta; }, [commentMeta]);
+  const commentSeenAvailableRef = useRef(false);
+  useEffect(() => { commentSeenAvailableRef.current = commentSeenAvailable; }, [commentSeenAvailable]);
+
+  const loadCommentMeta = useCallback(async () => {
+    try { setCommentMeta(await svc.fetchNoteCommentMeta()); } catch { /* 件数は補助情報なので、取れなくても続ける */ }
+  }, []);
+  useEffect(() => {
+    if (!viewer || unavailable) {
+      setCommentMeta([]); setCommentSeen({}); setCommentSeenAvailable(false); setCommentSeenLoaded(false); setEditedNoteIds(new Set());
+      return;
+    }
+    const name = viewer.name;
+    let stopped = false;
+    void loadCommentMeta();
+    svc.fetchNoteCommentSeen(name)
+      .then(map => { if (stopped) return; setCommentSeenAvailable(map !== null); setCommentSeen(map ?? {}); setCommentSeenLoaded(true); })
+      .catch(() => {});
+    svc.fetchMyEditedNoteIds(name).then(ids => { if (!stopped) setEditedNoteIds(ids); }).catch(() => {});
+    return () => { stopped = true; };
+  }, [viewer, unavailable, loadCommentMeta]);
+
+  /**
+   * ノートごとのコメントの数 / 自分が「気にかける」ノート / まだ見ていないコメントの数。
+   * 気にかけるノート = 自分が作った・自分が編集した・自分がコメントしたノート(通知と「まだ見ていない」の印の対象)
+   */
+  const commentInfo = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const commented = new Set<string>();
+    for (const m of commentMeta) {
+      counts[m.noteId] = (counts[m.noteId] ?? 0) + 1;
+      if (m.author === meName) commented.add(m.noteId);
+    }
+    const watching = new Set<string>();
+    for (const n of notes) {
+      if (n.owner === meName || n.updatedBy === meName || commented.has(n.id) || editedNoteIds.has(n.id)) watching.add(n.id);
+    }
+    const unseen: Record<string, number> = {};
+    if (commentSeenAvailable && commentSeenLoaded) {
+      for (const m of commentMeta) {
+        if (m.author === meName || !watching.has(m.noteId)) continue;
+        const seen = commentSeen[m.noteId];
+        if (!seen || Date.parse(m.createdAt) > Date.parse(seen)) unseen[m.noteId] = (unseen[m.noteId] ?? 0) + 1;
+      }
+    }
+    return { counts, watching, unseen };
+  }, [commentMeta, commentSeen, commentSeenAvailable, commentSeenLoaded, editedNoteIds, notes, meName]);
+  const watchingRef = useRef(commentInfo.watching);
+  useEffect(() => { watchingRef.current = commentInfo.watching; }, [commentInfo]);
+
+  /** このノートのコメントを「ここまで見た」と記録する(latest: いま画面に出ている一番新しいコメントの日時) */
+  const markCommentsSeen = useCallback(async (noteId: string, latest?: string) => {
+    const name = viewerRef.current?.name;
+    if (!name || !commentSeenAvailableRef.current) return;
+    // 端末の時計が少し遅れていても、いま見えているコメントは「見た」ことにする
+    let t = Date.now();
+    const l = latest ? Date.parse(latest) : NaN;
+    if (!Number.isNaN(l)) t = Math.max(t, l);
+    for (const m of commentMetaRef.current) {
+      if (m.noteId !== noteId) continue;
+      const c = Date.parse(m.createdAt);
+      if (!Number.isNaN(c)) t = Math.max(t, c);
+    }
+    const iso = new Date(t).toISOString();
+    setCommentSeen(prev => ({ ...prev, [noteId]: iso }));
+    try { await svc.markNoteCommentsSeen(noteId, name, iso); } catch { /* 記録できなくても、表示は続ける */ }
+  }, []);
+
   // ── コメントの通知 ─────────────────────────────────────
   useEffect(() => {
     if (!viewer || unavailable) return;
-    return svc.subscribeToNoteComments((event, row) => {
+    let metaTimer: number | undefined;
+    const unsubscribe = svc.subscribeToNoteComments((event, row) => {
+      // 件数と「まだ見ていない」の印を、少し待ってから取り直す
+      window.clearTimeout(metaTimer);
+      metaTimer = window.setTimeout(() => { void loadCommentMeta(); }, 400);
       if (event !== 'INSERT' || !row) return;
       const v = viewerRef.current;
       if (!v) return;
@@ -382,13 +465,15 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
       // 自分が見られるノートのときだけ
       const note = notesRef.current.find(n => n.id === comment.noteId);
       if (!note) return;
-      if (note.owner === v.name) { onCommentRef.current?.(note, comment); return; }
-      // 自分もコメントしたノートなら、続きのコメントを知らせる
+      // 自分が作った・編集した・コメントしたノートなら知らせる
+      if (note.owner === v.name || watchingRef.current.has(note.id)) { onCommentRef.current?.(note, comment); return; }
+      // 手元の情報が古いかもしれないので、自分もコメントしたノートかどうかは取り直して確かめる
       svc.fetchNoteComments(comment.noteId)
         .then(list => { if (list.some(c => c.author === v.name)) onCommentRef.current?.(note, comment); })
         .catch(() => {});
     });
-  }, [viewer, unavailable]);
+    return () => { window.clearTimeout(metaTimer); unsubscribe(); };
+  }, [viewer, unavailable, loadCommentMeta]);
 
   // ── アナウンスの再通知 ─────────────────────────────────
   const remindRef = useRef<{ send: (noteId: string) => Promise<void> } | null>(null);
@@ -436,6 +521,7 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
     placements, placementsAvailable, placeNote,
+    commentInfo, commentSeen, commentSeenAvailable, commentSeenLoaded, markCommentsSeen, reloadCommentMeta: loadCommentMeta,
   };
 }
 

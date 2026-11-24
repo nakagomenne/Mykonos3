@@ -301,7 +301,7 @@ const NotificationSettingsModal: React.FC<Props> = ({
               <div>
                 <p className="font-semibold text-slate-800">ミコノートの通知</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Mikonote で自分あてのアナウンスがあったとき(新しいアナウンス・再通知・開いたときの未確認)と、自分のノートや自分がコメントしたノートにコメントが付いたときに通知します
+                  Mikonote で自分あてのアナウンスがあったとき(新しいアナウンス・再通知・開いたときの未確認)と、自分が作った・編集した・コメントしたノートにコメントが付いたときに通知します
                 </p>
               </div>
               <button

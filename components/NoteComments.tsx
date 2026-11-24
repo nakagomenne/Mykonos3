@@ -17,6 +17,15 @@ interface NoteCommentsProps {
   isDarkMode?: boolean;
   /** コメントを使うか(「自分だけ」のノートと、編集中は false。このときは本文だけを出す) */
   enabled: boolean;
+  /**
+   * 「どこまで見たか」(人ごと)。null のときは、まだ見ていないコメントの案内を出さない(SQL 未実行)。
+   *   ready: 読み込み終えたか / at: 最後に見た日時 / watching: 自分が作った・編集した・コメントしたノートか
+   */
+  seen?: { ready: boolean; at: string | null; watching: boolean } | null;
+  /** いま出ているコメントを「見た」と記録してほしいとき(latest: 一番新しいコメントの日時) */
+  onSeen?: (latest: string) => void;
+  /** コメントを足した・消したとき(一覧の件数を取り直してもらう) */
+  onChanged?: () => void;
   /** ノートの本文。この中の文字を選んで、その場所にコメントを付けられる */
   children: React.ReactNode;
 }
@@ -54,7 +63,7 @@ const popStyle = (rect: { left: number; top: number; bottom: number }): React.CS
  * 消せるのは、書いた本人と、ノートを作った人。
  * コメント用のテーブルがまだ無い(SQL 未実行)ときは、本文だけを出す
  */
-const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = false, enabled, children }) => {
+const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = false, enabled, seen = null, onSeen, onChanged, children }) => {
   const d = isDarkMode;
   const [comments, setComments] = useState<NoteComment[]>([]);
   const [available, setAvailable] = useState(true);
@@ -126,15 +135,99 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
   const roots = useMemo(() => comments.filter(c => !c.parentId), [comments]);
   const repliesOf = useCallback((id: string) => comments.filter(c => c.parentId === id), [comments]);
 
+  // ── まだ見ていないコメント ──
+  // このノートを開いた時点で「どこまで見ていたか」を控えておき、それより新しい、ほかの人のコメントを案内する。
+  // (開いた時点で「見た」と記録するので、次に開いたときには出ない)
+  const [snapshot, setSnapshot] = useState<number | null>(null);
+  /** このノートを開いているあいだに、中身を見たコメント(案内とオレンジの ▼ を消す) */
+  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
+  const seenReady = !!seen?.ready;
+  useEffect(() => {
+    if (snapshot !== null || !seen || !seenReady || !ready) return;
+    const at = seen.at ? Date.parse(seen.at) : NaN;
+    // 気にかけていなかったノートは「いま」から数える(あとからコメントしても、前からあるコメントを新着にしない)
+    setSnapshot(seen.watching ? (Number.isNaN(at) ? 0 : at) : (Number.isNaN(at) ? Date.now() : at));
+  }, [snapshot, seen, seenReady, ready]);
+  const freshIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (!ready || !seen?.watching || snapshot === null) return ids;
+    for (const c of comments) {
+      if (c.author !== me.name && Date.parse(c.createdAt) > snapshot && !openedIds.has(c.id)) ids.add(c.id);
+    }
+    return ids;
+  }, [ready, seen?.watching, snapshot, comments, openedIds, me.name]);
+  /** まだ見ていないコメントのある話題(もとのコメント)。古い順 */
+  const freshRoots = useMemo(
+    () => roots.filter(c => freshIds.has(c.id) || comments.some(r => r.parentId === c.id && freshIds.has(r.id))),
+    [roots, comments, freshIds]);
+  const markOpened = useCallback((rootId: string) => {
+    setOpenedIds(prev => {
+      const next = new Set(prev);
+      next.add(rootId);
+      for (const c of comments) if (c.parentId === rootId) next.add(c.id);
+      return next.size === prev.size ? prev : next;
+    });
+  }, [comments]);
+  // 開いたら「見た」と記録する(一覧の青い点が消える)。あとから届いたコメントも、開いているあいだは見たことにする
+  const seenAt = seen?.at ?? null;
+  useEffect(() => {
+    if (!ready || !seen || !seenReady || snapshot === null || !onSeen) return;
+    let latest = 0;
+    let latestIso = '';
+    for (const c of comments) {
+      if (c.author === me.name) continue;
+      const t = Date.parse(c.createdAt);
+      if (t > latest) { latest = t; latestIso = c.createdAt; }
+    }
+    if (!latestIso) return;
+    const at = seenAt ? Date.parse(seenAt) : NaN;
+    if (Number.isNaN(at) || latest > at) onSeen(latestIso);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, seenReady, snapshot, comments, seenAt]);
+
   // ── 本文とつなぐ(▼ を出す場所を渡す / 選んだ範囲を受け取る) ──
   const anchors = useMemo<CommentAnchor[]>(
-    () => roots.filter(c => c.anchorText).map(c => ({ id: c.id, text: c.anchorText!, prefix: c.anchorPrefix ?? '', suffix: c.anchorSuffix ?? '' })),
-    [roots]);
+    () => roots.filter(c => c.anchorText).map(c => ({
+      id: c.id, text: c.anchorText!, prefix: c.anchorPrefix ?? '', suffix: c.anchorSuffix ?? '',
+      fresh: freshRoots.some(r => r.id === c.id),
+    })),
+    [roots, freshRoots]);
   const bridge = useMemo<NoteCommentBridge>(() => ({
     anchors,
     setEditorApi: api => { editorApiRef.current = api; },
     onResolved: ids => setResolvedIds(prev => (prev.size === ids.length && ids.every(i => prev.has(i)) ? prev : new Set(ids))),
   }), [anchors]);
+
+  // 吹き出しを開いたら、その話題は「見た」ことにする
+  const threadRootId = pop?.kind === 'thread' ? pop.rootId : null;
+  useEffect(() => { if (threadRootId) markOpened(threadRootId); }, [threadRootId, markOpened]);
+
+  /** まだ見ていないコメントの場所へ移動して、中身を出す(押すたびに、次のものへ) */
+  const goToFresh = () => {
+    const root = freshRoots[0];
+    if (!root) return;
+    const mark = canAnchor && root.anchorText && resolvedIds.has(root.id)
+      ? bodyRef.current?.querySelector<HTMLElement>(`.note-cmt-range[data-cmt="${root.id}"]`) ?? null
+      : null;
+    if (mark) {
+      mark.scrollIntoView({ block: 'center' });
+      // 移動し終わってから、その場所に吹き出しを出す
+      window.setTimeout(() => {
+        if (!aliveRef.current) return;
+        setPopText('');
+        setPop({ kind: 'thread', rootId: root.id, rect: mark.getBoundingClientRect(), pinned: true });
+      }, 60);
+    } else {
+      // 場所の無いコメント(ノート全体へのコメントなど)は、下のコメント欄へ
+      document.querySelector<HTMLElement>(`[data-comment-root="${root.id}"]`)?.scrollIntoView({ block: 'center' });
+      markOpened(root.id);
+    }
+  };
+  const dismissFresh = () => setOpenedIds(prev => {
+    const next = new Set(prev);
+    freshIds.forEach(id => next.add(id));
+    return next;
+  });
 
   const closePop = useCallback(() => { window.clearTimeout(hideTimer.current); setPop(null); setPopText(''); }, []);
   const scheduleHide = useCallback(() => {
@@ -181,7 +274,10 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
     catch (e: any) { if (aliveRef.current) setError(e?.message ?? failMessage); }
     finally { if (aliveRef.current) setBusy(false); }
   };
-  const addLocal = (created: NoteComment) => setComments(prev => (prev.some(c => c.id === created.id) ? prev : [...prev, created]));
+  const addLocal = (created: NoteComment) => {
+    setComments(prev => (prev.some(c => c.id === created.id) ? prev : [...prev, created]));
+    onChanged?.();
+  };
 
   const send = () => {
     const body = text.trim();
@@ -224,6 +320,7 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
       // もとのコメントを消すと、返信も一緒に消える
       setComments(prev => prev.filter(c => c.id !== id && c.parentId !== id));
       setConfirmId(null);
+      onChanged?.();
       if (popRefState.current?.kind === 'thread' && popRefState.current.rootId === id) closePop();
     }, 'コメントを削除できませんでした');
   };
@@ -292,6 +389,7 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
     return (
       <div>
         <div className="flex items-baseline gap-2">
+          {freshIds.has(c.id) && <span data-comment-new className="self-center flex-shrink-0 w-1.5 h-1.5 rounded-full bg-amber-500" title="まだ見ていないコメント" aria-label="まだ見ていないコメント" />}
           <span className={`${small ? 'text-xs' : 'text-sm'} font-bold`}>{c.author}</span>
           {c.author === note.owner && <span className={`text-[10px] px-1.5 rounded-full border ${border} ${muted}`}>作成者</span>}
           <span className={`text-xs ${muted}`}>{fmt(c.createdAt)}</span>
@@ -316,6 +414,15 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
 
   return (
     <>
+      {/* まだ見ていないコメントがあるときだけ出る、1行の案内 */}
+      {ready && freshRoots.length > 0 && (
+        <div data-comment-fresh-bar className={`mx-4 mt-3 flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs ${d ? 'border-amber-700 bg-amber-900/20 text-amber-300' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
+          <span className="font-bold">💬 新しいコメント {freshIds.size}件</span>
+          <button onClick={goToFresh} className="font-bold underline underline-offset-2 hover:opacity-80">その箇所へ ▸</button>
+          <span className="flex-1" />
+          <button onClick={dismissFresh} aria-label="案内を閉じる" title="案内を閉じる" className="px-1 hover:opacity-70">×</button>
+        </div>
+      )}
       <NoteCommentContext.Provider value={canAnchor ? bridge : null}>
         <div
           ref={bodyRef}
@@ -340,7 +447,7 @@ const NoteComments: React.FC<NoteCommentsProps> = ({ note, me, isDarkMode = fals
           {roots.length > 0 && (
             <ul className="mb-3">
               {roots.map((c, i) => (
-                <li key={c.id} className={`py-2 ${i > 0 ? `border-t ${border}` : ''}`}>
+                <li key={c.id} data-comment-root={c.id} className={`py-2 ${i > 0 ? `border-t ${border}` : ''}`}>
                   {c.anchorText && (
                     <div className={`text-xs mb-1 pl-2 border-l-2 ${d ? 'border-slate-600' : 'border-slate-300'} ${muted}`}>
                       <span className="note-cmt-mark" aria-hidden="true">▼</span>{clip(c.anchorText, 60)}<span className="note-cmt-mark" aria-hidden="true">▼</span>
