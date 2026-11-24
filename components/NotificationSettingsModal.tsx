@@ -26,6 +26,8 @@ export interface NotificationSettings {
   elecCallNotifyTimings: NotifyTiming[];
   /** ミコノート(Mikonote)のアナウンスを通知するか */
   noteAnnounceNotify: boolean;
+  /** ミコポス(Mikopos)で、メンションされた・自分のポストに返信やリアクションが付いたときに通知するか */
+  mikoposNotify: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
@@ -38,6 +40,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   elecInstantNotify: false,
   elecCallNotifyTimings: ['exact'],
   noteAnnounceNotify: true,
+  mikoposNotify: true,
 };
 
 const TIMING_LABELS: Record<NotifyTiming, string> = {
@@ -98,6 +101,15 @@ const NotificationSettingsModal: React.FC<Props> = ({
       onChange({ ...settings, assigneeInstantNotify: true });
     } else {
       onChange({ ...settings, assigneeInstantNotify: false });
+    }
+  };
+
+  const handleMikoposToggle = async () => {
+    if (!settings.mikoposNotify) {
+      if (!await ensurePermission()) return;
+      onChange({ ...settings, mikoposNotify: true });
+    } else {
+      onChange({ ...settings, mikoposNotify: false });
     }
   };
 
@@ -306,6 +318,35 @@ const NotificationSettingsModal: React.FC<Props> = ({
                   aria-hidden="true"
                   className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
                     settings.noteAnnounceNotify ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </section>
+
+          {/* ── ミコポスの通知 ── */}
+          <section className="border-t border-slate-100 pt-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-slate-800">ミコポスの通知</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Mikopos で名前を呼ばれた(メンション)とき、自分のポストに返信やリアクションが付いたときに通知します
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleMikoposToggle}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#0193be] focus:ring-offset-2 ${
+                  settings.mikoposNotify ? 'bg-[#0193be]' : 'bg-slate-200'
+                }`}
+                role="switch"
+                aria-checked={settings.mikoposNotify}
+                aria-label="ミコポスの通知"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    settings.mikoposNotify ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>

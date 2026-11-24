@@ -6,6 +6,9 @@ import MemberListTabs from './components/MemberListTabs';
 import { PlusIcon, UserIcon, UsersGroupIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon, ShieldCheckIcon, StarIcon, ArrowRightStartOnRectangleIcon, CalendarIcon, ChevronRightIcon, ChevronLeftIcon, CheckIcon, CircleIcon, BellIcon, PencilIcon, SpeechBubbleIcon, SpeechBubbleGradientIcon, KeyIcon, XMarkIcon, PhotoIcon, FlagIcon, ClockIcon, ClipboardDocumentListIcon, ThumbUpIcon, ThumbUpSolidIcon, HeartIcon, HeartSolidIcon, NotebookIcon, QuestionMarkCircleIcon } from './components/icons';
 import { isAnnounceOverdue, formatAnnounceDue } from './services/notesService';
 import { useNotes } from './hooks/useNotes';
+import { useMikopos } from './hooks/useMikopos';
+import type { MikoposNotice } from './hooks/useMikopos';
+import MikoposTimeline from './components/MikoposTimeline';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
@@ -294,6 +297,25 @@ const App: React.FC = () => {
   const callsRef = useRef<CallRequest[]>(calls);
   useEffect(() => { callsRef.current = calls; }, [calls]);
   useEffect(() => { usersRef.current = users; }, [users]);
+
+  // ── Mikopos(タイムライン) ──
+  // 名前を呼ばれた・自分のポストに返信やリアクションが付いたときの通知
+  const handleMikoposNotice = useCallback((notice: MikoposNotice) => {
+    if (notificationSettingsRef.current.mikoposNotify === false) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const clip = (s: string) => (s.length > 60 ? `${s.slice(0, 60)}…` : s);
+    const title = notice.kind === 'mention' ? `Mikopos: ${notice.post.author} さんがあなたを呼んでいます`
+      : notice.kind === 'reply' ? `Mikopos: ${notice.from} さんから返信`
+      : `Mikopos: ${notice.from} さんが ${notice.emoji} しました`;
+    const body = notice.kind === 'reply' ? clip(notice.body) : clip(notice.post.body || '(画像・投票のポスト)');
+    const n = new Notification(title, { body, tag: `mikopos_${notice.kind}_${notice.post.id}_${Date.now()}`, icon: '/favicon.ico' });
+    n.onclick = () => {
+      window.focus();
+      setIsCommentPopupOpen(true);
+      n.close();
+    };
+  }, []);
+  const mikopos = useMikopos({ me: currentUser, onNotice: handleMikoposNotice });
 
   // ── 新しいバージョンのお知らせ ──
   // 開きっぱなしの画面は古いプログラムのまま動くので、配信先の番号(version.json)と見比べて、
@@ -3298,6 +3320,17 @@ const App: React.FC = () => {
                     <SpeechBubbleIcon className="w-6 h-6" />
                     {/* 未読バッジ：前回既読後に更新されたコメント＋リプライの件数を表示 */}
                     {(() => {
+                      if (mikopos.available) {
+                        const myPostIds = new Set(mikopos.posts.filter(p => p.author === currentUser?.name).map(p => p.id));
+                        const count =
+                          mikopos.posts.filter(p => p.author !== currentUser?.name && new Date(p.createdAt).getTime() > lastReadCommentAt).length +
+                          mikopos.replies.filter(r => r.author !== currentUser?.name && myPostIds.has(r.postId) && new Date(r.createdAt).getTime() > lastReadCommentAt).length;
+                        return count > 0 ? (
+                          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#0193be] px-1 text-xs font-semibold text-white">
+                            {count > 99 ? '99+' : count}
+                          </span>
+                        ) : null;
+                      }
                       const unreadComments = commentedUsers.filter(u =>
                         u.commentUpdatedAt &&
                         new Date(u.commentUpdatedAt).getTime() > lastReadCommentAt &&
@@ -3350,7 +3383,7 @@ const App: React.FC = () => {
                               </div>
                               <div>
                                 <h3 className="font-ribeye text-xl text-white tracking-wide drop-shadow leading-tight">Mikopos</h3>
-                                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 }}>{commentedUsers.length}件のポスト</p>
+                                <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 11, marginTop: 2 }}>{mikopos.available ? mikopos.posts.length : commentedUsers.length}件のポスト</p>
                               </div>
                             </div>
                             <button
@@ -3363,6 +3396,21 @@ const App: React.FC = () => {
                           </div>
                         </div>
 
+                        {mikopos.available ? (
+                          <MikoposTimeline
+                            api={mikopos}
+                            me={currentUser}
+                            users={users}
+                            isDarkMode={isDarkMode}
+                            onOpenProfile={(name) => {
+                              if (name === currentUser.name) handleViewModeChange('mine');
+                              else handleViewModeChange('others', name);
+                              setIsCommentPopupOpen(false);
+                            }}
+                            onLatestBodyChange={(body) => { void handleSaveComment(body); }}
+                            onPosted={(buttonEl) => { if (buttonEl) firePostAnimation(buttonEl); }}
+                          />
+                        ) : (<>
                         {/* ── インライン投稿エリア ── */}
                         {(() => {
                           const myComment = users.find(u => u.name === currentUser.name)?.comment ?? '';
@@ -3648,6 +3696,7 @@ const App: React.FC = () => {
                             </div>
                           )}
                         </div>
+                        </>)}
                       </div>,
                       document.body
                     );
@@ -5158,6 +5207,12 @@ const App: React.FC = () => {
           onSave={(comment, buttonEl) => {
             if (buttonEl) firePostAnimation(buttonEl);
             handleSaveComment(comment);
+            // プロフィールから「ひとこと」を書き換えたときも、タイムラインにポストとして残す
+            const text = comment.trim();
+            const before = (currentUserWithData.comment || '').trim();
+            if (mikopos.available && text && text !== before) {
+              mikopos.post({ body: text.slice(0, 120), mentions: [] }).catch(() => {});
+            }
           }}
           initialComment={currentUserWithData.comment || ''}
         />
