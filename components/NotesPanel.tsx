@@ -1379,7 +1379,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           )}
 
-          {/* 本文(ノートごとに作り直す)。ノートの枠の中に、そのまま置く */}
+          {/* 本文(ノートごとに作り直す)。ノートの枠の中に、そのまま置く。
+              コメント(「自分だけ」のノートと、編集中は出さない)は、本文の文字を選んで付けるものと、本文の下の欄がある */}
+          <NoteComments key={n.id} note={n} me={me} isDarkMode={d} enabled={!isEditing && n.visibility !== 'private'}>
           <div className={isEditing ? 'p-3' : 'px-5 py-4 min-h-[10rem]'}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
@@ -1397,11 +1399,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <div className={`text-sm text-left ${muted}`}>本文はまだありません。{canEdit ? '「編集」から書き込めます。' : ''}</div>
             )}
           </div>
-
-          {/* コメント(「自分だけ」のノートと、編集中は出さない) */}
-          {!isEditing && n.visibility !== 'private' && (
-            <NoteComments key={n.id} note={n} me={me} isDarkMode={d} />
-          )}
+          </NoteComments>
 
           {/* 作った人・日付(本文の下に小さく) */}
           <div className={`px-4 py-2 border-t ${border} ${surface2} rounded-b-xl text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>

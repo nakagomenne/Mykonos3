@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
 import type { Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -11,6 +11,7 @@ import { TextStyle, Color, BackgroundColor, FontSize } from '@tiptap/extension-t
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NoteIcon } from './NoteIcons';
 import { NoteAudio, NoteVideo, toVideoEmbedUrl, isAutoEmbedVideoUrl } from './noteMedia';
+import { CommentAnchorExtension, NoteCommentContext, anchorFromSelection, resolveAnchors } from './noteCommentAnchors';
 
 interface NoteEditorProps {
   /** 本文(HTML) */
@@ -218,6 +219,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       NoteAudio,
       NoteVideo,
+      CommentAnchorExtension,
     ],
     editorProps: {
       attributes: { class: 'note-prose' },
@@ -280,6 +282,28 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
     const current = editor.isEmpty ? '' : editor.getHTML();
     if (current !== value) editor.commands.setContent(value || '', { emitUpdate: false });
   }, [editor, editable, value]);
+
+  // ── 本文の場所に付けたコメント(見ているときだけ)。▼ の目印を出し、選んだ範囲をコメント欄に渡す ──
+  const commentBridge = useContext(NoteCommentContext);
+  const commentAnchors = !editable && commentBridge ? commentBridge.anchors : null;
+  const onCommentResolved = commentBridge?.onResolved;
+  const setCommentEditorApi = commentBridge?.setEditorApi;
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const anchors = commentAnchors ?? [];
+    const storage = (editor.storage as any).noteCommentAnchors as { anchors: typeof anchors } | undefined;
+    if (!storage) return;
+    if (storage.anchors.length === 0 && anchors.length === 0) { onCommentResolved?.([]); return; }
+    storage.anchors = anchors;
+    editor.view.dispatch(editor.state.tr.setMeta('noteCommentAnchors', true).setMeta('addToHistory', false));
+    onCommentResolved?.(resolveAnchors(editor.state.doc, anchors).map(r => r.id));
+    // value: 本文が(ほかの人の編集で)変わったら、場所を探し直す
+  }, [editor, commentAnchors, onCommentResolved, value]);
+  useEffect(() => {
+    if (!editor || editable || !setCommentEditorApi) return;
+    setCommentEditorApi({ anchorFromSelection: () => (editor.isDestroyed ? null : anchorFromSelection(editor.view)) });
+    return () => setCommentEditorApi(null);
+  }, [editor, editable, setCommentEditorApi]);
 
   const state = useEditorState({
     editor,

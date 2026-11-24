@@ -682,6 +682,13 @@ export interface NoteComment {
   author: string;
   body: string;
   createdAt: string;
+  /** 本文の「ここ」に付けたコメントのとき、その文字(ノート全体へのコメントは null) */
+  anchorText: string | null;
+  /** その直前・直後の文字(同じ文字が何回も出るときに、場所を見分けるため) */
+  anchorPrefix: string | null;
+  anchorSuffix: string | null;
+  /** 返信のとき、もとのコメントのID */
+  parentId: string | null;
 }
 
 export const NOTE_COMMENT_MAX = 500;
@@ -701,7 +708,27 @@ const failComment = (prefix: string, error: any): never => {
 
 export const rowToNoteComment = (row: any): NoteComment => ({
   id: row.id, noteId: row.note_id, author: row.author, body: row.body ?? '', createdAt: row.created_at,
+  anchorText: row.anchor_text || null, anchorPrefix: row.anchor_prefix ?? null, anchorSuffix: row.anchor_suffix ?? null,
+  parentId: row.parent_id ?? null,
 });
+
+const NOTE_COMMENT_ANCHOR_SQL_HINT = 'データベースの更新が必要です(supabase/migrations/20261128_add_note_comment_anchors.sql を実行してください)';
+
+let anchorsAvailableCache: boolean | null = null;
+/**
+ * 「本文の場所に付けるコメント」と「返信」が使えるか(追加の SQL を実行済みか)。
+ * 使えると分かったら覚えておく(使えないあいだは、SQL を実行したあとに気づけるよう毎回確かめる)
+ */
+export async function fetchNoteCommentAnchorsAvailable(): Promise<boolean> {
+  if (anchorsAvailableCache) return true;
+  try {
+    const { error } = await supabase.from('note_comments').select('id,anchor_text,anchor_prefix,anchor_suffix,parent_id').limit(1);
+    anchorsAvailableCache = !error;
+  } catch {
+    anchorsAvailableCache = false;
+  }
+  return !!anchorsAvailableCache;
+}
 
 /** ノートのコメントを、古いものから順に取得 */
 export async function fetchNoteComments(noteId: string): Promise<NoteComment[]> {
@@ -711,9 +738,22 @@ export async function fetchNoteComments(noteId: string): Promise<NoteComment[]> 
   return (data ?? []).map(rowToNoteComment);
 }
 
-export async function addNoteComment(noteId: string, author: string, body: string): Promise<NoteComment> {
-  const { data, error } = await supabase
-    .from('note_comments').insert({ note_id: noteId, author, body }).select('*').single();
+export async function addNoteComment(
+  noteId: string, author: string, body: string,
+  extra: { anchor?: { text: string; prefix: string; suffix: string }; parentId?: string } = {}
+): Promise<NoteComment> {
+  // 場所・返信の欄は、使うときだけ送る(追加の SQL を実行する前でも、ふつうのコメントは送れるように)
+  const row: Record<string, unknown> = { note_id: noteId, author, body };
+  if (extra.anchor) {
+    row.anchor_text = extra.anchor.text;
+    row.anchor_prefix = extra.anchor.prefix;
+    row.anchor_suffix = extra.anchor.suffix;
+  }
+  if (extra.parentId) row.parent_id = extra.parentId;
+  const { data, error } = await supabase.from('note_comments').insert(row).select('*').single();
+  if (error && (extra.anchor || extra.parentId) && (error.code === 'PGRST204' || error.code === '42703')) {
+    throw new Error(NOTE_COMMENT_ANCHOR_SQL_HINT);
+  }
   if (error) failComment('コメントの送信に失敗しました', error);
   return rowToNoteComment(data);
 }
