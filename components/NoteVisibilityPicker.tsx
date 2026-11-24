@@ -31,8 +31,6 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
   const [filter, setFilter] = React.useState('');
   const shown = candidates.filter(u => !filter || u.name.includes(filter) || (u.furigana ?? '').includes(filter));
 
-  /** まとめて選ぶのに使った商材(手で1人ずつ変えたら、印は消す) */
-  const [presets, setPresets] = React.useState<Set<string>>(new Set());
   /** メンバーに登録されている案内可能商材(だれにも登録されていない商材は出さない) */
   const products = React.useMemo(() => {
     const all = new Set<string>();
@@ -46,23 +44,58 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
 
   const toggle = (name: string) => {
     const next = sharedWith.includes(name) ? sharedWith.filter(n => n !== name) : [...sharedWith, name];
-    setPresets(new Set());
     onChange('members', next);
   };
 
-  /**
-   * 案内可能商材でまとめて選ぶ(管理者メニューの全体タスクと同じ動き)。
-   * 選んだ商材を「すべて」案内できるメンバーに入れ替える。全部外すと、だれも選んでいない状態に戻る
-   */
-  const togglePreset = (product: string) => {
-    const next = new Set(presets);
-    if (next.has(product)) next.delete(product); else next.add(product);
-    setPresets(next);
-    const names = next.size === 0
-      ? []
-      : candidates.filter(u => [...next].every(p => (u.availableProducts ?? []).includes(p))).map(u => u.name);
-    onChange('members', names);
+  // ── まとめて選ぶボタン(全員 / 案内可能商材) ──
+  // 押すと、その人たちを今の選択に「足す」(それまで選んでいた人は、そのまま)。
+  // もう一度押すと、その人たちを外す。ボタンは、押してから、その人たちが全員選ばれているあいだ青く点灯する
+  // (ほかのボタンで選ばれただけのときは点灯しない。1人でもチェックを外すと白に戻る)
+  const ALL = '__all__';
+  const [pressed, setPressed] = React.useState<Set<string>>(new Set());
+  const setPress = (key: string, on: boolean) => setPressed(prev => {
+    const next = new Set(prev);
+    if (on) next.add(key); else next.delete(key);
+    return next;
+  });
+  const selected = new Set(sharedWith);
+  const membersOf = (product: string) => candidates.filter(u => (u.availableProducts ?? []).includes(product)).map(u => u.name);
+  const allIn = (names: string[]) => names.length > 0 && names.every(n => selected.has(n));
+  const isLit = (product: string) => pressed.has(product) && allIn(membersOf(product));
+  const allNames = candidates.map(u => u.name);
+  const allLit = pressed.has(ALL) && allIn(allNames);
+
+  const toggleAll = () => {
+    if (allLit) { setPressed(new Set()); onChange('members', []); return; }
+    setPress(ALL, true);
+    // 候補に無い人(退職した人など)が入っていても、消さずに残す
+    onChange('members', [...sharedWith, ...allNames.filter(n => !selected.has(n))]);
   };
+
+  const togglePreset = (product: string) => {
+    const names = membersOf(product);
+    if (!isLit(product)) {
+      setPress(product, true);
+      onChange('members', [...sharedWith, ...names.filter(n => !selected.has(n))]);
+      return;
+    }
+    setPress(product, false);
+    // 「全員」が点灯しているときは、全員のまま(商材のボタンだけ白に戻す)
+    if (allLit) return;
+    // 外すとき: ほかに点灯している商材でも選ばれている人は、残す
+    const keep = new Set<string>();
+    products.filter(p => p !== product).forEach(p => {
+      if (isLit(p)) membersOf(p).forEach(n => keep.add(n));
+    });
+    const drop = new Set(names.filter(n => !keep.has(n)));
+    onChange('members', sharedWith.filter(n => !drop.has(n)));
+  };
+
+  const presetBtn = (on: boolean) => `text-xs px-2.5 py-0.5 rounded-full border transition ${
+    on
+      ? 'border-[#0193be] bg-[#0193be] text-white font-bold'
+      : (isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100')
+  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`;
 
   return (
     <div className="space-y-2">
@@ -104,11 +137,19 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
               className={`text-xs px-2 py-1 rounded border w-32 ${isDarkMode ? 'bg-[#1a2234] border-slate-600 text-slate-200' : 'bg-white border-slate-300 text-slate-700'}`}
             />
           </div>
-          {products.length > 0 && (
+          {allNames.length > 0 && (
             <div data-note-presets className="flex flex-wrap items-center gap-1.5 mb-1.5">
-              <span className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>案内可能商材でまとめて選ぶ</span>
+              <span className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>まとめて選ぶ</span>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={toggleAll}
+                aria-pressed={allLit}
+                title="全員をまとめて選びます。もう一度押すと、全員を外します(選んだあと、外したい人のチェックだけ外せます)"
+                className={presetBtn(allLit)}
+              >全員</button>
               {products.map(p => {
-                const on = presets.has(p);
+                const on = isLit(p);
                 return (
                   <button
                     key={p}
@@ -116,12 +157,8 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
                     disabled={disabled}
                     onClick={() => togglePreset(p)}
                     aria-pressed={on}
-                    title={`「${p}」を案内できるメンバーをまとめて選びます(複数押すと、すべてを案内できるメンバーだけになります)`}
-                    className={`text-xs px-2.5 py-0.5 rounded-full border transition ${
-                      on
-                        ? 'border-[#0193be] bg-[#0193be] text-white font-bold'
-                        : (isDarkMode ? 'border-slate-600 text-slate-200 hover:bg-slate-700' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100')
-                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={`「${p}」を案内できるメンバーを、今の選択に足します。もう一度押すと、その人たちを外します`}
+                    className={presetBtn(on)}
                   >{p}</button>
                 );
               })}
