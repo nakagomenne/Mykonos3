@@ -320,21 +320,19 @@ const App: React.FC = () => {
   const mikopos = useMikopos({ me: currentUser, onNotice: handleMikoposNotice });
 
   // ── 新しいバージョンのお知らせ ──
-  // 開きっぱなしの画面は古いプログラムのまま動くので、配信先の番号(version.json)と見比べて、
-  // 違っていたら「再読み込みしてください」と出す
+  // 開きっぱなしの画面は古いプログラムのまま動く。お知らせつきで本番に出したとき(release-notice.json の
+  // noticeId を上げたとき)だけ、配信先の番号(version.json)が変わるので、「再読み込みしてください」と出す
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateSnoozedUntil, setUpdateSnoozedUntil] = useState(0);
   useEffect(() => {
-    if (__BUILD_ID__ === 'dev') return;
-    // 本番に出す前の確認用(プレビュー)では出さない
-    if (window.location.hostname.includes('-git-')) return;
+    if (__NOTICE_ID__ === 'dev') return;
     let stopped = false;
     const check = async () => {
       try {
         const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
-        if (!stopped && data && typeof data.buildId === 'string' && data.buildId !== __BUILD_ID__) setUpdateAvailable(true);
+        if (!stopped && data && typeof data.noticeId === 'string' && data.noticeId !== 'dev' && data.noticeId !== __NOTICE_ID__) setUpdateAvailable(true);
       } catch { /* 通信できないときは、次の機会にもう一度確かめる */ }
     };
     const timer = window.setInterval(check, 5 * 60 * 1000);
