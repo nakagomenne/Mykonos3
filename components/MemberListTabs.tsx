@@ -135,8 +135,8 @@ const MemberListTabs: React.FC<MemberListTabsProps> = ({ members, users, selecte
                       )}
                       {!isListTab && !isAllTab && !isPrecheckerTab && !isElecCheckerTab && user && (
                         <span
-                          className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-[3px] ${isDarkMode ? 'ring-[#1a1f2e]' : 'ring-white'} ${AVAILABILITY_STATUS_STYLES[user.availabilityStatus].bg}`}
-                          title={`稼働状況: ${user.availabilityStatus}`}
+                          className={`absolute top-0 right-0 block h-3 w-3 rounded-full ring-[3px] ${isDarkMode ? 'ring-[#1a1f2e]' : 'ring-white'} ${AVAILABILITY_STATUS_STYLES[user.isBot ? '受付可' : user.availabilityStatus].bg}`}
+                          title={`稼働状況: ${user.isBot ? '受付可' : user.availabilityStatus}`}
                         />
                       )}
                     </div>

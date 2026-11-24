@@ -2968,13 +2968,15 @@ const App: React.FC = () => {
   const hasPrecheckers = users.some(u => u.isLinePrechecker);
   const hasElecCheckers = users.some(u => u.isElecChecker);
   // タブ順: 新規依頼 → 回線前確 → 電気契確 → 各メンバー
-  // 各メンバー部分: その日稼働（非稼働でない）が先、非稼働が後ろ
+  // 各メンバー部分: その日稼働（非稼働でない）が先、その次にボット、非稼働が後ろ
   // 同グループ内はcommentUpdatedAt が新しい順（未設定は末尾）
   const sortedOtherMemberNames = [...otherMemberNames].sort((a, b) => {
     const ua = users.find(u => u.name === a);
     const ub = users.find(u => u.name === b);
-    const aIsWorking = ua?.availabilityStatus !== '非稼働' ? 0 : 1;
-    const bIsWorking = ub?.availabilityStatus !== '非稼働' ? 0 : 1;
+    // ボット(人が使わない、案件を預けておくだけのメンバー)は、いつも稼働として扱い、稼働メンバーの一番右に置く
+    const group = (u?: User) => (u?.isBot ? 1 : u?.availabilityStatus !== '非稼働' ? 0 : 2);
+    const aIsWorking = group(ua);
+    const bIsWorking = group(ub);
     if (aIsWorking !== bIsWorking) return aIsWorking - bIsWorking;
     // 同グループ内はコメント更新日が新しい順
     const aTime = ua?.commentUpdatedAt ? new Date(ua.commentUpdatedAt).getTime() : 0;
@@ -4478,7 +4480,9 @@ const App: React.FC = () => {
                           const selectedUserDetails = users.find(u => u.name === selectedMember);
                           if (!selectedUserDetails) return null;
                           
-                          const status = selectedUserDetails.availabilityStatus;
+                          // ボットは、いつも稼働(受付可)として表示する。稼働時間・カレンダー・見込のカウンターは出さない
+                          const isBotMember = !!selectedUserDetails.isBot;
+                          const status = isBotMember ? '受付可' : selectedUserDetails.availabilityStatus;
                           const isAvailable = status === '受付可';
                           const ringHex = {
                               '受付可': 'white',
@@ -4614,6 +4618,7 @@ const App: React.FC = () => {
                                               <h2 className={`text-4xl font-black tracking-tight transition-colors duration-500 ${statusTextColor}`}>
                                                   {selectedMember}
                                               </h2>
+                                              {!isBotMember && (
                                               <button
                                                   onClick={() => handleShowUserSchedule(selectedMember)}
                                                   className={`${statusTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${calendarHover} transition`}
@@ -4621,6 +4626,7 @@ const App: React.FC = () => {
                                               >
                                                   <CalendarIcon className="w-5 h-5" />
                                               </button>
+                                              )}
                                               {/* ステータスバッジ */}
                                               <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${statusBgColor} text-white`}>
                                                   {status}
@@ -4630,7 +4636,7 @@ const App: React.FC = () => {
                                               {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                   <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
                                               )}
-                                              {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                              {!selectedUserDetails.isBot && (selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
                                                   <>
                                                       {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                           <span className="opacity-40">|</span>
@@ -4642,9 +4648,9 @@ const App: React.FC = () => {
                                       </div>
                                   </div>
                                   {/* 区切り線 */}
-                                  <div className={`mx-5 border-t ${dividerColor}`} />
-                                  {/* 下部：カウンターゾーン */}
-                                  <div className="grid grid-cols-3 gap-2 px-5 py-2">
+                                  {!isBotMember && <div className={`mx-5 border-t ${dividerColor}`} />}
+                                  {/* 下部：カウンターゾーン(ボットには出さない) */}
+                                  <div className={isBotMember ? 'hidden' : 'grid grid-cols-3 gap-2 px-5 py-2'} data-member-counters>
                                       {/* 見込 */}
                                       <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${counterCardBase}`}>
                                           <span className={`text-xl font-black tabular-nums leading-none ${counterNumColor}`}>{mikomiCount}</span>
@@ -4812,7 +4818,8 @@ const App: React.FC = () => {
                       (() => {
                         const selectedUserDetails = users.find(u => u.name === previewMember);
                         if (!selectedUserDetails) return null;
-                        const status = selectedUserDetails.availabilityStatus;
+                        const pvIsBot = !!selectedUserDetails.isBot;
+                        const status = pvIsBot ? '受付可' : selectedUserDetails.availabilityStatus;
                         const pvIsAvailable = status === '受付可';
                         const pvRingHex = { '受付可': 'white', '一時受付不可': '#eab308', '当日受付不可': '#ef4444', '非稼働': '#64748b' }[status] ?? 'white';
                         const pvRingBoxShadow = `0 0 0 4px ${pvRingHex}, 0 0 0 9px ${pvIsAvailable ? '#0193be' : 'white'}`;
@@ -4895,6 +4902,7 @@ const App: React.FC = () => {
                                           <div className="flex items-center gap-2 flex-wrap">
                                               <h2 className={`text-4xl font-black tracking-tight ${pvTextColor}`}>{previewMember}</h2>
                                               <button
+                                                  hidden={pvIsBot}
                                                   onClick={() => handleShowUserSchedule(previewMember)}
                                                   className={`${pvTextColor} opacity-60 hover:opacity-100 p-1 rounded-full ${pvIsAvailable ? 'hover:bg-slate-200/60' : 'hover:bg-white/20'} transition`}
                                                   title={`${previewMember}さんのスケジュールを表示`}
@@ -4907,7 +4915,7 @@ const App: React.FC = () => {
                                               {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                   <span className="font-semibold">{getProductsLabel(selectedUserDetails)}</span>
                                               )}
-                                              {(selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
+                                              {!selectedUserDetails.isBot && (selectedUserDetails.workStart || selectedUserDetails.workEnd) && (
                                                   <>
                                                       {((selectedUserDetails.availableProducts && selectedUserDetails.availableProducts.length > 0) || selectedUserDetails.isLinePrechecker || selectedUserDetails.isElecChecker) && (
                                                           <span className="opacity-40">|</span>
@@ -4919,9 +4927,9 @@ const App: React.FC = () => {
                                       </div>
                                   </div>
                                   {/* 区切り線 */}
-                                  <div className={`mx-5 border-t ${pvDivider}`} />
-                                  {/* 下部：カウンターゾーン */}
-                                  <div className="grid grid-cols-3 gap-2 px-5 py-2">
+                                  {!pvIsBot && <div className={`mx-5 border-t ${pvDivider}`} />}
+                                  {/* 下部：カウンターゾーン(ボットには出さない) */}
+                                  <div className={pvIsBot ? 'hidden' : 'grid grid-cols-3 gap-2 px-5 py-2'}>
                                       <div className={`flex flex-col items-center rounded-lg px-3 py-1.5 transition-colors ${pvCounterCardBase}`}>
                                           <span className={`text-xl font-black tabular-nums leading-none ${pvCounterNum}`}>{pvMikomiCount}</span>
                                           <span className={`text-xs font-bold tracking-wide ${pvCounterLabel}`}>見込</span>
