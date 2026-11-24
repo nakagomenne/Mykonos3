@@ -16,7 +16,7 @@ import NotesHelpModal from './NotesHelpModal';
 import NoteHistoryModal from './NoteHistoryModal';
 import { NoteIcon, VisibilityIcon } from './NoteIcons';
 import ConfirmationModal from './ConfirmationModal';
-import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon } from './icons';
+import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon, Cog6ToothIcon } from './icons';
 
 type View =
   | { kind: 'pinned' }
@@ -243,6 +243,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [remindedId, setRemindedId] = useState<string | null>(null);
   /** 上のバーの「⋯」(削除など)を開いているか */
   const [menuOpen, setMenuOpen] = useState(false);
+  /** 歯車のメニュー(サブフォルダ・設定・削除)を開いているフォルダ */
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -787,11 +789,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setStep('list');
   });
 
-  const SideItem: React.FC<{ v: View; icon: React.ReactNode; label: React.ReactNode; count?: number; badge?: number; depth?: number }> =
-    ({ v, icon, label, count, badge, depth = 0 }) => (
+  const SideItem: React.FC<{ v: View; icon: React.ReactNode; label: React.ReactNode; count?: number; badge?: number; depth?: number; gearSpace?: boolean }> =
+    ({ v, icon, label, count, badge, depth = 0, gearSpace = false }) => (
       <button
         onClick={() => selectView(v)}
-        className={`w-full flex items-center gap-2 pr-2 py-1.5 rounded-md text-sm text-left transition ${isViewActive(v) ? activeRow : hoverRow}`}
+        className={`w-full flex items-center gap-2 ${gearSpace ? 'pr-8' : 'pr-2'} py-1.5 rounded-md text-sm text-left transition ${isViewActive(v) ? activeRow : hoverRow}`}
         style={{ paddingLeft: 8 + depth * 16 }}
       >
         <span className="flex-shrink-0">{icon}</span>
@@ -806,22 +808,47 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = isViewActive({ kind: 'folder', folderId: f.id });
     return (
       <React.Fragment key={f.id}>
-        <SideItem
-          v={{ kind: 'folder', folderId: f.id }}
-          icon={<NoteIcon name="folder" />}
-          label={f.visibility === 'private' ? f.name : <>{f.name} <VisibilityIcon visibility={f.visibility} /></>}
-          count={folderNoteCount(f.id)}
-          depth={depth}
-        />
-        {active && (
-          <div className="flex gap-1 mb-1" style={{ paddingLeft: 8 + depth * 16 + 22 }}>
-            {depth === 0 && (
-              <button className={`text-[11px] px-1.5 py-0.5 rounded border ${border} ${hoverRow}`} onClick={() => setFolderDlg({ mode: 'create', parent: f })}>＋サブ</button>
-            )}
-            <button className={`text-[11px] px-1.5 py-0.5 rounded border ${border} ${hoverRow}`} onClick={() => setFolderDlg({ mode: 'edit', folder: f })}>設定</button>
-            <button className={`text-[11px] px-1.5 py-0.5 rounded border border-red-300 text-red-500 ${d ? 'hover:bg-red-900/30' : 'hover:bg-red-50'}`} onClick={() => setDeleteFolderTarget(f)}>削除</button>
-          </div>
-        )}
+        <div className="relative">
+          <SideItem
+            v={{ kind: 'folder', folderId: f.id }}
+            icon={<NoteIcon name="folder" />}
+            label={f.visibility === 'private' ? f.name : <>{f.name} <VisibilityIcon visibility={f.visibility} /></>}
+            count={folderNoteCount(f.id)}
+            depth={depth}
+            gearSpace={active}
+          />
+          {/* 選んでいるフォルダだけ、右はしに歯車を出す。押すと、サブフォルダ・設定・削除を選べる */}
+          {active && (
+            <>
+              <button
+                data-folder-gear
+                onClick={() => setFolderMenuId(id => (id === f.id ? null : f.id))}
+                title="フォルダの設定(サブフォルダ・名前や公開範囲・削除)"
+                aria-label="フォルダの設定"
+                aria-expanded={folderMenuId === f.id}
+                className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-md transition ${d ? 'hover:bg-white/15' : 'hover:bg-black/10'}`}
+              ><Cog6ToothIcon className="w-4 h-4" /></button>
+              {folderMenuId === f.id && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setFolderMenuId(null)} />
+                  <div data-folder-menu className={`absolute right-0 top-full mt-1 z-40 w-48 rounded-lg border shadow-xl py-1 text-sm ${d ? 'bg-[#1a2234] border-slate-600 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}>
+                    {depth === 0 && (
+                      <button className={`w-full text-left px-3 py-2 flex items-center gap-2 ${hoverRow}`} onClick={() => { setFolderMenuId(null); setFolderDlg({ mode: 'create', parent: f }); }}>
+                        <PlusIcon className="w-4 h-4" />サブフォルダを作る
+                      </button>
+                    )}
+                    <button className={`w-full text-left px-3 py-2 flex items-center gap-2 ${hoverRow}`} onClick={() => { setFolderMenuId(null); setFolderDlg({ mode: 'edit', folder: f }); }}>
+                      <Cog6ToothIcon className="w-4 h-4" />名前・公開範囲を変える
+                    </button>
+                    <button className="w-full text-left px-3 py-2 flex items-center gap-2 text-red-500 hover:bg-red-500/10" onClick={() => { setFolderMenuId(null); setDeleteFolderTarget(f); }}>
+                      <TrashIcon className="w-4 h-4" />このフォルダを削除
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
         {depth === 0 && childrenOf(f.id).map(c => renderFolder(c, 1))}
       </React.Fragment>
     );

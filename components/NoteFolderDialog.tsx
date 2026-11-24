@@ -75,7 +75,7 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-bold mb-1 text-slate-500">公開範囲(フォルダ内のノートに引き継がれます)</label>
+            <label className="block text-xs font-bold mb-1 text-slate-500">公開範囲(このフォルダで新しく作るノートの、最初の設定になります)</label>
             <NoteVisibilityPicker
               visibility={visibility}
               sharedWith={sharedWith}
@@ -85,7 +85,7 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
               onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
             />
             {appliesToContents && visibilityChanged && (
-              <p className="text-xs text-amber-600 mt-2"><NoteIcon name="warning" /> 変更すると、このフォルダの中にあるノートの公開範囲もすべて同じ設定に変わります。</p>
+              <p className="text-xs text-slate-500 mt-2">すでにフォルダの中にあるノートの公開範囲は変わりません(ノートごとの設定のままです)。</p>
             )}
           </div>
           {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}

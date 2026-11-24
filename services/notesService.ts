@@ -198,8 +198,9 @@ export async function renameFolder(id: string, name: string): Promise<void> {
 }
 
 /**
- * フォルダの公開範囲を変更し、中のノートと子フォルダにも同じ設定を適用する
- * (「フォルダの設定を引き継ぐ」仕様)
+ * フォルダの公開範囲を変更する(サブフォルダにも同じ設定を適用する)。
+ * 中のノートの公開範囲は変えない(ノートごとの設定のまま)。
+ * フォルダの公開範囲は、そのフォルダで新しく作るノートの「最初の設定」として使われる
  */
 export async function updateFolderVisibility(
   folderId: string, childFolderIds: string[], visibility: NoteVisibility, sharedWith: string[]
@@ -211,11 +212,6 @@ export async function updateFolderVisibility(
     .update({ visibility, shared_with: sharedWith, updated_at: now })
     .in('id', ids);
   if (e1) fail('フォルダの公開範囲の変更に失敗しました', e1);
-  const { error: e2 } = await supabase
-    .from('notes')
-    .update({ visibility, shared_with: sharedWith, updated_at: now })
-    .in('folder_id', ids);
-  if (e2) fail('フォルダ内ノートの公開範囲の変更に失敗しました', e2);
 }
 
 /** フォルダ削除。中のノートは「未整理」に移動(DB の ON DELETE SET NULL)、子フォルダは一緒に削除 */
