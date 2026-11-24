@@ -46,6 +46,7 @@ import {
   fetchUserProfilePictures,
   updateUser,
   upsertUsers,
+  isBotColumnAvailable,
   deleteUser as apiDeleteUser,
   insertUser as apiInsertUser,
   renameUser as apiRenameUser,
@@ -1998,6 +1999,15 @@ const App: React.FC = () => {
             await saveProfilePicture(inserted.name, profilePicture);
           }
         }
+      }
+
+      // ボットの印を付けたのに、保存する場所がまだ無い(SQL 未実行)ときは知らせる
+      if (updatedUsers.some(u => u.isBot) && !isBotColumnAvailable()) {
+        alert([
+          '「ボット」のチェックは、まだ保存できません。',
+          'データベースの更新が必要です(supabase/migrations/20261130_add_user_is_bot.sql を実行してください)。',
+          'ほかの変更は保存されました。',
+        ].join(String.fromCharCode(10)));
       }
 
       // 最新の全ユーザーをfetchして確実に同期

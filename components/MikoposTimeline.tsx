@@ -136,7 +136,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
   };
 
   const mentionCandidates = mentionQuery === null ? [] : users
-    .filter(u => u.name !== me.name && (u.name.includes(mentionQuery) || (u.furigana ?? '').includes(mentionQuery)))
+    .filter(u => u.name !== me.name && !u.isBot && (u.name.includes(mentionQuery) || (u.furigana ?? '').includes(mentionQuery)))
     .slice(0, 30);
 
   const insertMention = (name: string) => {

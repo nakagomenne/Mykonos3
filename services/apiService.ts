@@ -61,6 +61,14 @@ function callRequestToRow(data: Partial<CallRequest>): Record<string, any> {
   return row;
 }
 
+// users.is_bot カラム(ボットの印)があるか。無い(SQL 未実行)と分かったら false にして、以後は使わない。
+// (is_bot が無いだけで、ほかの項目の保存・取得まで失敗しないようにするため)
+let botColumnAvailable = true;
+const isMissingBotColumn = (error: any): boolean => String(error?.message ?? '').includes('is_bot');
+const USER_BOT_SQL_HINT = 'データベースの更新が必要です(supabase/migrations/20261130_add_user_is_bot.sql を実行してください)';
+/** ボットの印を保存できるか(SQL 未実行なら false) */
+export const isBotColumnAvailable = (): boolean => botColumnAvailable;
+
 // DB行 → User
 function rowToUser(row: any): User {
   return {
@@ -69,6 +77,7 @@ function rowToUser(row: any): User {
     isAdmin:               row.is_admin,
     isLinePrechecker:      row.is_line_prechecker,
     isElecChecker:         row.is_elec_checker ?? false,
+    isBot:                 row.is_bot ?? false,
     isSuperAdmin:          row.is_super_admin,
     password:              row.password,
     profilePicture:        row.profile_picture ?? null,
@@ -93,6 +102,8 @@ function userToRow(data: Partial<User>): Record<string, any> {
   if (data.isAdmin            !== undefined) row.is_admin            = data.isAdmin;
   if (data.isLinePrechecker   !== undefined) row.is_line_prechecker  = data.isLinePrechecker;
   if (data.isElecChecker      !== undefined) row.is_elec_checker     = data.isElecChecker;
+  // is_bot カラムが無い(SQL 未実行)と分かっているあいだは送らない
+  if (data.isBot              !== undefined && botColumnAvailable) row.is_bot = data.isBot;
   if (data.isSuperAdmin       !== undefined) row.is_super_admin      = data.isSuperAdmin;
   if (data.password           !== undefined) row.password            = data.password;
   if (data.profilePicture     !== undefined) row.profile_picture     = data.profilePicture;
@@ -346,8 +357,11 @@ export async function createBulkCallRequests(
 // profile_picture を除いたカラム一覧（初期ロード高速化）
 // is_elec_checker: DDL実行済み環境ではカラムが存在するためSELECTに含める。
 // DDL未実行の場合は fetchUsers 内でフォールバックして除外カラムで再取得する。
-const USER_COLUMNS_WITHOUT_PICTURE =
+const USER_COLUMNS_WITHOUT_PICTURE_BASE =
   'name,furigana,is_admin,is_line_prechecker,is_elec_checker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
+
+/** 取得するカラム(is_bot は、あるときだけ含める) */
+const userColumns = (): string => (botColumnAvailable ? `${USER_COLUMNS_WITHOUT_PICTURE_BASE},is_bot` : USER_COLUMNS_WITHOUT_PICTURE_BASE);
 
 const USER_COLUMNS_WITHOUT_PICTURE_FALLBACK =
   'name,furigana,is_admin,is_line_prechecker,is_super_admin,password,availability_status,non_working_days,available_products,comment,comment_updated_at,status_revert_at,work_start,work_end,auto_unavailable_offset,created_at';
@@ -356,10 +370,12 @@ const USER_COLUMNS_WITHOUT_PICTURE_FALLBACK =
 export async function fetchUsers(): Promise<User[]> {
   const { data, error } = await supabase
     .from('users')
-    .select(USER_COLUMNS_WITHOUT_PICTURE)
+    .select(userColumns())
     .order('created_at', { ascending: true });
 
   if (error) {
+    // is_bot カラムが無い(SQL 未実行)ときは、それを除いて取り直す
+    if (botColumnAvailable && isMissingBotColumn(error)) { botColumnAvailable = false; return fetchUsers(); }
     // is_elec_checker カラムが存在しない場合（DDL未実行）はフォールバック
     if (error.message.includes('is_elec_checker') || error.code === '42703') {
       const { data: fallbackData, error: fallbackError } = await supabase
@@ -397,6 +413,12 @@ export async function updateUser(name: string, updatedData: Partial<User>): Prom
     .eq('name', name);
 
   if (error) {
+    // is_bot カラムが無い(SQL 未実行)ときは、それを除いて保存し直す
+    if (botColumnAvailable && isMissingBotColumn(error)) {
+      botColumnAvailable = false;
+      if (Object.keys(row).length === 1) throw new Error(USER_BOT_SQL_HINT);   // ボットの印だけを変えようとした
+      return updateUser(name, updatedData);
+    }
     // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
     if ((error.message.includes('is_elec_checker') || error.code === '42703') && row.is_elec_checker !== undefined) {
       const { is_elec_checker: _omit, ...rowWithout } = row;
@@ -418,9 +440,11 @@ export async function upsertUsers(users: User[]): Promise<User[]> {
   const { data, error } = await supabase
     .from('users')
     .upsert(rows, { onConflict: 'name' })
-    .select(USER_COLUMNS_WITHOUT_PICTURE);
+    .select(userColumns());
 
   if (error) {
+    // is_bot カラムが無い(SQL 未実行)ときは、それを除いて保存し直す(ボットの印だけ保存されない)
+    if (botColumnAvailable && isMissingBotColumn(error)) { botColumnAvailable = false; return upsertUsers(users); }
     // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
     if (error.message.includes('is_elec_checker') || error.code === '42703') {
       const rowsWithout = rows.map(r => { const { is_elec_checker: _omit, ...rest } = r; return rest; });
@@ -521,9 +545,11 @@ export async function insertUser(user: User): Promise<User> {
   const { data, error } = await supabase
     .from('users')
     .insert([row])
-    .select(USER_COLUMNS_WITHOUT_PICTURE)
+    .select(userColumns())
     .single();
   if (error) {
+    // is_bot カラムが無い(SQL 未実行)ときは、それを除いて作り直す
+    if (botColumnAvailable && isMissingBotColumn(error)) { botColumnAvailable = false; return insertUser(user); }
     // is_elec_checker カラムが存在しない場合（DDL未実行）はそのカラムを除いて再試行
     if (error.message.includes('is_elec_checker') || error.code === '42703') {
       const { is_elec_checker: _omit, ...rowWithout } = row;
@@ -856,6 +882,7 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
                   availabilityStatus:   pick(newRow.availability_status,    u.availabilityStatus) || u.availabilityStatus,
                   nonWorkingDays:       pick(newRow.non_working_days,        u.nonWorkingDays),
                   availableProducts:    pick(newRow.available_products,      u.availableProducts),
+                  isBot:                pick(newRow.is_bot,                  u.isBot),
                   comment:              pick(newRow.comment,                 u.comment),
                   commentUpdatedAt:     pick(newRow.comment_updated_at,      u.commentUpdatedAt),
                   statusRevertAt:       pick(newRow.status_revert_at,        u.statusRevertAt),

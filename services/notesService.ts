@@ -73,10 +73,12 @@ export function canView(item: Shareable, viewer: Viewer): boolean {
 
 /** 公開範囲ごとの「読む人」の名前一覧(オーナー本人を除く)。アナウンスの既読確認の対象 */
 export function getRecipients(item: Shareable, users: User[]): string[] {
-  const names = users.map(u => u.name).filter(n => n !== item.owner);
+  // ボット(人が使わないメンバー)は、読んでもらう相手に数えない
+  const people = users.filter(u => !u.isBot);
+  const names = people.map(u => u.name).filter(n => n !== item.owner);
   switch (item.visibility) {
     case 'public':  return names;
-    case 'admin':   return users.filter(u => u.name !== item.owner && (u.isAdmin || u.isSuperAdmin)).map(u => u.name);
+    case 'admin':   return people.filter(u => u.name !== item.owner && (u.isAdmin || u.isSuperAdmin)).map(u => u.name);
     case 'members': return item.sharedWith.filter(n => n !== item.owner && names.includes(n));
     default:        return [];
   }

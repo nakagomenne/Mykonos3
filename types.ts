@@ -89,6 +89,11 @@ export interface User {
   isAdmin: boolean;
   isLinePrechecker?: boolean;
   isElecChecker?: boolean;
+  /**
+   * ボット(だれの顧客でもない案件を預けておくだけの、人が使わないメンバー)。
+   * true のメンバーは、全体タスクや、ノートの共有・アナウンスのメンバー一覧に出さない
+   */
+  isBot?: boolean;
   isSuperAdmin?: boolean;
   createdAt: string;
   isLoggedInAsAdmin?: boolean;

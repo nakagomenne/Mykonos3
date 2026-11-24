@@ -419,6 +419,20 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
     const handleToggleElecChecker = (name: string) => {
       setLocalUsers(prev => prev.map(u => u.name === name ? { ...u, isElecChecker: !u.isElecChecker } : u));
     };
+
+    /** ボット(人が使わない、案件を預けておくだけのメンバー)の印を切り替える */
+    const handleToggleBot = (name: string) => {
+      setLocalUsers(prev => prev.map(u => u.name === name ? { ...u, isBot: !u.isBot } : u));
+      // ボットにしたメンバーは、全体タスクの選択からも外す
+      setSelectedUsersForTask(prev => {
+        if (!prev.has(name)) return prev;
+        const next = new Set(prev);
+        next.delete(name);
+        return next;
+      });
+    };
+    /** 全体タスクの対象にできるメンバー(ボットは除く) */
+    const taskUsers = localUsers.filter(u => !u.isBot);
     
     const handleSetProfilePicture = (userName: string, imageDataUrl: string | null) => {
         setLocalUsers(prev => prev.map(u => u.name === userName ? {...u, profilePicture: imageDataUrl} : u));
@@ -641,7 +655,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
         const todayStr = localDate.toISOString().split('T')[0];
 
         const selected = new Set<string>();
-        localUsers.forEach(user => {
+        taskUsers.forEach(user => {
             let match = true;
 
             if (presets.has('回線')) {
@@ -677,7 +691,7 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
 
     const handleSelectAllTasks = () => {
         setActivePresets(new Set());
-        setSelectedUsersForTask(new Set(localUsers.map(u => u.name)));
+        setSelectedUsersForTask(new Set(taskUsers.map(u => u.name)));
     };
 
     const handleClearAllTasks = () => {
@@ -930,6 +944,16 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                                               />
                                                               電気契確者
                                                           </label>
+                                                          <label className="flex items-center gap-2 cursor-pointer hover:text-slate-900" title="人が使わない、案件を預けておくだけのメンバーにチェックを入れます。チェックを入れたメンバーは、全体タスクや、ノートの共有・アナウンスのメンバー一覧に出なくなります">
+                                                              <input
+                                                                  type="checkbox"
+                                                                  data-bot-toggle={user.name}
+                                                                  checked={!!user.isBot}
+                                                                  onChange={() => handleToggleBot(user.name)}
+                                                                  className="h-4 w-4 rounded border-slate-300 text-slate-600 focus:ring-slate-500 focus:ring-offset-1"
+                                                              />
+                                                              ボット
+                                                          </label>
                                                         </div>
                                                         <div className="flex items-center gap-1">
                                                             <button
@@ -1032,8 +1056,8 @@ const AdminMenu: React.FC<AdminMenuProps> = ({
                                         </button>
                                     </div>
                                     <ul className="space-y-1.5 max-h-72 overflow-y-auto pr-2 border border-slate-200 rounded-md p-2">
-                                        {/* チェック済みが上、未チェックが下 */}
-                                        {[...localUsers]
+                                        {/* チェック済みが上、未チェックが下(ボットは出さない) */}
+                                        {[...taskUsers]
                                             .sort((a, b) => {
                                                 const aChecked = selectedUsersForTask.has(a.name) ? 0 : 1;
                                                 const bChecked = selectedUsersForTask.has(b.name) ? 0 : 1;

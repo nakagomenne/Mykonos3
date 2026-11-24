@@ -27,7 +27,8 @@ const PRODUCT_ORDER = ['回線', '水', '保険'];
 const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
   visibility, sharedWith, users, owner, onChange, isDarkMode = false, disabled = false,
 }) => {
-  const candidates = users.filter(u => u.name !== owner);
+  // ボット(人が使わないメンバー)は、共有相手の候補に出さない
+  const candidates = users.filter(u => u.name !== owner && !u.isBot);
   const [filter, setFilter] = React.useState('');
   const shown = candidates.filter(u => !filter || u.name.includes(filter) || (u.furigana ?? '').includes(filter));
 
