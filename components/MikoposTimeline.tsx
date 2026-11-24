@@ -19,6 +19,8 @@ interface MikoposTimelineProps {
   onLatestBodyChange: (body: string) => void;
   /** 投稿したときの演出(紙飛行機など)。なくてもよい */
   onPosted?: (buttonEl: HTMLElement | null) => void;
+  /** いいねを押したとき(アニメーションつきで付け外しする)。なければ、その場で付け外しだけする */
+  onLike?: (post: MikoposPost, buttonEl: HTMLElement) => void;
 }
 
 const ACCENT = '#a855f7';
@@ -63,13 +65,25 @@ const Avatar: React.FC<{ user?: User; name: string; size?: number }> = ({ user, 
     : <div aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', background: GRADIENT, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: size * 0.42, flexShrink: 0 }}>{name.slice(0, 1)}</div>
 );
 
-const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDarkMode = false, onOpenProfile, onLatestBodyChange, onPosted }) => {
+const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDarkMode = false, onOpenProfile, onLatestBodyChange, onPosted, onLike }) => {
   const d = isDarkMode;
   const text = d ? '#e2e8f0' : '#334155';
   const sub = d ? '#94a3b8' : '#64748b';
   const line = d ? 'rgba(148,163,184,0.25)' : '#e2e8f0';
   const cardBg = d ? '#262238' : '#fff';
-  const softBg = d ? '#1e1b2e' : '#f8fafc';
+  const softBg = d ? '#231f36' : '#fdf4ff';
+  /** タイムラインの背景: Mikopos のテーマカラーをうすく敷く */
+  const timelineBg = d
+    ? 'linear-gradient(180deg, #2a1f3d 0%, #221d3a 50%, #1c1d3a 100%)'
+    : 'linear-gradient(180deg, #fdf2f8 0%, #f5f3ff 50%, #eef2ff 100%)';
+  /** ポストの外枠: テーマカラーのグラデーション(中は白 / 暗い色) */
+  const cardFrame: React.CSSProperties = {
+    background: `linear-gradient(${cardBg}, ${cardBg}) padding-box, ${GRADIENT} border-box`,
+    border: '2px solid transparent',
+    boxShadow: d ? '0 2px 10px rgba(0,0,0,0.35)' : '0 2px 10px rgba(168,85,247,0.12)',
+  };
+  /** 画像ファイルをドラッグしている間、置ける場所だと分かるようにする */
+  const [dragOver, setDragOver] = useState(false);
   const inputStyle: React.CSSProperties = { width: '100%', background: d ? '#2a2640' : '#fff', color: text, border: `1px solid ${line}`, borderRadius: 10, padding: '6px 10px', fontSize: 13, outline: 'none' };
 
   const userByName = useMemo(() => new Map(users.map(u => [u.name, u])), [users]);
@@ -141,6 +155,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
 
   const handlePost = async (buttonEl: HTMLElement | null) => {
     if (!canPost) return;
+    onPosted?.(buttonEl);
     setBusy(true);
     setError('');
     try {
@@ -152,7 +167,6 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
         pollOptions: validPoll,
         mentions: extractMentions(trimmed, userNames.filter(n => n !== me.name)),
       });
-      onPosted?.(buttonEl);
       if (trimmed) onLatestBodyChange(trimmed);
       setBody('');
       clearImage();
@@ -197,9 +211,32 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
   const smallBtn: React.CSSProperties = { fontSize: 12, padding: '4px 10px', borderRadius: 999, border: `1px solid ${line}`, background: 'transparent', color: sub, cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, color: text }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1, color: text, position: 'relative' }}
+      onDragOver={e => {
+        if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        if (!dragOver) setDragOver(true);
+      }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false); }}
+      onDrop={e => {
+        if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
+        e.preventDefault();
+        setDragOver(false);
+        const files = Array.from(e.dataTransfer.files ?? []);
+        const img = files.find(f => f.type.startsWith('image/'));
+        if (img) pickImage(img);
+        else if (files.length) setError('画像ファイル(GIF を含む)を選んでください');
+      }}
+    >
+      {dragOver && (
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 6, zIndex: 15, borderRadius: 16, border: `2px dashed ${ACCENT}`, background: d ? 'rgba(168,85,247,0.22)' : 'rgba(168,85,247,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, fontWeight: 700, fontSize: 14, pointerEvents: 'none' }}>
+          ここに画像・GIF を置くと、ポストに付きます
+        </div>
+      )}
       {/* ── 投稿欄 ── */}
-      <div style={{ flexShrink: 0, padding: '12px 14px', borderBottom: `1px solid ${line}`, background: softBg, position: 'relative' }}>
+      <div style={{ flexShrink: 0, padding: '12px 14px', borderBottom: `1px solid ${d ? 'rgba(168,85,247,0.35)' : 'rgba(168,85,247,0.25)'}`, background: softBg, position: 'relative' }}>
         <textarea
           ref={textRef}
           value={body}
@@ -270,7 +307,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} title="画像・GIF を付ける(貼り付けでも付けられます)" style={smallBtn}>画像・GIF</button>
+          <button type="button" onClick={() => fileRef.current?.click()} disabled={busy} title="画像・GIF を付ける(ドラッグや貼り付けでも付けられます)" style={smallBtn}>画像・GIF</button>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { pickImage(e.target.files?.[0]); e.target.value = ''; }} />
           <button type="button" onClick={() => setPollOpen(o => !o)} disabled={busy} aria-pressed={pollOpen} title="投票(アンケート)を付ける" style={{ ...smallBtn, ...(pollOpen ? { borderColor: ACCENT, color: ACCENT, fontWeight: 700 } : {}) }}>投票</button>
           <span style={{ marginLeft: 'auto', fontSize: 11, color: remaining < 0 ? '#ef4444' : remaining <= 20 ? '#f59e0b' : sub }}>{remaining}</span>
@@ -286,7 +323,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
       </div>
 
       {/* ── タイムライン ── */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 12, background: timelineBg }}>
         {api.posts.length === 0 && (
           <div style={{ textAlign: 'center', color: sub, fontSize: 13, padding: '36px 0' }}>まだポストはありません。最初のひとことを書いてみましょう。</div>
         )}
@@ -301,7 +338,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
           const pill: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: d ? '#2a2440' : '#f1f5f9', color: d ? '#94a3b8' : '#64748b', border: '1px solid transparent' };
           const isMine = post.author === me.name;
           return (
-            <article key={post.id} style={{ background: cardBg, border: `1px solid ${line}`, borderRadius: 14, padding: '10px 12px' }}>
+            <article key={post.id} style={{ ...cardFrame, borderRadius: 16, padding: '10px 12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button type="button" onClick={() => onOpenProfile(post.author)} title={`${post.author} さんのプロフィールを開く`} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, padding: 0, color: text, cursor: 'pointer', minWidth: 0 }}>
                   <Avatar user={author} name={post.author} />
@@ -352,7 +389,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
                 <button
                   type="button"
-                  onClick={() => run(() => api.toggleReaction(post.id, MIKOPOS_LIKE))}
+                  onClick={e => (onLike ? onLike(post, e.currentTarget) : run(() => api.toggleReaction(post.id, MIKOPOS_LIKE)))}
                   aria-pressed={likedByMe}
                   aria-label="いいね"
                   title={likers.length > 0 ? likers.join(', ') : 'いいね'}

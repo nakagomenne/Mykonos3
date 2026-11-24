@@ -2458,19 +2458,24 @@ const App: React.FC = () => {
     return post ? mikopos.reactions.filter(r => r.postId === post.id && r.emoji === MIKOPOS_LIKE).map(r => r.userName) : [];
   };
 
-  const handleToggleLike = async (userName: string, buttonEl?: HTMLElement | null) => {
-    // タイムラインが使えるときは、その人の一番新しいポストにいいねする(タイムラインの表示と同じものになる)
-    if (mikopos.available) {
-      const post = mikopos.posts.find(p => p.author === userName && p.body);
-      if (post) mikopos.toggleReaction(post.id, MIKOPOS_LIKE).catch(() => {});
-      return;
-    }
+  /**
+   * いいねを付ける / 外す。
+   * タイムラインが使えるときは、ポストにいいねする(postId を省くと、その人の一番新しい本文つきポスト)。
+   * 付けるときのアニメーションは、今までと同じものを出す
+   */
+  const handleToggleLike = async (userName: string, buttonEl?: HTMLElement | null, postId?: string) => {
     if (!currentUser) return;
+    const timelinePost = mikopos.available
+      ? (postId ? mikopos.posts.find(p => p.id === postId) : mikopos.posts.find(p => p.author === userName && p.body))
+      : undefined;
+    if (mikopos.available && !timelinePost) return;
 
     // 現在のいいね状態を先読み（API前に判定）
-    const alreadyLiked = commentReactions.some(
-      r => r.userName === userName && r.reactor === currentUser.name
-    );
+    const alreadyLiked = timelinePost
+      ? mikopos.reactions.some(r => r.postId === timelinePost.id && r.userName === currentUser.name && r.emoji === MIKOPOS_LIKE)
+      : commentReactions.some(
+          r => r.userName === userName && r.reactor === currentUser.name
+        );
 
     // ── いいね追加の場合はAPI前に即アニメーション発火 ──
     if (!alreadyLiked && buttonEl) {
@@ -2675,6 +2680,11 @@ const App: React.FC = () => {
           spawn(el, 1400);
         });
       }
+    }
+
+    if (timelinePost) {
+      mikopos.toggleReaction(timelinePost.id, MIKOPOS_LIKE).catch(() => {});
+      return;
     }
 
     try {
@@ -3423,6 +3433,7 @@ const App: React.FC = () => {
                             }}
                             onLatestBodyChange={(body) => { void handleSaveComment(body); }}
                             onPosted={(buttonEl) => { if (buttonEl) firePostAnimation(buttonEl); }}
+                            onLike={(post, buttonEl) => { void handleToggleLike(post.author, buttonEl, post.id); }}
                           />
                         ) : (<>
                         {/* ── インライン投稿エリア ── */}
