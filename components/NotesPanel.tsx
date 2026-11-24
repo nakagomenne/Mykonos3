@@ -10,6 +10,7 @@ import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
 import NoteReadStatus from './NoteReadStatus';
+import NoteComments from './NoteComments';
 import NoteConfirmDialog from './NoteConfirmDialog';
 import NotesHelpModal from './NotesHelpModal';
 import NoteHistoryModal from './NoteHistoryModal';
@@ -1332,6 +1333,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <div className={`text-sm text-left ${muted}`}>本文はまだありません。{canEdit ? '「編集」から書き込めます。' : ''}</div>
             )}
           </div>
+
+          {/* コメント(「自分だけ」のノートと、編集中は出さない) */}
+          {!isEditing && n.visibility !== 'private' && (
+            <NoteComments key={n.id} note={n} me={me} isDarkMode={d} />
+          )}
 
           {/* 作った人・日付(本文の下に小さく) */}
           <div className={`px-4 py-2 border-t ${border} ${surface2} rounded-b-xl text-xs ${muted} flex flex-wrap gap-x-4 gap-y-1`}>

@@ -16,11 +16,13 @@ interface UseNotesOptions {
   me: User | null;
   /** 他の人がアナウンスしたときに呼ばれる(プッシュ通知用) */
   onAnnounce?: (note: Note, isReminder?: boolean) => void;
+  /** 自分のノート / 自分もコメントしたノートに、他の人がコメントしたときに呼ばれる(プッシュ通知用) */
+  onComment?: (note: Note, comment: svc.NoteComment) => void;
 }
 
 const SAVE_DEBOUNCE_MS = 900;
 
-export function useNotes({ me, onAnnounce }: UseNotesOptions) {
+export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [reads, setReads] = useState<NoteRead[]>([]);
@@ -48,6 +50,8 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
   useEffect(() => { readsRef.current = reads; }, [reads]);
   const onAnnounceRef = useRef(onAnnounce);
   useEffect(() => { onAnnounceRef.current = onAnnounce; }, [onAnnounce]);
+  const onCommentRef = useRef(onComment);
+  useEffect(() => { onCommentRef.current = onComment; }, [onComment]);
 
   // 保存待ちの変更 / 保存中のノート(自分の編集を Realtime のエコーで上書きしないため)
   const pending = useRef(new Map<string, svc.NotePatch>());
@@ -331,6 +335,26 @@ export function useNotes({ me, onAnnounce }: UseNotesOptions) {
     await svc.deleteFolder(id);
     await load();
   }, [load]);
+
+  // ── コメントの通知 ─────────────────────────────────────
+  useEffect(() => {
+    if (!viewer || unavailable) return;
+    return svc.subscribeToNoteComments((event, row) => {
+      if (event !== 'INSERT' || !row) return;
+      const v = viewerRef.current;
+      if (!v) return;
+      const comment = svc.rowToNoteComment(row);
+      if (comment.author === v.name) return;
+      // 自分が見られるノートのときだけ
+      const note = notesRef.current.find(n => n.id === comment.noteId);
+      if (!note) return;
+      if (note.owner === v.name) { onCommentRef.current?.(note, comment); return; }
+      // 自分もコメントしたノートなら、続きのコメントを知らせる
+      svc.fetchNoteComments(comment.noteId)
+        .then(list => { if (list.some(c => c.author === v.name)) onCommentRef.current?.(note, comment); })
+        .catch(() => {});
+    });
+  }, [viewer, unavailable]);
 
   // ── アナウンスの再通知 ─────────────────────────────────
   const remindRef = useRef<{ send: (noteId: string) => Promise<void> } | null>(null);

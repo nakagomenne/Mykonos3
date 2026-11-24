@@ -371,7 +371,23 @@ const App: React.FC = () => {
       n.close();
     };
   }, []);
-  const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce });
+  const handleNoteComment = useCallback((note: Note, comment: { id: string; author: string; body: string }) => {
+    // マイメニュー > 通知設定 の「ミコノートの通知」がオフなら出さない
+    if (notificationSettingsRef.current.noteAnnounceNotify === false) return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const n = new Notification(`コメント: ${note.title || '(無題)'}`, {
+      body: `${comment.author} さん: ${comment.body.length > 80 ? `${comment.body.slice(0, 80)}…` : comment.body}`,
+      tag: `note_comment_${comment.id}`,
+      icon: '/favicon.ico',
+    });
+    n.onclick = () => {
+      window.focus();
+      setNotesInitialId(note.id);
+      setIsNotesOpen(true);
+      n.close();
+    };
+  }, []);
+  const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce, onComment: handleNoteComment });
 
   // 重要なアナウンス(未確認)を画面中央に出す。「あとで」を押したら、次に開く(再読み込みする)か、
   // 新しい重要なアナウンスが来るまで出さない

@@ -671,3 +671,66 @@ export function subscribeToNotes(cb: NotesRealtimeCallbacks): () => void {
     .subscribe();
   return () => { supabase.removeChannel(channel); };
 }
+
+// ────────────────────────────────────────────────────────────
+// コメント
+// ────────────────────────────────────────────────────────────
+
+export interface NoteComment {
+  id: string;
+  noteId: string;
+  author: string;
+  body: string;
+  createdAt: string;
+}
+
+export const NOTE_COMMENT_MAX = 500;
+
+/** コメント用のテーブルがまだ無い(SQL 未実行)。このときは、コメント欄を出さない */
+export class NoteCommentsUnavailableError extends Error {
+  constructor() {
+    super('ノートのコメント用のテーブルがまだ作成されていません(supabase/migrations/20261126_add_note_comments.sql を実行してください)');
+    this.name = 'NoteCommentsUnavailableError';
+  }
+}
+
+const failComment = (prefix: string, error: any): never => {
+  if (isMissingTableError(error)) throw new NoteCommentsUnavailableError();
+  throw new Error(`${prefix}: ${error?.message ?? error}`);
+};
+
+export const rowToNoteComment = (row: any): NoteComment => ({
+  id: row.id, noteId: row.note_id, author: row.author, body: row.body ?? '', createdAt: row.created_at,
+});
+
+/** ノートのコメントを、古いものから順に取得 */
+export async function fetchNoteComments(noteId: string): Promise<NoteComment[]> {
+  const { data, error } = await supabase
+    .from('note_comments').select('*').eq('note_id', noteId).order('created_at', { ascending: true });
+  if (error) failComment('コメントの取得に失敗しました', error);
+  return (data ?? []).map(rowToNoteComment);
+}
+
+export async function addNoteComment(noteId: string, author: string, body: string): Promise<NoteComment> {
+  const { data, error } = await supabase
+    .from('note_comments').insert({ note_id: noteId, author, body }).select('*').single();
+  if (error) failComment('コメントの送信に失敗しました', error);
+  return rowToNoteComment(data);
+}
+
+export async function deleteNoteComment(id: string): Promise<void> {
+  const { error } = await supabase.from('note_comments').delete().eq('id', id);
+  if (error) failComment('コメントの削除に失敗しました', error);
+}
+
+/** コメントの追加・削除を受け取る(ノートの本体とは別のチャンネル。テーブルが無くても、ほかに影響しない) */
+export function subscribeToNoteComments(
+  onChange: (event: 'INSERT' | 'UPDATE' | 'DELETE', row: any) => void
+): () => void {
+  const channel = supabase
+    .channel(`mykonos_note_comments_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'note_comments' },
+      (p: any) => onChange(p.eventType, p.eventType === 'DELETE' ? p.old : p.new))
+    .subscribe();
+  return () => { void supabase.removeChannel(channel); };
+}
