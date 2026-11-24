@@ -9,7 +9,7 @@ import { useNotes } from './hooks/useNotes';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, normalizePrecheckDateTime, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -294,6 +294,35 @@ const App: React.FC = () => {
   const callsRef = useRef<CallRequest[]>(calls);
   useEffect(() => { callsRef.current = calls; }, [calls]);
   useEffect(() => { usersRef.current = users; }, [users]);
+
+  // ── 新しいバージョンのお知らせ ──
+  // 開きっぱなしの画面は古いプログラムのまま動くので、配信先の番号(version.json)と見比べて、
+  // 違っていたら「再読み込みしてください」と出す
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateSnoozedUntil, setUpdateSnoozedUntil] = useState(0);
+  useEffect(() => {
+    if (__BUILD_ID__ === 'dev') return;
+    let stopped = false;
+    const check = async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!stopped && data && typeof data.buildId === 'string' && data.buildId !== __BUILD_ID__) setUpdateAvailable(true);
+      } catch { /* 通信できないときは、次の機会にもう一度確かめる */ }
+    };
+    const timer = window.setInterval(check, 5 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    void check();
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
+  // 「あとで」を押したら30分後にもう一度出す
+  useEffect(() => {
+    if (!updateSnoozedUntil) return;
+    const timer = window.setTimeout(() => setUpdateSnoozedUntil(0), Math.max(0, updateSnoozedUntil - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [updateSnoozedUntil]);
 
   // ── ノート機能 ──
   const [isNotesOpen, setIsNotesOpen] = useState(false);
@@ -1492,6 +1521,8 @@ const App: React.FC = () => {
   };
 
   const _createCall = async (callData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>) => {
+    // 回線前確・電気契確あての案件は「このあとOK」ではなく「順次」で作る
+    callData = { ...callData, dateTime: normalizePrecheckDateTime(callData.assignee, callData.dateTime) };
     try {
       const newCall = await createCallRequest(callData);
 
@@ -1656,6 +1687,14 @@ const App: React.FC = () => {
       currentCall.prechecker
     ) {
       updatedData = { ...updatedData, prechecker: null };
+    }
+    // 担当者や日時を変えた結果、回線前確・電気契確の案件が「このあとOK」になるときは「順次」に直す
+    // (担当者だけを前確・契確に付け替えた場合など)
+    if ('assignee' in updatedData || 'dateTime' in updatedData) {
+      const nextAssignee = updatedData.assignee ?? currentCall.assignee;
+      const nextDateTime = updatedData.dateTime ?? currentCall.dateTime;
+      const fixed = normalizePrecheckDateTime(nextAssignee, nextDateTime);
+      if (fixed !== nextDateTime) updatedData = { ...updatedData, dateTime: fixed };
     }
     try {
       const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name, currentCall);
@@ -4844,6 +4883,28 @@ const App: React.FC = () => {
         onChange={handleIconFileChange}
       />
       
+      {/* 新しいバージョンのお知らせ(画面の下。ほかの画面より手前に出す) */}
+      {updateAvailable && !updateSnoozedUntil && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[95] w-[calc(100%-2rem)] max-w-xl" role="status">
+          <div className={`rounded-xl shadow-2xl border px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-2 ${isDarkMode ? 'bg-[#1a2234] border-[#0193be] text-slate-100' : 'bg-white border-[#0193be] text-slate-700'}`}>
+            <div className="flex-1 min-w-[220px]">
+              <div className="font-bold text-sm text-[#0193be]">Mykonos の新しいバージョンがあります</div>
+              <div className="text-xs mt-0.5">入力中の内容があれば先に保存してから、再読み込みしてください。</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setUpdateSnoozedUntil(Date.now() + 30 * 60 * 1000)}
+              className={`px-3 py-1.5 rounded-md text-sm border ${isDarkMode ? 'border-slate-600 hover:bg-slate-700' : 'border-slate-300 hover:bg-slate-100'}`}
+            >あとで</button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="px-4 py-1.5 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c]"
+            >再読み込み</button>
+          </div>
+        </div>
+      )}
+
       {/* 未確認のアナウンス: 画面中央に表示(重要なものがあれば赤、なければ青) */}
       {showAnnounceDialog && (() => {
         const hasImportant = importantUnread.length > 0;

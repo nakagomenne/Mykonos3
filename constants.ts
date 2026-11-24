@@ -179,6 +179,16 @@ export const TIME_SLOTS = generateTimeSlots();
 export const SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', 'このあとOK'];
 // 回線前確・電気契確の案件では「このあとOK」の代わりに「順次」を使う(順次は当日以外の日付でも選べる)
 export const PRECHECK_SPECIAL_TIME_OPTIONS_TOP = ['待機中', '至急', '順次'];
+/**
+ * 回線前確・電気契確の案件の時間が「このあとOK」なら「順次」に直した日時を返す(それ以外はそのまま)。
+ * どの画面から保存しても、前確・契確に「このあとOK」が残らないようにするための最後の関門
+ */
+export const normalizePrecheckDateTime = (assignee: string | undefined, dateTime: string): string => {
+  if (assignee !== '回線前確' && assignee !== '電気契確') return dateTime;
+  const [datePart, timePart] = dateTime.split('T');
+  if (!timePart || timePart.replace(/\s/g, '') !== 'このあとOK') return dateTime;
+  return `${datePart}T順次`;
+};
 /** 日付が本日のときだけ選べる時間 */
 export const TODAY_ONLY_TIME_OPTIONS = ['至急', 'このあとOK'];
 /** 時刻ではない時間の指定(並び替え・表示・通知の対象外判定などで使う) */

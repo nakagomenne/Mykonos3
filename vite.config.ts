@@ -4,13 +4,27 @@ import { readFileSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
     const env = loadEnv(mode, '.', '');
+    // ビルドごとの番号。開きっぱなしの画面が「新しいバージョンが出た」ことに気づくために使う
+    // (手元の開発サーバーでは 'dev' にして、お知らせを出さない)
+    const buildId = command === 'build' ? String(Date.now()) : 'dev';
     return {
+      plugins: [
+        {
+          // 配信先に version.json を置く(中身は、いま配信しているビルドの番号)
+          name: 'mykonos-version-file',
+          apply: 'build',
+          generateBundle() {
+            this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ buildId }) });
+          },
+        },
+      ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         '__APP_VERSION__': JSON.stringify(pkg.version),
+        '__BUILD_ID__': JSON.stringify(buildId),
       },
       resolve: {
         alias: {
