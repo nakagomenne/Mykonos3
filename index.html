@@ -52,6 +52,21 @@
   .note-prose hr { border: none; border-top: 2px dashed #cbd5e1; margin: 1.2em 0; }
   .note-prose img { max-width: 100%; height: auto; border-radius: 8px; margin: 0.4em 0; cursor: default; }
   .note-prose img.ProseMirror-selectednode { outline: 3px solid #0193be; }
+  /* 大きさを変えられる画像(四すみの丸をドラッグ)。せまい画面では、はみ出さないように縮める(たてよこの比は保つ) */
+  .note-prose [data-resize-container] { margin: 0.4em 0; max-width: 100%; }
+  .note-prose [data-resize-wrapper] { max-width: 100%; line-height: 0; }
+  .note-prose [data-resize-wrapper] img { margin: 0; height: auto !important; display: block; }
+  .note-prose [data-resize-container].ProseMirror-selectednode img { outline: 3px solid #0193be; }
+  .note-prose [data-resize-handle] { width: 14px; height: 14px; background: #0193be; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.35); z-index: 2; opacity: 0; transition: opacity 0.15s; }
+  .note-prose [data-resize-wrapper]:hover [data-resize-handle],
+  .note-prose [data-resize-container].ProseMirror-selectednode [data-resize-handle],
+  .note-prose [data-resize-container][data-resize-state="true"] [data-resize-handle] { opacity: 1; }
+  /* 読むだけのとき(編集中でないとき)は、丸を出さない */
+  .tiptap[contenteditable="false"] [data-resize-handle] { display: none; }
+  .note-prose [data-resize-handle="top-left"] { transform: translate(-40%, -40%); cursor: nwse-resize; }
+  .note-prose [data-resize-handle="bottom-right"] { transform: translate(40%, 40%); cursor: nwse-resize; }
+  .note-prose [data-resize-handle="top-right"] { transform: translate(40%, -40%); cursor: nesw-resize; }
+  .note-prose [data-resize-handle="bottom-left"] { transform: translate(-40%, 40%); cursor: nesw-resize; }
   /* ノートの「たたむ◀ / 開く▶」: 欄の開閉(0.2秒)が終わった直後に、反対向きから180度まわる。待っている間は前の向きのまま */
   @keyframes note-fold-spin { from { transform: rotate(180deg); } to { transform: rotate(0deg); } }
   .note-fold-arrow { animation: note-fold-spin 0.35s ease-out 0.2s backwards; }

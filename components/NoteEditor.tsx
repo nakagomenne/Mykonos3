@@ -192,7 +192,18 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
           HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer' },
         },
       }),
-      Image.configure({ inline: false, allowBase64: false }),
+      // 画像は、四すみの丸をドラッグして大きさを変えられる(たてよこの比は保つ)
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        resize: {
+          enabled: true,
+          directions: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+          minWidth: 60,
+          minHeight: 30,
+          alwaysPreserveAspectRatio: true,
+        },
+      }),
       Placeholder.configure({ placeholder }),
       Table.configure({ resizable: true }),
       TableRow,
@@ -289,12 +300,41 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
       task: !!ed?.isActive('taskList'),
       quote: !!ed?.isActive('blockquote'),
       inTable: !!ed?.isActive('table'),
+      imageSelected: !!ed?.isActive('image'),
       canUndo: !!ed?.can().undo(),
       canRedo: !!ed?.can().redo(),
     }),
   });
 
   if (!editor) return null;
+
+  /**
+   * 選んでいる画像の大きさを変える。ratio は本文の幅に対する割合(null は元の大きさに戻す)。
+   * たてよこの比は、元の画像のまま保つ
+   */
+  const setImageSize = (ratio: number | null) => {
+    const dom = editor.view.nodeDOM(editor.state.selection.from) as HTMLElement | null;
+    const img = (dom?.tagName === 'IMG' ? dom : dom?.querySelector?.('img')) as HTMLImageElement | null | undefined;
+    if (!img) return;
+    if (ratio === null) {
+      img.style.width = '';
+      img.style.height = '';
+      editor.chain().focus().updateAttributes('image', { width: null, height: null }).run();
+      return;
+    }
+    const root = editor.view.dom as HTMLElement;
+    const cs = getComputedStyle(root);
+    const full = root.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+    if (full < 60) return;   // 本文の幅がまだ決まっていないとき(画面の切り替え中など)は、何もしない
+    const natural = img.naturalWidth > 0 && img.naturalHeight > 0
+      ? img.naturalHeight / img.naturalWidth
+      : (img.offsetWidth > 0 ? img.offsetHeight / img.offsetWidth : 1);
+    const width = Math.max(60, Math.round(full * ratio));
+    const height = Math.max(1, Math.round(width * natural));
+    img.style.width = `${width}px`;
+    img.style.height = `${height}px`;
+    editor.chain().focus().updateAttributes('image', { width, height }).run();
+  };
 
   const btn = (active: boolean, disabled = false) =>
     `px-2.5 py-1.5 rounded text-[13px] font-medium transition select-none whitespace-nowrap ${
@@ -585,6 +625,19 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                   </div>
                 )}
               </ToolRow>
+            </div>
+          )}
+
+          {/* 画像を選んでいるときだけ出る、大きさの操作(閉じていても使えるように常時表示) */}
+          {state?.imageSelected && (
+            <div data-image-size-row className={`flex flex-wrap items-center gap-0.5 px-2 pb-2 ${toolsOpen ? 'pt-1 border-t ' + (isDarkMode ? 'border-slate-700' : 'border-slate-200') : ''}`}>
+              <span className={`w-16 shrink-0 text-[11px] font-semibold ${mutedText}`}>画像の大きさ</span>
+              <button type="button" title="本文の幅の4分の1" className={btn(false)} onMouseDown={run(() => setImageSize(0.25))}>小</button>
+              <button type="button" title="本文の幅の半分" className={btn(false)} onMouseDown={run(() => setImageSize(0.5))}>中</button>
+              <button type="button" title="本文の幅の4分の3" className={btn(false)} onMouseDown={run(() => setImageSize(0.75))}>大</button>
+              <button type="button" title="本文の幅いっぱい" className={btn(false)} onMouseDown={run(() => setImageSize(1))}>幅いっぱい</button>
+              <button type="button" title="大きさの指定をやめて、元の大きさに戻します" className={btn(false)} onMouseDown={run(() => setImageSize(null))}>元の大きさ</button>
+              <span className={`ml-1 text-[11px] ${mutedText}`}>画像の四すみの丸をドラッグしても変えられます</span>
             </div>
           )}
 
