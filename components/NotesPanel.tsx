@@ -235,6 +235,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** 「アナウンス・共同編集」の設定を開いているか */
   const [moreOpen, setMoreOpen] = useState(false);
+  /** 一覧の「絞り込み」の欄を開いているか(ふだんは閉じておき、押したときだけ出す) */
+  const [filterOpen, setFilterOpen] = useState(false);
   /** 「未確認の人に再通知」を送り終えたノートのID(ボタンの表示を「送りました」にする) */
   const [remindedId, setRemindedId] = useState<string | null>(null);
   /** 上のバーの「⋯」(削除など)を開いているか */
@@ -747,7 +749,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <span className="flex-shrink-0">{icon}</span>
         <span className="truncate flex-1">{label}</span>
         {badge ? <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center">{badge}</span> : null}
-        {count !== undefined && !badge ? <span className={`text-xs ${muted}`}>{count}</span> : null}
+        {/* 0件は数字を出さない(数字が並びすぎて見づらくなるため) */}
+        {count !== undefined && count > 0 && !badge ? <span className={`text-xs ${isViewActive(v) ? '' : muted}`}>{count}</span> : null}
       </button>
     );
 
@@ -790,26 +793,46 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   const NoteRow: React.FC<{ n: Note }> = ({ n }) => {
     const preview = plainOf(n).replace(/\s+/g, ' ').slice(0, 70);
-    const unread = n.isAnnouncement && n.owner !== me.name && !myReadIds.has(n.id);
+    const mine = n.owner === me.name;
+    const unread = n.isAnnouncement && !mine && !myReadIds.has(n.id);
     const active = n.id === selectedId;
+    // 自分が出したアナウンスは「何人中何人が確認したか」を一覧にも出す
+    let announceText = 'アナウンス';
+    if (n.isAnnouncement && mine) {
+      const recipients = getRecipients(n, users);
+      const readNames = new Set(reads.filter(r => r.noteId === n.id).map(r => r.userName));
+      announceText = `アナウンス中 ${recipients.filter(name => readNames.has(name)).length}/${recipients.length}`;
+    }
+    const visibilityText = n.visibility === 'members' ? `${n.sharedWith.length}名`
+      : n.visibility === 'private' ? '自分だけ'
+      : n.visibility === 'public' ? '全員'
+      : VISIBILITY_LABELS[n.visibility];
     return (
       <button
         onClick={() => guard(() => { endEdit(); setSelectedId(n.id); foldPanes(); setStep('note'); })}
-        className={`w-full text-left px-3 py-2.5 border-b ${border} transition ${active ? (d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10') : hoverRow}`}
+        className={`w-full text-left pl-[9px] pr-3 py-2.5 border-b ${border} border-l-[3px] transition ${
+          active ? `${d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10'} border-l-[#0193be]` : `border-l-transparent ${hoverRow}`}`}
       >
-        <div className="flex items-center gap-1.5">
+        {/* 1行目: タイトル(濃く) と 日付(右端に薄く) */}
+        <div className="flex items-baseline gap-1.5">
           {n.pinned && <span className="text-amber-500 text-xs">★</span>}
           <span className={`truncate flex-1 text-sm font-semibold ${n.title ? '' : muted}`}>{n.title || '(無題)'}</span>
           {unread && <AnnounceBadges note={n} />}
           {unread && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 whitespace-nowrap">未確認</span>}
-          {n.isAnnouncement && !unread && <span title="アナウンス"><NoteIcon name="megaphone" /></span>}
-          <span title={VISIBILITY_LABELS[n.visibility]} className="text-xs"><VisibilityIcon visibility={n.visibility} /></span>
+          <span className={`text-[11px] whitespace-nowrap ${muted}`}>{fmtDate(n.updatedAt)}</span>
         </div>
-        <div className={`text-xs mt-0.5 truncate ${muted}`}>{preview || '(本文なし)'}</div>
-        <div className={`text-[11px] mt-0.5 flex gap-2 ${muted}`}>
-          <span>{fmtDate(n.updatedAt)}</span>
-          {n.owner !== me.name && <span><NoteIcon name="user" /> {n.owner}</span>}
-          {n.tags.slice(0, 3).map(t => <span key={t}>#{t}</span>)}
+        {/* 2行目: 本文の出だし(中くらいの濃さ) */}
+        <div className={`text-xs mt-0.5 truncate ${d ? 'text-slate-300' : 'text-slate-600'}`}>{preview || '(本文なし)'}</div>
+        {/* 3行目: 補足(薄く)。アイコンだけでなく、ことばも添える */}
+        <div className={`text-[11px] mt-1 flex items-center gap-2.5 whitespace-nowrap overflow-hidden ${muted}`}>
+          {n.isAnnouncement && !unread && <span><NoteIcon name="megaphone" /> {announceText}</span>}
+          <span title={VISIBILITY_LABELS[n.visibility]}><VisibilityIcon visibility={n.visibility} /> {visibilityText}</span>
+          {!mine && <span className="truncate"><NoteIcon name="user" /> {n.owner}</span>}
+          {n.tags.length > 0 && (
+            <span className="truncate" title={n.tags.map(t => `#${t}`).join(' ')}>
+              #{n.tags[0]}{n.tags.length > 1 ? ` +${n.tags.length - 1}` : ''}
+            </span>
+          )}
         </div>
       </button>
     );
@@ -1415,8 +1438,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 foldersFolded ? 'md:w-0 md:invisible' : `md:w-56 lg:w-60 border-r ${border}`}`}
             >
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-56 lg:w-60 overflow-y-auto p-2 gap-0.5">
-              <div className={`px-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
-                <span>自分のノート</span>
+              <div className={`px-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-end`}>
                 {(
                   <button
                     onClick={() => setFoldersCollapsed(true)}
@@ -1430,30 +1452,33 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'pinned' }} icon="★" label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
 
-              <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
+              <div className={`mx-1 mt-2 px-1 pt-2.5 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
               <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
               <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={otherNotes.length} />
 
-              <div className={`px-2 pt-3 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
-                <span>マイフォルダ</span>
+              <div className={`mx-1 mt-2 px-1 pt-2 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
+                <span>フォルダ</span>
                 <button
                   onClick={() => setFolderDlg({ mode: 'create', parent: null })}
-                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded font-semibold normal-case ${hoverRow}`}
+                  className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
                   title="フォルダを作る"
-                ><PlusIcon className="w-3.5 h-3.5" />作成</button>
+                  aria-label="フォルダを作る"
+                ><PlusIcon className="w-4 h-4" /></button>
               </div>
               {topFolders.map(f => renderFolder(f, 0))}
               {topFolders.length === 0 && (
                 <div className={`px-2 py-1 text-xs leading-relaxed ${muted}`}>
-                  フォルダはまだありません。右上の「＋作成」で、ノートを分類するフォルダを作れます。
+                  フォルダはまだありません。右上の「＋」で、ノートを分類するフォルダを作れます。
                 </div>
               )}
 
-              <div className="flex-1" />
+              {/* スマホでは右上の「？」が出ないので、ここから使い方を開けるようにしておく */}
+              <div className="flex-1 sm:hidden" />
               <button
                 onClick={() => setHelpOpen(true)}
-                className={`mt-3 flex items-center gap-1.5 px-2 py-2 rounded-md text-sm font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
+                className={`sm:hidden mt-3 flex items-center gap-1.5 px-2 py-2 rounded-md text-sm font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
               ><NoteIcon name="help" /> ノートの使い方</button>
+
              </div>
             </aside>
 
@@ -1491,48 +1516,61 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   ><FoldArrow key={listFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
-              {/* 絞り込み・並び順 */}
-              <div className={`px-2 py-1.5 border-b ${border} ${surface2} flex flex-wrap items-center gap-1.5`}>
-                {showOwnerFilter && (
-                  <select
-                    value={activeOwner}
-                    onChange={e => setOwnerFilter(e.target.value)}
-                    aria-label="作った人で絞り込む"
-                    title="作った人で絞り込む"
-                    className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeOwner ? '!border-[#0193be] font-bold' : ''}`}
-                  >
-                    <option value="">作った人: 全員</option>
-                    {ownerOptions.map(([o, c]) => <option key={o} value={o}>{o === me.name ? `${o}(自分)` : o} ({c})</option>)}
-                  </select>
-                )}
-                {showTagFilter && (
-                  <select
-                    value={activeTag}
-                    onChange={e => setTagFilter(e.target.value)}
-                    aria-label="タグで絞り込む"
-                    title="タグで絞り込む"
-                    className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeTag ? '!border-[#0193be] font-bold' : ''}`}
-                  >
-                    <option value="">タグ: すべて</option>
-                    {tagOptions.map(([t, c]) => <option key={t} value={t}>#{t} ({c})</option>)}
-                  </select>
+              {/* 絞り込み・並び順(小さなボタン。絞り込みの中身は押したときだけ出す) */}
+              <div className={`px-2 py-1 border-b ${border} flex items-center gap-1.5`}>
+                {(showOwnerFilter || showTagFilter) && (
+                  <button
+                    onClick={() => setFilterOpen(o => !o)}
+                    aria-expanded={filterOpen}
+                    title="作った人やタグで絞り込みます"
+                    className={`text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
+                      (activeOwner || activeTag) ? 'border-[#0193be] text-[#0193be] font-bold' : `${border} ${muted} ${hoverRow}`}`}
+                  >絞り込み{(activeOwner || activeTag) ? `(${(activeOwner ? 1 : 0) + (activeTag ? 1 : 0)})` : ''} <span className="text-[9px]">{filterOpen ? '▲' : '▼'}</span></button>
                 )}
                 <select
                   value={sortKey}
                   onChange={e => changeSort(e.target.value as SortKey)}
                   aria-label="並び順"
                   title="並び順(ピン留めしたノートは常に上に出ます)"
-                  className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24`}
+                  className={`ml-auto text-xs bg-transparent border-0 rounded-md px-1 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0193be] ${muted}`}
                 >
-                  {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k}>{SORT_LABELS[k]}</option>)}
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k} className={d ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-800'}>{SORT_LABELS[k]}</option>)}
                 </select>
-                {(activeOwner || activeTag) && (
-                  <button
-                    onClick={() => { setOwnerFilter(''); setTagFilter(''); }}
-                    className={`text-xs px-2 py-1 rounded border ${border} ${hoverRow} whitespace-nowrap`}
-                  >絞り込みを解除</button>
-                )}
               </div>
+              {filterOpen && (showOwnerFilter || showTagFilter) && (
+                <div className={`px-2 py-1.5 border-b ${border} ${surface2} flex flex-wrap items-center gap-1.5`}>
+                  {showOwnerFilter && (
+                    <select
+                      value={activeOwner}
+                      onChange={e => setOwnerFilter(e.target.value)}
+                      aria-label="作った人で絞り込む"
+                      title="作った人で絞り込む"
+                      className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeOwner ? '!border-[#0193be] font-bold' : ''}`}
+                    >
+                      <option value="">作った人: 全員</option>
+                      {ownerOptions.map(([o, c]) => <option key={o} value={o}>{o === me.name ? `${o}(自分)` : o} ({c})</option>)}
+                    </select>
+                  )}
+                  {showTagFilter && (
+                    <select
+                      value={activeTag}
+                      onChange={e => setTagFilter(e.target.value)}
+                      aria-label="タグで絞り込む"
+                      title="タグで絞り込む"
+                      className={`${inputCls} !py-1 !text-xs min-w-0 flex-1 basis-24 ${activeTag ? '!border-[#0193be] font-bold' : ''}`}
+                    >
+                      <option value="">タグ: すべて</option>
+                      {tagOptions.map(([t, c]) => <option key={t} value={t}>#{t} ({c})</option>)}
+                    </select>
+                  )}
+                  {(activeOwner || activeTag) && (
+                    <button
+                      onClick={() => { setOwnerFilter(''); setTagFilter(''); }}
+                      className={`text-xs px-2 py-1 rounded border ${border} ${hoverRow} whitespace-nowrap`}
+                    >解除</button>
+                  )}
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto">
                 {draft && (
                   <button
