@@ -7,8 +7,9 @@ const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
 export default defineConfig(({ mode, command }) => {
     const env = loadEnv(mode, '.', '');
     // ビルドごとの番号。開きっぱなしの画面が「新しいバージョンが出た」ことに気づくために使う
-    // (手元の開発サーバーでは 'dev' にして、お知らせを出さない)
-    const buildId = command === 'build' ? String(Date.now()) : 'dev';
+    // (手元の開発サーバーと、本番に出す前の確認用(プレビュー)では 'dev' にして、お知らせを出さない)
+    const isPreviewDeploy = process.env.VERCEL_ENV === 'preview';
+    const buildId = command === 'build' && !isPreviewDeploy ? String(Date.now()) : 'dev';
     return {
       plugins: [
         {

@@ -326,6 +326,8 @@ const App: React.FC = () => {
   const [updateSnoozedUntil, setUpdateSnoozedUntil] = useState(0);
   useEffect(() => {
     if (__BUILD_ID__ === 'dev') return;
+    // 本番に出す前の確認用(プレビュー)では出さない
+    if (window.location.hostname.includes('-git-')) return;
     let stopped = false;
     const check = async () => {
       try {
