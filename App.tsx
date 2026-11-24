@@ -9,7 +9,7 @@ import { useNotes } from './hooks/useNotes';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -283,6 +283,9 @@ const App: React.FC = () => {
   const statusCheckedRef = useRef(false); // 起動時の稼働ステータス自動補正を1回だけ実行するフラグ
   useEffect(() => { notificationSettingsRef.current = notificationSettings; }, [notificationSettings]);
   useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+  // 通知の判定で「変わる前の案件」を見るための控え
+  const callsRef = useRef<CallRequest[]>(calls);
+  useEffect(() => { callsRef.current = calls; }, [calls]);
   useEffect(() => { usersRef.current = users; }, [users]);
 
   // ── ノート機能 ──
@@ -468,6 +471,28 @@ const App: React.FC = () => {
     const unsubAll = subscribeToAll({
       // ── call_requests ──
       onCallsChange: setCalls,
+      onCallUpdate: (updatedCall) => {
+        // 回線前確の案件が「前確」→「後確」に変わったら、回線前確の権限を持つメンバー全員に即時通知する
+        // (変えた本人の画面は、先に手元の一覧が後確になっているので通知されない)
+        const settings = notificationSettingsRef.current;
+        const user = currentUserRef.current;
+        const before = callsRef.current.find(c => c.id === updatedCall.id);
+        if (
+          before &&
+          isMaekakuToKoukaku(updatedCall.assignee || before.assignee, before.rank, updatedCall.rank) &&
+          settings.precheckInstantNotify &&
+          user?.isLinePrechecker &&
+          typeof Notification !== 'undefined' &&
+          Notification.permission === 'granted'
+        ) {
+          const merged = { ...before, ...updatedCall, customerId: updatedCall.customerId || before.customerId, requester: updatedCall.requester || before.requester };
+          new Notification('📞回線後確 対応待ち📞', {
+            body: `${updatedCall.rank}の案件があります\n顧客ID: ${merged.customerId}\n依頼者: ${merged.requester}${buildCallDetailLines(merged)}`,
+            tag: `precheck_koukaku_${updatedCall.id}_${updatedCall.rank}`,
+            icon: '/favicon.ico',
+          });
+        }
+      },
       onCallInsert: (newCall) => {
         const settings = notificationSettingsRef.current;
         const user = currentUserRef.current;
@@ -1618,6 +1643,13 @@ const App: React.FC = () => {
   const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
     const currentCall = calls.find(c => c.id === id);
     if (!currentCall) return;
+    // 回線前確の案件を「前確」→「後確」に変えたときは、対応者をクリアする(後確は誰が対応してもよいため)
+    if (
+      isMaekakuToKoukaku(updatedData.assignee ?? currentCall.assignee, currentCall.rank, updatedData.rank) &&
+      currentCall.prechecker
+    ) {
+      updatedData = { ...updatedData, prechecker: null };
+    }
     try {
       const updated = await apiUpdateCallRequest(id, updatedData, currentUser.name, currentCall);
 

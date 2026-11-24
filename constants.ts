@@ -50,6 +50,15 @@ export const AVAILABILITY_STATUS_OPTIONS: AvailabilityStatus[] = ['受付可', '
 
 export const ADMIN_USER_NAME = '中込賢三';
 export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
+/** 回線前確の「前確」ランクと、そこから進む「後確」ランク */
+export const LINE_MAEKAKU_RANKS: Rank[] = ['SB光前確', 'AIR前確'];
+export const LINE_KOUKAKU_RANKS: Rank[] = ['SB光後確', 'AIR後確'];
+/** 回線前確の案件が「前確」から「後確」に変わったか */
+export const isMaekakuToKoukaku = (assignee: string, fromRank: string | undefined, toRank: string | undefined): boolean =>
+  assignee === PRECHECKER_ASSIGNEE_NAME &&
+  !!fromRank && !!toRank &&
+  (LINE_MAEKAKU_RANKS as string[]).includes(fromRank) &&
+  (LINE_KOUKAKU_RANKS as string[]).includes(toRank);
 export const ELEC_ASSIGNEE_NAME = '電気契確';
 export const ELEC_RANK_OPTIONS: Rank[] = ['ジライフ契確', 'ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラチナIMP', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡', '不備解消', '番号重複', 'キャンセル依頼', '対応', '共有'];
 export const ELEC_TRACKING_RANKS: Rank[] = ['ジラ同意追跡', 'ジラ決済追跡', 'ジラ両方追跡', 'プラ同意追跡', 'プラ決済追跡', 'プラ両方追跡'];

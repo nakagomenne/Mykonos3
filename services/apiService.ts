@@ -733,6 +733,8 @@ export async function updateAppSetting(key: string, value: string): Promise<void
 export interface RealtimeCallbacks {
   onCallsChange: (updater: (prev: CallRequest[]) => CallRequest[]) => void;
   onCallInsert?: (newCall: CallRequest) => void;
+  /** 案件が更新されたとき(手元の一覧に反映する前に呼ばれる) */
+  onCallUpdate?: (updatedCall: CallRequest) => void;
   onUsersChange: (updater: (prev: User[]) => User[]) => void;
   onSettingsChange: (settings: Record<string, string>) => void;
   onFeedbackChange: (reports: FeedbackReport[]) => void;
@@ -762,6 +764,7 @@ export function subscribeToAll(callbacks: RealtimeCallbacks): () => void {
             );
           } else if (eventType === 'UPDATE' && newRow) {
             const updatedCall = rowToCallRequest(newRow);
+            if (callbacks.onCallUpdate) callbacks.onCallUpdate(updatedCall);
             callbacks.onCallsChange(prev =>
               prev.map(c => {
                 if (c.id !== updatedCall.id) return c;

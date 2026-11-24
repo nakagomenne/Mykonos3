@@ -354,7 +354,7 @@ const NotificationSettingsModal: React.FC<Props> = ({
                 <div>
                   <p className="font-semibold text-[#118f82]">回線前確 即時通知</p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    回線前確案件が新規追加されたとき即座に通知します
+                    回線前確案件が新規追加されたとき、または前確から後確(SB光後確・AIR後確)に変わったとき、即座に通知します
                   </p>
                 </div>
                 <button
