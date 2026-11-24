@@ -9,6 +9,7 @@ import { useNotes } from './hooks/useNotes';
 import { useMikopos } from './hooks/useMikopos';
 import type { MikoposNotice } from './hooks/useMikopos';
 import MikoposTimeline from './components/MikoposTimeline';
+import { MIKOPOS_LIKE } from './services/mikoposService';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
@@ -306,7 +307,7 @@ const App: React.FC = () => {
     const clip = (s: string) => (s.length > 60 ? `${s.slice(0, 60)}…` : s);
     const title = notice.kind === 'mention' ? `Mikopos: ${notice.post.author} さんがあなたを呼んでいます`
       : notice.kind === 'reply' ? `Mikopos: ${notice.from} さんから返信`
-      : `Mikopos: ${notice.from} さんが ${notice.emoji} しました`;
+      : `Mikopos: ${notice.from} さんがいいねしました`;
     const body = notice.kind === 'reply' ? clip(notice.body) : clip(notice.post.body || '(画像・投票のポスト)');
     const n = new Notification(title, { body, tag: `mikopos_${notice.kind}_${notice.post.id}_${Date.now()}`, icon: '/favicon.ico' });
     n.onclick = () => {
@@ -2450,7 +2451,20 @@ const App: React.FC = () => {
   };
 
   // シンプルな「いいね」ボタン用トグル（絵文字スタンプ機能を廃止し、いいね1種類のみに統一）
+  /** プロフィールの「ひとこと」に付いたいいね。タイムラインが使えるときは、その人の一番新しい(本文のある)ポストのいいねを見る */
+  const profileLikersOf = (name: string): string[] => {
+    if (!mikopos.available) return commentReactions.filter(r => r.userName === name).map(r => r.reactor);
+    const post = mikopos.posts.find(p => p.author === name && p.body);
+    return post ? mikopos.reactions.filter(r => r.postId === post.id && r.emoji === MIKOPOS_LIKE).map(r => r.userName) : [];
+  };
+
   const handleToggleLike = async (userName: string, buttonEl?: HTMLElement | null) => {
+    // タイムラインが使えるときは、その人の一番新しいポストにいいねする(タイムラインの表示と同じものになる)
+    if (mikopos.available) {
+      const post = mikopos.posts.find(p => p.author === userName && p.body);
+      if (post) mikopos.toggleReaction(post.id, MIKOPOS_LIKE).catch(() => {});
+      return;
+    }
     if (!currentUser) return;
 
     // 現在のいいね状態を先読み（API前に判定）
@@ -4289,7 +4303,7 @@ const App: React.FC = () => {
                                           </div>
                                           {/* 自分のコメントへのいいね表示 */}
                                           {(() => {
-                                            const myLikers = commentReactions.filter(r => r.userName === currentUser.name).map(r => r.reactor);
+                                            const myLikers = profileLikersOf(currentUser.name);
                                             const isLikedByMe = myLikers.includes(currentUser.name);
                                             return (
                                               <div className="flex flex-wrap gap-1 mt-1">
@@ -4486,7 +4500,7 @@ const App: React.FC = () => {
                                                   </div>
                                                   {/* 他者コメントへのいいね表示 */}
                                                   {(() => {
-                                                    const theirLikers = commentReactions.filter(r => r.userName === selectedMember).map(r => r.reactor);
+                                                    const theirLikers = profileLikersOf(selectedMember);
                                                     if (!selectedMember) return null;
                                                     const isLikedByMe = theirLikers.includes(currentUser.name);
                                                     return (

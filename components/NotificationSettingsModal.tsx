@@ -330,7 +330,7 @@ const NotificationSettingsModal: React.FC<Props> = ({
               <div>
                 <p className="font-semibold text-slate-800">ミコポスの通知</p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Mikopos で名前を呼ばれた(メンション)とき、自分のポストに返信やリアクションが付いたときに通知します
+                  Mikopos で名前を呼ばれた(メンション)とき、自分のポストに返信やいいねが付いたときに通知します
                 </p>
               </div>
               <button

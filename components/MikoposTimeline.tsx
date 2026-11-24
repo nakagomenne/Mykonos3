@@ -2,8 +2,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import type { User } from '../types';
 import type { MikoposApi } from '../hooks/useMikopos';
 import type { MikoposPost } from '../services/mikoposService';
+import { HeartIcon, HeartSolidIcon, SpeechBubbleIcon } from './icons';
 import {
-  MIKOPOS_BODY_MAX, MIKOPOS_REPLY_MAX, MIKOPOS_POLL_MIN, MIKOPOS_POLL_MAX, MIKOPOS_POLL_OPTION_MAX, MIKOPOS_EMOJIS,
+  MIKOPOS_BODY_MAX, MIKOPOS_REPLY_MAX, MIKOPOS_POLL_MIN, MIKOPOS_POLL_MAX, MIKOPOS_POLL_OPTION_MAX, MIKOPOS_LIKE,
   extractMentions, uploadMikoposImage,
 } from '../services/mikoposService';
 
@@ -295,7 +296,9 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
           const replies = api.replies.filter(r => r.postId === post.id);
           const votes = api.votes.filter(v => v.postId === post.id);
           const myVote = votes.find(v => v.userName === me.name)?.optionIndex;
-          const emojis = [...new Set([...MIKOPOS_EMOJIS, ...reactions.map(r => r.emoji)])];
+          const likers = reactions.filter(r => r.emoji === MIKOPOS_LIKE).map(r => r.userName);
+          const likedByMe = likers.includes(me.name);
+          const pill: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: d ? '#2a2440' : '#f1f5f9', color: d ? '#94a3b8' : '#64748b', border: '1px solid transparent' };
           const isMine = post.author === me.name;
           return (
             <article key={post.id} style={{ background: cardBg, border: `1px solid ${line}`, borderRadius: 14, padding: '10px 12px' }}>
@@ -345,28 +348,28 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                 </div>
               )}
 
-              {/* リアクションと返信 */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 10 }}>
-                {emojis.map(emoji => {
-                  const who = reactions.filter(r => r.emoji === emoji).map(r => r.userName);
-                  const mine = who.includes(me.name);
-                  return (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => run(() => api.toggleReaction(post.id, emoji))}
-                      aria-pressed={mine}
-                      title={who.length ? who.join('、') : 'リアクションする'}
-                      style={{ ...smallBtn, padding: '2px 8px', color: text, ...(mine ? { borderColor: ACCENT, background: 'rgba(168,85,247,0.15)' } : {}), ...(who.length === 0 ? { opacity: 0.55 } : {}) }}
-                    >{emoji}{who.length > 0 ? ` ${who.length}` : ''}</button>
-                  );
-                })}
+              {/* いいねと返信(今までの Mikopos と同じ見た目) */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => run(() => api.toggleReaction(post.id, MIKOPOS_LIKE))}
+                  aria-pressed={likedByMe}
+                  aria-label="いいね"
+                  title={likers.length > 0 ? likers.join(', ') : 'いいね'}
+                  style={{ ...pill, ...(likedByMe ? { background: '#fff0f3', color: '#f43f5e', border: '1px solid rgba(244,63,94,0.25)' } : {}) }}
+                >
+                  {likedByMe ? <HeartSolidIcon className="w-3.5 h-3.5" /> : <HeartIcon className="w-3.5 h-3.5" />}
+                  {likers.length > 0 && likers.length}
+                </button>
                 <button
                   type="button"
                   onClick={() => { setReplyOpen(o => (o === post.id ? null : post.id)); setReplyText(''); }}
                   aria-expanded={replyOpen === post.id}
-                  style={{ ...smallBtn, marginLeft: 'auto', padding: '2px 10px' }}
-                >返信{replies.length > 0 ? ` ${replies.length}` : ''}</button>
+                  style={pill}
+                >
+                  <SpeechBubbleIcon className="w-3.5 h-3.5" />
+                  返信{replies.length > 0 && <span style={{ fontWeight: 700, marginLeft: 2 }}>{replies.length}</span>}
+                </button>
               </div>
 
               {(replies.length > 0 || replyOpen === post.id) && (
@@ -411,7 +414,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
         <div style={{ position: 'absolute', inset: 0, zIndex: 20, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setDeleteTarget(null)}>
           <div role="dialog" aria-modal="true" aria-label="ポストの削除" onClick={e => e.stopPropagation()} style={{ background: cardBg, color: text, borderRadius: 14, padding: 16, width: '100%', maxWidth: 320 }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>このポストを削除しますか?</div>
-            <div style={{ fontSize: 12, color: sub, marginTop: 6 }}>付いているリアクション・返信・投票も一緒に消えます。元に戻せません。</div>
+            <div style={{ fontSize: 12, color: sub, marginTop: 6 }}>付いているいいね・返信・投票も一緒に消えます。元に戻せません。</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
               <button type="button" onClick={() => setDeleteTarget(null)} style={smallBtn}>キャンセル</button>
               <button type="button" onClick={() => void handleDelete(deleteTarget)} style={{ ...smallBtn, color: '#fff', background: '#ef4444', borderColor: '#ef4444', fontWeight: 700 }}>削除する</button>

@@ -59,8 +59,8 @@ export const MIKOPOS_REPLY_MAX = 100;
 export const MIKOPOS_POLL_MIN = 2;
 export const MIKOPOS_POLL_MAX = 4;
 export const MIKOPOS_POLL_OPTION_MAX = 30;
-/** すぐ押せるリアクション */
-export const MIKOPOS_EMOJIS = ['👍', '❤️', '😂', '🎉'];
+/** リアクションは「いいね」の1種類だけ(今までの Mikopos と同じ)。保存するときの印 */
+export const MIKOPOS_LIKE = '❤️';
 /** 一度に読み込むポストの数(新しいものから) */
 const POST_LIMIT = 100;
 
