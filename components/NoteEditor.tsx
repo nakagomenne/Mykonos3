@@ -254,17 +254,18 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => { editorRef.current = editor; }, [editor]);
 
   // 編集可/不可の切り替えでは更新イベントを出さない(開いただけで「変更あり」と見なされるのを防ぐ)
-  useEffect(() => { editor?.setEditable(editable, false); }, [editor, editable]);
+  useEffect(() => { if (editor && !editor.isDestroyed) editor.setEditable(editable, false); }, [editor, editable]);
 
   // エディタが整形した後のHTMLを「現在の内容」の基準にする(開いただけでは変更扱いにしない)
   useEffect(() => {
-    if (editor) lastHtmlRef.current = editor.isEmpty ? '' : editor.getHTML();
+    // 画面の読み込み直後は、作り直される前の(もう使えない)エディタが渡ってくることがあるので、その場合は何もしない
+    if (editor && !editor.isDestroyed) lastHtmlRef.current = editor.isEmpty ? '' : editor.getHTML();
   }, [editor]);
 
   // 読み取り専用のときは、外部(他の人の編集・Realtime)からの本文変更を反映する
   // (編集可能なときは入力中のカーソルが飛ぶため反映しない)
   useEffect(() => {
-    if (!editor || editable) return;
+    if (!editor || editor.isDestroyed || editable) return;
     const current = editor.isEmpty ? '' : editor.getHTML();
     if (current !== value) editor.commands.setContent(value || '', { emitUpdate: false });
   }, [editor, editable, value]);
