@@ -77,6 +77,7 @@ interface NotesPanelProps {
 type SortKey = 'updated' | 'created' | 'title';
 const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順' };
 const SORT_STORAGE_KEY = 'mikonote_sort';
+const SHOW_MINE_STORAGE_KEY = 'mikonote_show_mine_in_shared';
 const loadSortKey = (): SortKey => {
   try {
     const v = localStorage.getItem(SORT_STORAGE_KEY);
@@ -327,6 +328,25 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     return id && myFolderIds.has(id) ? id : null;
   };
   const otherNotes = useMemo(() => notes.filter(n => n.owner !== me.name), [notes, me.name]);
+  /**
+   * 「みんなから」(アナウンス・共有されたノート)に、自分が作ったノートも出すか。
+   * ふだんは出さない(受け取ったものだけを見る場所なので)。チェックを入れたときだけ出し、次に開いたときも覚えておく
+   */
+  const [showMineInShared, setShowMineInShared] = useState<boolean>(() => {
+    try { return localStorage.getItem(SHOW_MINE_STORAGE_KEY) === '1'; } catch { return false; }
+  });
+  const changeShowMine = (on: boolean) => {
+    setShowMineInShared(on);
+    try { localStorage.setItem(SHOW_MINE_STORAGE_KEY, on ? '1' : '0'); } catch { /* 覚えられなくても切り替えはできる */ }
+  };
+  /** 「アナウンス(お知らせ)」に並べるノート(自分が非表示にしたものは除く) */
+  const announceNotes = useMemo(
+    () => notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id) && (showMineInShared || n.owner !== me.name)),
+    [notes, myHiddenIds, showMineInShared, me.name]);
+  /** 「共有されたノート」に並べるノート(チェックを入れると、自分が共有しているノートも出す) */
+  const sharedNotes = useMemo(
+    () => (showMineInShared ? notes.filter(n => n.owner !== me.name || n.visibility !== 'private') : otherNotes),
+    [notes, otherNotes, showMineInShared, me.name]);
 
   const folderNoteCount = (folderId: string) => {
     const ids = new Set([folderId, ...childrenOf(folderId).map(c => c.id)]);
@@ -366,8 +386,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         case 'pinned': base = myNotes.filter(n => n.pinned); break;
         case 'unsorted': base = myNotes.filter(n => !n.folderId); break;
         case 'mine': base = myNotes; break;
-        case 'announce': base = notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)); break;
-        case 'shared': base = otherNotes; break;
+        case 'announce': base = announceNotes; break;
+        case 'shared': base = sharedNotes; break;
         case 'folder': {
           const ids = new Set([view.folderId, ...myFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
           base = notes.filter(n => { const f = folderOf(n); return !!f && ids.has(f); });
@@ -384,7 +404,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds, api.placements]);
+  }, [notes, myNotes, otherNotes, announceNotes, sharedNotes, myFolders, view, search, myHiddenIds, api.placements]);
 
   // 絞り込みの選択肢(今の一覧に出てくる人・タグだけ。件数つき)
   const ownerOptions = useMemo(() => {
@@ -1503,8 +1523,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
 
               <div className={`mx-1 mt-2 px-1 pt-2.5 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
-              <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={notes.filter(n => n.isAnnouncement && !myHiddenIds.has(n.id)).length} />
-              <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={otherNotes.length} />
+              <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={announceNotes.length} />
+              <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={sharedNotes.length} />
 
               <div className={`mx-1 mt-2 px-1 pt-2 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
                 <span>フォルダ</span>
@@ -1576,6 +1596,21 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     className={`text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
                       (activeOwner || activeTag) ? 'border-[#0193be] text-[#0193be] font-bold' : `${border} ${muted} ${hoverRow}`}`}
                   >絞り込み{(activeOwner || activeTag) ? `(${(activeOwner ? 1 : 0) + (activeTag ? 1 : 0)})` : ''} <span className="text-[9px]">{filterOpen ? '▲' : '▼'}</span></button>
+                )}
+                {(view.kind === 'announce' || view.kind === 'shared') && !search.trim() && (
+                  <label
+                    className={`inline-flex items-center gap-1 text-xs whitespace-nowrap cursor-pointer ${muted}`}
+                    title="チェックを入れると、自分が作ったノートもこの一覧に出します"
+                  >
+                    <input
+                      type="checkbox"
+                      data-show-mine
+                      checked={showMineInShared}
+                      onChange={e => changeShowMine(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-[#0193be]"
+                    />
+                    自分のノートも表示
+                  </label>
                 )}
                 <select
                   value={sortKey}
