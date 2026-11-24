@@ -126,7 +126,8 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
   /** カーソルの直前が「@なにか」なら、メンションの候補を出す */
   const updateMentionQuery = (value: string, caret: number) => {
     const before = value.slice(0, caret);
-    const at = before.lastIndexOf('@');
+    // 日本語入力のままだと全角の「＠」になるので、半角・全角のどちらでも候補を出す
+    const at = Math.max(before.lastIndexOf('@'), before.lastIndexOf('＠'));
     if (at < 0) { setMentionQuery(null); return; }
     const q = before.slice(at + 1);
     if (/\s/.test(q) || q.length > 12) { setMentionQuery(null); return; }
@@ -135,13 +136,14 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
 
   const mentionCandidates = mentionQuery === null ? [] : users
     .filter(u => u.name !== me.name && (u.name.includes(mentionQuery) || (u.furigana ?? '').includes(mentionQuery)))
-    .slice(0, 6);
+    .slice(0, 30);
 
   const insertMention = (name: string) => {
     const el = textRef.current;
     const caret = el?.selectionStart ?? body.length;
     const before = body.slice(0, caret);
-    const at = before.lastIndexOf('@');
+    // 日本語入力のままだと全角の「＠」になるので、半角・全角のどちらでも候補を出す
+    const at = Math.max(before.lastIndexOf('@'), before.lastIndexOf('＠'));
     if (at < 0) return;
     const next = `${body.slice(0, at)}@${name} ${body.slice(caret)}`;
     setBody(next);
@@ -159,7 +161,9 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
     setBusy(true);
     setError('');
     try {
-      const trimmed = body.trim();
+      // 全角の「＠名前」は、半角の「@名前」にそろえて保存する(メンションとして扱うため)
+      let trimmed = body.trim();
+      for (const n of userNames) trimmed = trimmed.split(`＠${n}`).join(`@${n}`);
       const imageUrl = image ? await uploadMikoposImage(image.file, me.name) : null;
       await api.post({
         body: trimmed,
@@ -256,7 +260,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
           style={{ ...inputStyle, resize: 'none', lineHeight: 1.5 }}
         />
         {mentionCandidates.length > 0 && (
-          <div role="listbox" aria-label="メンションする人" style={{ position: 'absolute', left: 14, right: 14, top: 62, zIndex: 5, background: cardBg, border: `1px solid ${line}`, borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
+          <div role="listbox" aria-label="メンションする人" style={{ position: 'absolute', left: 14, right: 14, top: 62, zIndex: 5, background: cardBg, border: `1px solid ${line}`, borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxHeight: 220, overflowY: 'auto' }}>
             {mentionCandidates.map(u => (
               <button
                 key={u.name}
