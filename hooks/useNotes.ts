@@ -336,6 +336,40 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     await load();
   }, [load]);
 
+  // ── 共有されたノートを、自分のフォルダに入れる(人ごとの置き場所。原本は動かさない) ──
+  const [placements, setPlacements] = useState<Record<string, string>>({});
+  /** 置き場所を保存するテーブルがあるか(SQL 未実行なら false。このときは、入れる欄を出さない) */
+  const [placementsAvailable, setPlacementsAvailable] = useState(false);
+  const loadPlacements = useCallback(async () => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    try {
+      const map = await svc.fetchNotePlacements(name);
+      if (viewerRef.current?.name !== name) return;
+      setPlacementsAvailable(map !== null);
+      setPlacements(map ?? {});
+    } catch { /* 通信の失敗は、前の内容を残す */ }
+  }, []);
+  useEffect(() => {
+    if (!viewer || unavailable) { setPlacements({}); setPlacementsAvailable(false); return; }
+    void loadPlacements();
+  }, [viewer, unavailable, loadPlacements]);
+  const placeNote = useCallback(async (noteId: string, folderId: string | null) => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    setPlacements(prev => {
+      const next = { ...prev };
+      if (folderId) next[noteId] = folderId; else delete next[noteId];
+      return next;
+    });
+    try {
+      await svc.setNotePlacement(noteId, name, folderId);
+    } catch (e) {
+      await loadPlacements();
+      throw e;
+    }
+  }, [loadPlacements]);
+
   // ── コメントの通知 ─────────────────────────────────────
   useEffect(() => {
     if (!viewer || unavailable) return;
@@ -401,6 +435,7 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     reload: load, flushAll, clearError: () => setError(null),
     editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, removeFolder,
+    placements, placementsAvailable, placeNote,
   };
 }
 

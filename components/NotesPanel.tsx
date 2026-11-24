@@ -316,11 +316,21 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   }, [topFolders, myFolders]);
 
   const myNotes = useMemo(() => notes.filter(n => n.owner === me.name), [notes, me.name]);
+  const myFolderIds = useMemo(() => new Set(myFolders.map(f => f.id)), [myFolders]);
+  /**
+   * 自分から見た、このノートの置き場所(フォルダ)。
+   * 自分のノートは原本の置き場所。共有されたノートは、自分が「自分のフォルダに入れた」先(入れていなければ null)
+   */
+  const folderOf = (n: Note): string | null => {
+    if (n.owner === me.name) return n.folderId;
+    const id = api.placements[n.id];
+    return id && myFolderIds.has(id) ? id : null;
+  };
   const otherNotes = useMemo(() => notes.filter(n => n.owner !== me.name), [notes, me.name]);
 
   const folderNoteCount = (folderId: string) => {
     const ids = new Set([folderId, ...childrenOf(folderId).map(c => c.id)]);
-    return myNotes.filter(n => n.folderId && ids.has(n.folderId)).length;
+    return notes.filter(n => { const f = folderOf(n); return !!f && ids.has(f); }).length;
   };
 
   // 検索用のプレーンテキスト(本文が変わったノートだけ再計算)
@@ -360,7 +370,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         case 'shared': base = otherNotes; break;
         case 'folder': {
           const ids = new Set([view.folderId, ...myFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
-          base = myNotes.filter(n => n.folderId && ids.has(n.folderId));
+          base = notes.filter(n => { const f = folderOf(n); return !!f && ids.has(f); });
           break;
         }
       }
@@ -374,7 +384,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds]);
+  }, [notes, myNotes, otherNotes, myFolders, view, search, myHiddenIds, api.placements]);
 
   // 絞り込みの選択肢(今の一覧に出てくる人・タグだけ。件数つき)
   const ownerOptions = useMemo(() => {
@@ -1291,6 +1301,23 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <div className={`px-4 py-2 flex flex-wrap gap-1.5 items-center border-b ${border} ${surface2}`}>
               <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
               {n.allowEdit && n.visibility !== 'private' && <span className={`${chip} ${border}`}><NoteIcon name="users" /> 共同編集</span>}
+              {api.placementsAvailable && flatFolders.length > 0 && (
+                <label className="inline-flex items-center" title="このノートを、自分のフォルダに入れます(自分にだけそう見えます。作った人の置き場所や内容は変わりません)">
+                  <span className="sr-only">自分のフォルダに入れる</span>
+                  <select
+                    data-note-place
+                    value={folderOf(n) ?? ''}
+                    disabled={busy}
+                    onChange={ev => { const to = ev.target.value || null; void run(() => api.placeNote(n.id, to)); }}
+                    className={`text-xs rounded-full border px-2 py-1 max-w-[13rem] focus:outline-none focus:ring-2 focus:ring-[#0193be] ${d ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
+                  >
+                    <option value="">{folderOf(n) ? "(自分のフォルダから出す)" : "自分のフォルダに入れる…"}</option>
+                    {flatFolders.map(({ folder, depth }) => (
+                      <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
               {!canEdit && <span className={`text-xs ${muted}`}>読み取り専用です</span>}
             </div>

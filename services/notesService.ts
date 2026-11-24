@@ -734,3 +734,34 @@ export function subscribeToNoteComments(
     .subscribe();
   return () => { void supabase.removeChannel(channel); };
 }
+
+// ────────────────────────────────────────────────────────────
+// 共有されたノートを、自分のフォルダに入れる(人ごとの置き場所)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * 自分が「自分のフォルダに入れた」共有ノートの一覧(ノートID → フォルダID)。
+ * テーブルがまだ無い(SQL 未実行)ときは null を返す(このときは、入れる欄を出さない)
+ */
+export async function fetchNotePlacements(userName: string): Promise<Record<string, string> | null> {
+  const { data, error } = await supabase.from('note_placements').select('*').eq('user_name', userName);
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw new Error(`フォルダ分けの取得に失敗しました: ${error?.message ?? error}`);
+  }
+  const map: Record<string, string> = {};
+  for (const row of data ?? []) if (row.note_id && row.folder_id) map[row.note_id] = row.folder_id;
+  return map;
+}
+
+/** 共有されたノートを自分のフォルダに入れる(folderId が null なら、フォルダから出す)。原本の置き場所は変えない */
+export async function setNotePlacement(noteId: string, userName: string, folderId: string | null): Promise<void> {
+  const res = folderId
+    ? await supabase.from('note_placements')
+        .upsert({ note_id: noteId, user_name: userName, folder_id: folderId }, { onConflict: 'note_id,user_name' })
+    : await supabase.from('note_placements').delete().eq('note_id', noteId).eq('user_name', userName);
+  if (res.error) {
+    if (isMissingTableError(res.error)) throw new Error('データベースの更新が必要です(supabase/migrations/20261127_add_note_placements.sql を実行してください)');
+    throw new Error(`フォルダに入れられませんでした: ${res.error?.message ?? res.error}`);
+  }
+}
