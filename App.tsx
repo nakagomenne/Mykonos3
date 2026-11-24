@@ -300,8 +300,9 @@ const App: React.FC = () => {
   useEffect(() => { usersRef.current = users; }, [users]);
 
   // ── Mikopos(タイムライン) ──
-  // 名前を呼ばれた・自分のポストに返信やリアクションが付いたときの通知
+  // 通知するのは、自分あての投稿(@自分 と名前を呼ばれたポスト)だけ。返信・いいねは通知しない(バッジと画面で分かる)
   const handleMikoposNotice = useCallback((notice: MikoposNotice) => {
+    if (notice.kind !== 'mention') return;
     if (notificationSettingsRef.current.mikoposNotify === false) return;
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const clip = (s: string) => (s.length > 60 ? `${s.slice(0, 60)}…` : s);
