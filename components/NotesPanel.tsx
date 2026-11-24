@@ -16,7 +16,7 @@ import NotesHelpModal from './NotesHelpModal';
 import NoteHistoryModal from './NoteHistoryModal';
 import { NoteIcon, VisibilityIcon } from './NoteIcons';
 import ConfirmationModal from './ConfirmationModal';
-import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon, Cog6ToothIcon } from './icons';
+import { XMarkIcon, PlusIcon, TrashIcon, ChevronLeftIcon, MagnifyingGlassIcon } from './icons';
 
 type View =
   | { kind: 'pinned' }
@@ -827,7 +827,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 aria-label="フォルダの設定"
                 aria-expanded={folderMenuId === f.id}
                 className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-md transition ${d ? 'hover:bg-white/15' : 'hover:bg-black/10'}`}
-              ><Cog6ToothIcon className="w-4 h-4" /></button>
+              ><NoteIcon name="settings" className="text-base" /></button>
               {folderMenuId === f.id && (
                 <>
                   <div className="fixed inset-0 z-30" onClick={() => setFolderMenuId(null)} />
@@ -838,7 +838,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                       </button>
                     )}
                     <button className={`w-full text-left px-3 py-2 flex items-center gap-2 ${hoverRow}`} onClick={() => { setFolderMenuId(null); setFolderDlg({ mode: 'edit', folder: f }); }}>
-                      <Cog6ToothIcon className="w-4 h-4" />名前・公開範囲を変える
+                      <NoteIcon name="settings" className="text-base" />名前・公開範囲を変える
                     </button>
                     <button className="w-full text-left px-3 py-2 flex items-center gap-2 text-red-500 hover:bg-red-500/10" onClick={() => { setFolderMenuId(null); setDeleteFolderTarget(f); }}>
                       <TrashIcon className="w-4 h-4" />このフォルダを削除
