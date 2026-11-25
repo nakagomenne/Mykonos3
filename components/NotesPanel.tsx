@@ -170,6 +170,56 @@ const FoldArrow: React.FC<{ dir: 'left' | 'right'; className?: string }> = ({ di
   </svg>
 );
 
+/** 目次の1行(本文の「大見出し」「小見出し」) */
+interface OutlineItem { index: number; level: 2 | 3; text: string }
+
+/** 本文(HTML)から、見出し(大見出し=h2 / 小見出し=h3)を上から順に拾う。index は本文の中で何番目の見出しか */
+function outlineOf(html: string): OutlineItem[] {
+  if (!html || !/<h[23][\s>]/i.test(html)) return [];
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const out: OutlineItem[] = [];
+  Array.from(doc.body.querySelectorAll('h2, h3')).forEach((h, index) => {
+    const text = (h.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (text) out.push({ index, level: h.tagName === 'H2' ? 2 : 3, text });   // 文字のない見出しは目次に出さない
+  });
+  return out;
+}
+
+/** 開いているノートの本文を、index 番目の見出しのところまで動かし、見出しを一瞬光らせる */
+function jumpToHeading(index: number): boolean {
+  const body = document.querySelector('[data-note-body]');
+  const el = body?.querySelectorAll('h2, h3')[index] as HTMLElement | undefined;
+  if (!el) return false;
+  // たてにスクロールする枠をさがす
+  let scroller: HTMLElement | null = el.parentElement;
+  while (scroller) {
+    const oy = getComputedStyle(scroller).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && scroller.scrollHeight > scroller.clientHeight + 1) break;
+    scroller = scroller.parentElement;
+  }
+  if (!scroller) { el.scrollIntoView({ block: 'start' }); }
+  else {
+    // 上に張り付く帯(編集中の道具の列など)に隠れないよう、その高さぶん下げる
+    let offset = 0;
+    scroller.querySelectorAll<HTMLElement>('*').forEach(s => {
+      if (s.contains(el)) return;
+      const cs = getComputedStyle(s);
+      if (cs.position !== 'sticky' || cs.top === 'auto') return;
+      const r = s.getBoundingClientRect();
+      if (r.height > 0 && r.height < 240) offset = Math.max(offset, (parseFloat(cs.top) || 0) + r.height);
+    });
+    const top = scroller.scrollTop + el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - offset - 10;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
+  try {
+    el.animate(
+      [{ backgroundColor: 'rgba(253,186,116,0.95)', boxShadow: '0 0 0 4px rgba(253,186,116,0.95)' }, { backgroundColor: 'transparent', boxShadow: '0 0 0 4px transparent' }],
+      { duration: 1600, easing: 'ease-out' },
+    );
+  } catch { /* 光らせられなくても、場所へは動いている */ }
+  return true;
+}
+
 /**
  * たてにスクロールする枠。上や下に隠れている部分があるときだけ、その側にうすい影(グラデーション)を出して、
  * 「まだ続きがある」ことが分かるようにする
@@ -300,8 +350,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** ノートを開いたとき: フォルダ欄だけをたたむ(ノート一覧は出したままにして、続けて別のノートを選べるようにする) */
   const foldPanes = () => { setFoldersCollapsed(true); };
 
-  // 別のノートを開いたら、公開範囲の設定パネルは閉じる
-  useEffect(() => { setSettingsOpen(false); }, [selectedId]);
+  /** 一覧で目次(見出しの一覧)を開いているノート。選択中のノートをもう一度押すと開く */
+  const [outlineOpenId, setOutlineOpenId] = useState<string | null>(null);
+
+  // 別のノートを開いたら、公開範囲の設定パネルと目次は閉じる
+  useEffect(() => { setSettingsOpen(false); setOutlineOpenId(null); }, [selectedId]);
 
   useEffect(() => {
     fetchTemplates(me.name).then(setTemplates).catch(() => setTemplates([]));
@@ -915,9 +968,20 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       : n.visibility === 'private' ? '自分だけ'
       : n.visibility === 'public' ? '全員'
       : VISIBILITY_LABELS[n.visibility];
+    // 選択中のノートをもう一度押すと、目次(見出しの一覧)を開閉する。編集中は、書いている途中の本文から拾う
+    const showing = active && !draft;
+    const outlineOpen = showing && outlineOpenId === n.id;
+    const outline = outlineOpen ? outlineOf(editingId === n.id && editDraft && editDraft.id === n.id ? editDraft.body : n.body) : [];
     return (
+      <>
       <button
-        onClick={() => guard(() => { endEdit(); setSelectedId(n.id); foldPanes(); setStep('note'); })}
+        data-note-row={n.id}
+        aria-expanded={showing ? outlineOpen : undefined}
+        title={showing ? (outlineOpen ? 'もう一度押すと、目次を閉じます' : 'もう一度押すと、目次(見出しの一覧)を開きます') : undefined}
+        onClick={() => {
+          if (showing && step === 'note') { setOutlineOpenId(cur => (cur === n.id ? null : n.id)); return; }
+          guard(() => { endEdit(); setSelectedId(n.id); foldPanes(); setStep('note'); });
+        }}
         className={`w-full text-left pl-[9px] pr-3 py-2.5 border-b ${border} border-l-[3px] transition ${
           active ? `${d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10'} border-l-[#0193be]` : `border-l-transparent ${hoverRow}`}`}
       >
@@ -949,6 +1013,25 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
         </div>
       </button>
+      {outlineOpen && (
+        <div data-note-outline={n.id} className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
+          {outline.length === 0 ? (
+            <div className={`px-3 py-1.5 text-xs ${muted}`}>見出しがありません(編集で「大見出し」「小見出し」を付けると、ここに並びます)</div>
+          ) : outline.map(h => (
+            <button
+              key={h.index}
+              type="button"
+              data-outline-level={h.level}
+              onClick={() => { jumpToHeading(h.index); }}
+              title={`「${h.text}」へ移動`}
+              className={`block w-full text-left truncate py-1 pr-3 ${h.level === 2 ? 'pl-3 text-xs font-semibold' : 'pl-7 text-[11px]'} ${d ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-[#0193be]/15'}`}
+            >
+              <span className="text-[#0193be] mr-1">{h.level === 2 ? '▸' : '・'}</span>{h.text}
+            </button>
+          ))}
+        </div>
+      )}
+      </>
     );
   };
 
@@ -1455,7 +1538,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             onSeen={latest => { void api.markCommentsSeen(n.id, latest); }}
             onChanged={() => { void api.reloadCommentMeta(); }}
           >
-          <div className={isEditing ? 'p-3' : 'px-5 py-4 min-h-[10rem]'}>
+          <div data-note-body className={isEditing ? 'p-3' : 'px-5 py-4 min-h-[10rem]'}>
             {(isEditing || n.body) && <NoteEditor
               key={n.id + (isEditing ? ':e' : ':r')}
               value={e ? e.body : n.body}
