@@ -1790,9 +1790,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     <button
                       data-shared-folder-pick
                       onClick={() => setSharedPickerOpen(true)}
-                      title="フォルダ欄に表示する共有フォルダを選びます"
-                      className={`inline-flex items-center gap-1 px-1.5 h-6 rounded font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
-                    ><NoteIcon name="settings" /> 選ぶ ({shownSharedFolders.length}/{sharedTopFolders.length})</button>
+                      title={`フォルダ欄に表示する共有フォルダを選びます(${sharedTopFolders.length}件のうち${shownSharedFolders.length}件を表示中)`}
+                      aria-label="表示する共有フォルダを選ぶ"
+                      className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
+                    ><NoteIcon name="settings" className="text-base" /></button>
                   </div>
                   {shownSharedFolders.map(f => renderSharedFolder(f, 0))}
                 </>
