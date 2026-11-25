@@ -1037,7 +1037,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         </div>
       </button>
       {/* 見出しのあるノートには、右上に▼を出す(フォルダ欄の ◀▶ と同じ三角)。
-          開くとき: ▼が180度まわってから目次が伸びる / 閉じるとき: 目次が縮んでから▼が戻る */}
+          開くときも閉じるときも、先に目次が伸び縮みして、そのあとで▼が180度まわる */}
       {hasOutline && (
         <button
           type="button"
@@ -1049,7 +1049,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           className={`hidden md:inline-flex absolute right-1 top-1 items-center justify-center w-7 h-7 rounded-md ${muted} ${d ? 'hover:bg-white/10' : 'hover:bg-[#0193be]/15'}`}
         >
           <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className="note-outline-arrow"
-            style={{ transform: outlineOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform ${OUTLINE_SPIN_MS}ms ease-out ${outlineOpen ? 0 : OUTLINE_SLIDE_MS}ms` }}>
+            style={{ transform: outlineOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform ${OUTLINE_SPIN_MS}ms ease-out ${OUTLINE_SLIDE_MS}ms` }}>
             <path d="M1 2 L9 2 L5 8 Z" fill="currentColor" />
           </svg>
         </button>
@@ -1062,7 +1062,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           data-open={outlineOpen ? 'true' : 'false'}
           aria-hidden={!outlineOpen}
           {...(outlineOpen ? {} : { inert: true })}
-          style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: `grid-template-rows ${OUTLINE_SLIDE_MS}ms ease ${outlineOpen && hasOutline ? OUTLINE_SPIN_MS : 0}ms` }}
+          style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: `grid-template-rows ${OUTLINE_SLIDE_MS}ms ease` }}
         >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
         <div className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
