@@ -1795,11 +1795,6 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     ><NoteIcon name="settings" /> 選ぶ ({shownSharedFolders.length}/{sharedTopFolders.length})</button>
                   </div>
                   {shownSharedFolders.map(f => renderSharedFolder(f, 0))}
-                  {shownSharedFolders.length === 0 && (
-                    <div className={`px-2 py-1 text-xs leading-relaxed ${muted}`}>
-                      共有されているフォルダが{sharedTopFolders.length}件あります。「選ぶ」から、ここに表示するフォルダを選べます。
-                    </div>
-                  )}
                 </>
               )}
 
