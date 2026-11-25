@@ -541,6 +541,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** 本文を編集できるか(オーナー、または共同編集がオンのノート) */
   const canEdit = !!selected && (isOwner || selected.allowEdit);
   const isEditing = !!selected && canEdit && editingId === selected.id;
+  /** 開いているノートの目次(編集中は、書いている途中の本文から拾う) */
+  const selectedOutlineBody = selected ? (isEditing && editDraft && editDraft.id === selected.id ? editDraft.body : selected.body) : '';
+  const selectedOutline = useMemo(() => outlineOf(selectedOutlineBody), [selectedOutlineBody]);
   // 別のノートに移ったら、開いていた設定やメニューは閉じる
   const selectedNoteId = selected?.id ?? null;
   useEffect(() => { setSettingsOpen(false); setMoreOpen(false); setMenuOpen(false); }, [selectedNoteId]);
@@ -952,7 +955,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
   })();
 
-  const NoteRow: React.FC<{ n: Note }> = ({ n }) => {
+  const renderNoteRow = (n: Note) => {
     const preview = plainOf(n).replace(/\s+/g, ' ').slice(0, 70);
     const mine = n.owner === me.name;
     const unread = n.isAnnouncement && !mine && !myReadIds.has(n.id);
@@ -971,9 +974,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     // 選択中のノートをもう一度押すと、目次(見出しの一覧)を開閉する。編集中は、書いている途中の本文から拾う
     const showing = active && !draft;
     const outlineOpen = showing && outlineOpenId === n.id;
-    const outline = outlineOpen ? outlineOf(editingId === n.id && editDraft && editDraft.id === n.id ? editDraft.body : n.body) : [];
+    const outline = showing ? selectedOutline : [];
     return (
-      <>
+      <React.Fragment key={n.id}>
       <button
         data-note-row={n.id}
         aria-expanded={showing ? outlineOpen : undefined}
@@ -1013,8 +1016,17 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
         </div>
       </button>
-      {outlineOpen && (
-        <div data-note-outline={n.id} className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
+      {/* 目次(アコーディオン): 高さをなめらかに変えて開閉する。閉じているあいだは押せない・読み上げない */}
+      {showing && (
+        <div
+          data-note-outline={n.id}
+          data-open={outlineOpen ? 'true' : 'false'}
+          aria-hidden={!outlineOpen}
+          {...(outlineOpen ? {} : { inert: true })}
+          style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: 'grid-template-rows 220ms ease' }}
+        >
+        <div style={{ overflow: 'hidden', minHeight: 0 }}>
+        <div className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
           {outline.length === 0 ? (
             <div className={`px-3 py-1.5 text-xs ${muted}`}>見出しがありません(編集で「大見出し」「小見出し」を付けると、ここに並びます)</div>
           ) : outline.map(h => (
@@ -1030,8 +1042,10 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </button>
           ))}
         </div>
+        </div>
+        </div>
       )}
-      </>
+      </React.Fragment>
     );
   };
 
@@ -1829,7 +1843,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   draft ? null : <div className={`p-4 text-sm ${muted}`}>
                     {(activeOwner || activeTag) ? '絞り込みに一致するノートがありません。' : search.trim() ? '一致するノートがありません。' : view.kind === 'announce' ? 'アナウンスされているノートはありません。' : 'ノートがありません。「＋ 新規ノート」で作成できます。'}
                   </div>
-                ) : visibleNotes.map(n => <NoteRow key={n.id} n={n} />)}
+                ) : visibleNotes.map(n => renderNoteRow(n))}
                 {/* 「アナウンス(お知らせ)」を開いているときだけ、一覧の一番下に非表示にしたアナウンスを出す */}
                 {view.kind === 'announce' && !search.trim() && hiddenAnnouncements.length > 0 && (
                   <>
@@ -1843,7 +1857,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     </button>
                     <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${hiddenOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                       <div className="overflow-hidden min-h-0" {...(hiddenOpen ? {} : { inert: true } as object)}>
-                        {hiddenAnnouncements.map(n => <NoteRow key={n.id} n={n} />)}
+                        {hiddenAnnouncements.map(n => renderNoteRow(n))}
                       </div>
                     </div>
                   </>
