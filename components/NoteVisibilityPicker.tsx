@@ -1,6 +1,6 @@
 import React from 'react';
 import { NoteVisibility, User } from '../types';
-import { VISIBILITY_LABELS } from '../services/notesService';
+import { VISIBILITY_LABELS, groupToken, sharedGroups, sharedNames } from '../services/notesService';
 import { VisibilityIcon } from './NoteIcons';
 
 interface NoteVisibilityPickerProps {
@@ -18,7 +18,7 @@ const OPTIONS: { value: NoteVisibility; desc: string }[] = [
   { value: 'private', desc: '自分だけが見られます' },
   { value: 'public',  desc: 'ログインしている全員が見られます' },
   { value: 'admin',   desc: '管理者だけが見られます' },
-  { value: 'members', desc: '選んだメンバーだけが見られます' },
+  { value: 'members', desc: '選んだ商材・メンバーだけが見られます' },
 ];
 
 /** 案内可能商材の並び順(管理者メニューと同じ) */
@@ -43,54 +43,42 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users, owner]);
 
+  // ── 商材で公開する ──
+  // 商材のボタンを押すと、「その商材を案内できるメンバー全員」という指定になる(名前の一覧ではない)。
+  // あとから入った人も、その商材が付いていれば自動で見られる。商材を外された人は、見られなくなる。
+  // 商材で見られる人のチェックは、入ったまま動かせない(その人だけ外したいときは、商材を使わず個別に選ぶ)
+  const groups = sharedGroups(sharedWith);
+  const isLit = (product: string) => groups.includes(product);
+  /** この人が、点灯している商材で見られるか */
+  const coveredBy = (u: User): string[] => groups.filter(g => (u.availableProducts ?? []).includes(g));
+  const togglePreset = (product: string) => {
+    const token = groupToken(product);
+    onChange('members', isLit(product) ? sharedWith.filter(s => s !== token) : [...sharedWith, token]);
+  };
+
   const toggle = (name: string) => {
     const next = sharedWith.includes(name) ? sharedWith.filter(n => n !== name) : [...sharedWith, name];
     onChange('members', next);
   };
 
-  // ── まとめて選ぶボタン(全員 / 案内可能商材) ──
-  // 押すと、その人たちを今の選択に「足す」(それまで選んでいた人は、そのまま)。
-  // もう一度押すと、その人たちを外す。ボタンは、押してから、その人たちが全員選ばれているあいだ青く点灯する
-  // (ほかのボタンで選ばれただけのときは点灯しない。1人でもチェックを外すと白に戻る)
-  const ALL = '__all__';
-  const [pressed, setPressed] = React.useState<Set<string>>(new Set());
-  const setPress = (key: string, on: boolean) => setPressed(prev => {
-    const next = new Set(prev);
-    if (on) next.add(key); else next.delete(key);
-    return next;
-  });
+  // ── 「全員」のボタン ──
+  // 今いるメンバー全員の名前を選ぶ(外したい人のチェックだけ外せる)。もう一度押すと、選択をすべて外す。
+  // これは名前の一覧なので、あとから入った人は含まれない(今後入る人にも見せたいときは、上の「全員」の公開範囲か、商材のボタンを使う)
+  const [allPressed, setAllPressed] = React.useState(false);
   const selected = new Set(sharedWith);
-  const membersOf = (product: string) => candidates.filter(u => (u.availableProducts ?? []).includes(product)).map(u => u.name);
-  const allIn = (names: string[]) => names.length > 0 && names.every(n => selected.has(n));
-  const isLit = (product: string) => pressed.has(product) && allIn(membersOf(product));
   const allNames = candidates.map(u => u.name);
-  const allLit = pressed.has(ALL) && allIn(allNames);
-
+  const allLit = allPressed && allNames.length > 0 && allNames.every(n => selected.has(n));
   const toggleAll = () => {
-    if (allLit) { setPressed(new Set()); onChange('members', []); return; }
-    setPress(ALL, true);
-    // 候補に無い人(退職した人など)が入っていても、消さずに残す
+    if (allLit) { setAllPressed(false); onChange('members', []); return; }
+    setAllPressed(true);
+    // 候補に無い人(退職した人など)や、商材の指定が入っていても、消さずに残す
     onChange('members', [...sharedWith, ...allNames.filter(n => !selected.has(n))]);
   };
 
-  const togglePreset = (product: string) => {
-    const names = membersOf(product);
-    if (!isLit(product)) {
-      setPress(product, true);
-      onChange('members', [...sharedWith, ...names.filter(n => !selected.has(n))]);
-      return;
-    }
-    setPress(product, false);
-    // 「全員」が点灯しているときは、全員のまま(商材のボタンだけ白に戻す)
-    if (allLit) return;
-    // 外すとき: ほかに点灯している商材でも選ばれている人は、残す
-    const keep = new Set<string>();
-    products.filter(p => p !== product).forEach(p => {
-      if (isLit(p)) membersOf(p).forEach(n => keep.add(n));
-    });
-    const drop = new Set(names.filter(n => !keep.has(n)));
-    onChange('members', sharedWith.filter(n => !drop.has(n)));
-  };
+  /** 今この設定で見られる人数(商材で見られる人 + 個別に選んだ人) */
+  const viewerCount = candidates.filter(u => selected.has(u.name) || coveredBy(u).length > 0).length;
+  /** 個別に選んだ人のうち、候補にいない人(退職した人など)は数えない */
+  const pickedNames = sharedNames(sharedWith);
 
   const presetBtn = (on: boolean) => `text-xs px-2.5 py-0.5 rounded-full border transition ${
     on
@@ -128,7 +116,7 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
         <div className={`rounded-lg border p-2 ${isDarkMode ? 'border-slate-600 bg-[#0f1623]' : 'border-slate-200 bg-slate-50'}`}>
           <div className="flex items-center justify-between mb-1.5 gap-2">
             <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              共有するメンバー({sharedWith.length}人)
+              共有するメンバー(いま {viewerCount}人{groups.length > 0 ? ` ・ ${groups.join('・')}` : ''})
             </span>
             <input
               value={filter}
@@ -146,7 +134,7 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
                 disabled={disabled}
                 onClick={toggleAll}
                 aria-pressed={allLit}
-                title="全員をまとめて選びます。もう一度押すと、全員を外します(選んだあと、外したい人のチェックだけ外せます)"
+                title="今いるメンバー全員をまとめて選びます。もう一度押すと、選択をすべて外します(選んだあと、外したい人のチェックだけ外せます)。あとから入る人は含まれません"
                 className={presetBtn(allLit)}
               >全員</button>
               {products.map(p => {
@@ -158,7 +146,8 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
                     disabled={disabled}
                     onClick={() => togglePreset(p)}
                     aria-pressed={on}
-                    title={`「${p}」を案内できるメンバーを、今の選択に足します。もう一度押すと、その人たちを外します`}
+                    data-note-group={p}
+                    title={`「${p}」を案内できるメンバー全員に公開します。あとから入った人も、「${p}」が付いていれば自動で見られます。もう一度押すと、この指定を外します`}
                     className={presetBtn(on)}
                   >{p}</button>
                 );
@@ -166,22 +155,37 @@ const NoteVisibilityPicker: React.FC<NoteVisibilityPickerProps> = ({
             </div>
           )}
           <div className="max-h-40 overflow-y-auto grid grid-cols-2 gap-x-2 gap-y-0.5">
-            {shown.map(u => (
-              <label key={u.name} className={`flex items-center gap-1.5 text-sm px-1.5 py-0.5 rounded cursor-pointer ${isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-white'}`}>
-                <input
-                  type="checkbox"
-                  checked={sharedWith.includes(u.name)}
-                  onChange={() => toggle(u.name)}
-                  disabled={disabled}
-                  className="accent-[#0193be]"
-                />
-                <span className="truncate">{u.name}</span>
-              </label>
-            ))}
+            {shown.map(u => {
+              // 商材で見られる人は、チェックが入ったまま動かせない
+              const via = coveredBy(u);
+              const locked = via.length > 0;
+              return (
+                <label
+                  key={u.name}
+                  title={locked ? `「${via.join('・')}」で公開されています` : undefined}
+                  className={`flex items-center gap-1.5 text-sm px-1.5 py-0.5 rounded ${locked ? 'cursor-default opacity-70' : 'cursor-pointer'} ${isDarkMode ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-700 hover:bg-white'}`}
+                >
+                  <input
+                    type="checkbox"
+                    data-note-member={u.name}
+                    checked={locked || sharedWith.includes(u.name)}
+                    onChange={() => { if (!locked) toggle(u.name); }}
+                    disabled={disabled || locked}
+                    className="accent-[#0193be]"
+                  />
+                  <span className="truncate">{u.name}</span>
+                </label>
+              );
+            })}
             {shown.length === 0 && <span className="text-xs text-slate-400 col-span-2 py-1">該当するメンバーがいません</span>}
           </div>
-          {sharedWith.length === 0 && (
-            <p className="text-[11px] text-amber-600 mt-1.5">メンバーを選ぶまでは、自分以外には見えません。</p>
+          {groups.length > 0 && (
+            <p data-note-group-hint className={`text-[11px] mt-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              「{groups.join('・')}」を案内できるメンバー全員に公開します。あとから入った人も、自動で見られます。
+            </p>
+          )}
+          {groups.length === 0 && pickedNames.length === 0 && (
+            <p className="text-[11px] text-amber-600 mt-1.5">商材かメンバーを選ぶまでは、自分以外には見えません。</p>
           )}
         </div>
       )}

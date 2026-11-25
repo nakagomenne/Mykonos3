@@ -390,7 +390,7 @@ const App: React.FC = () => {
       n.close();
     };
   }, []);
-  const notesApi = useNotes({ me: currentUser, onAnnounce: handleNoteAnnounce, onComment: handleNoteComment });
+  const notesApi = useNotes({ me: currentUser, users, onAnnounce: handleNoteAnnounce, onComment: handleNoteComment });
 
   // ── ノートリンク(ミコポス・案件の備考・コメントなどに貼った、ノートへのリンク) ──
   /** ノートの一覧を1回は読み込み終えたか */

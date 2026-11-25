@@ -14,6 +14,8 @@ export type NoteSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 interface UseNotesOptions {
   me: User | null;
+  /** メンバーの一覧(自分の案内可能商材と、入った日を知るため。商材で公開されたノートの判定に使う) */
+  users?: User[];
   /** 他の人がアナウンスしたときに呼ばれる(プッシュ通知用) */
   onAnnounce?: (note: Note, isReminder?: boolean) => void;
   /** 自分が作った・編集した・コメントしたノートに、他の人がコメントしたときに呼ばれる(プッシュ通知用) */
@@ -22,7 +24,7 @@ interface UseNotesOptions {
 
 const SAVE_DEBOUNCE_MS = 900;
 
-export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
+export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [reads, setReads] = useState<NoteRead[]>([]);
@@ -37,9 +39,13 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
 
   const meName = me?.name ?? '';
   const meIsAdmin = !!(me?.isAdmin || me?.isSuperAdmin);
+  // 自分の最新の登録内容(案内可能商材・入った日)。メンバーの一覧にまだ無いときは、ログイン時の内容を使う
+  const meData = useMemo(() => users?.find(u => u.name === meName) ?? me, [users, meName, me]);
+  const meProductsKey = [...(meData?.availableProducts ?? [])].sort().join('\n');
+  const meCreatedAt = meData?.createdAt;
   const viewer = useMemo(
-    () => (meName ? { name: meName, isAdmin: meIsAdmin, isSuperAdmin: false } : null),
-    [meName, meIsAdmin]
+    () => (meName ? { name: meName, isAdmin: meIsAdmin, isSuperAdmin: false, availableProducts: meProductsKey ? meProductsKey.split('\n') : [] } : null),
+    [meName, meIsAdmin, meProductsKey]
   );
   const viewerRef = useRef(viewer);
   useEffect(() => { viewerRef.current = viewer; }, [viewer]);
@@ -563,8 +569,10 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
   );
   /** 自分宛ての、まだ「確認しました」を押していないアナウンス */
   const unreadAnnouncements = useMemo(
-    () => notes.filter(n => n.isAnnouncement && n.owner !== meName && !myReadIds.has(n.id)),
-    [notes, meName, myReadIds]
+    // 自分が入る前に出たアナウンスは、読めるが「未確認」には数えない
+    () => notes.filter(n => n.isAnnouncement && n.owner !== meName && !myReadIds.has(n.id)
+      && !svc.joinedAfterAnnounce(n, { name: meName, createdAt: meCreatedAt })),
+    [notes, meName, myReadIds, meCreatedAt]
   );
 
   return {

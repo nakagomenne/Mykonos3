@@ -50,7 +50,34 @@ function q(value: string): string {
 // 公開範囲の判定
 // ────────────────────────────────────────────────────────────
 
-type Viewer = Pick<User, 'name' | 'isAdmin' | 'isSuperAdmin'>;
+type Viewer = Pick<User, 'name' | 'isAdmin' | 'isSuperAdmin'> & { availableProducts?: string[] };
+
+// ── 商材での公開 ──
+// 「特定メンバー」の共有相手(shared_with)には、人の名前のほかに「商材の指定」も入れられる。
+// 商材の指定は "@group:回線" の形で入れておき、見るたびに、その人の案内可能商材と照らし合わせる。
+// (名前の一覧ではないので、あとから入った人も、その商材が付いていれば自動で見られる)
+const GROUP_PREFIX = '@group:';
+/** 商材の指定("@group:回線")を作る */
+export const groupToken = (product: string): string => `${GROUP_PREFIX}${product}`;
+export const isGroupToken = (value: string): boolean => value.startsWith(GROUP_PREFIX);
+/** 共有相手のうち、商材の指定(商材名の一覧) */
+export const sharedGroups = (sharedWith: string[]): string[] =>
+  sharedWith.filter(isGroupToken).map(s => s.slice(GROUP_PREFIX.length));
+/** 共有相手のうち、個別に選んだ人の名前 */
+export const sharedNames = (sharedWith: string[]): string[] => sharedWith.filter(s => !isGroupToken(s));
+/** 共有相手の短い表示(例: 「回線・水 +2名」「3名」) */
+export function sharedLabel(sharedWith: string[]): string {
+  const groups = sharedGroups(sharedWith);
+  const names = sharedNames(sharedWith).length;
+  if (groups.length === 0) return `${names}名`;
+  return `${groups.join('・')}${names > 0 ? ` +${names}名` : ''}`;
+}
+/** この人が、共有相手に入っているか(名前で選ばれている / 指定された商材を案内できる) */
+function inSharedWith(sharedWith: string[], person: { name: string; availableProducts?: string[] }): boolean {
+  if (sharedWith.includes(person.name)) return true;
+  const products = person.availableProducts ?? [];
+  return products.length > 0 && sharedGroups(sharedWith).some(g => products.includes(g));
+}
 
 export const isViewerAdmin = (viewer: Viewer): boolean => !!(viewer.isAdmin || viewer.isSuperAdmin);
 
@@ -58,6 +85,21 @@ interface Shareable {
   owner: string;
   visibility: NoteVisibility;
   sharedWith: string[];
+  isAnnouncement?: boolean;
+  announcedAt?: string | null;
+}
+
+/**
+ * アナウンスされたあとに入ってきた人か。
+ * あとから入った人は、そのアナウンスを読めるが「未確認」には数えない(入った初日に、過去のアナウンスが未確認で並ばないように)。
+ * 名前で個別に選ばれている人は、あとから入った人でも数える(わざわざ足した相手なので)
+ */
+export function joinedAfterAnnounce(item: Shareable, person: { name: string; createdAt?: string }): boolean {
+  if (!item.isAnnouncement || !item.announcedAt || !person.createdAt) return false;
+  if (item.visibility === 'members' && item.sharedWith.includes(person.name)) return false;
+  const joined = Date.parse(person.createdAt);
+  const announced = Date.parse(item.announcedAt);
+  return Number.isFinite(joined) && Number.isFinite(announced) && joined > announced;
 }
 
 /** viewer がこのノート/フォルダを閲覧できるか */
@@ -66,7 +108,7 @@ export function canView(item: Shareable, viewer: Viewer): boolean {
   switch (item.visibility) {
     case 'public':  return true;
     case 'admin':   return isViewerAdmin(viewer);
-    case 'members': return item.sharedWith.includes(viewer.name);
+    case 'members': return inSharedWith(item.sharedWith, viewer);
     default:        return false;
   }
 }
@@ -74,12 +116,12 @@ export function canView(item: Shareable, viewer: Viewer): boolean {
 /** 公開範囲ごとの「読む人」の名前一覧(オーナー本人を除く)。アナウンスの既読確認の対象 */
 export function getRecipients(item: Shareable, users: User[]): string[] {
   // ボット(人が使わないメンバー)は、読んでもらう相手に数えない
-  const people = users.filter(u => !u.isBot);
-  const names = people.map(u => u.name).filter(n => n !== item.owner);
+  // アナウンスのあとに入ってきた人も、数えない(joinedAfterAnnounce を参照)
+  const people = users.filter(u => !u.isBot && u.name !== item.owner && !joinedAfterAnnounce(item, u));
   switch (item.visibility) {
-    case 'public':  return names;
-    case 'admin':   return people.filter(u => u.name !== item.owner && (u.isAdmin || u.isSuperAdmin)).map(u => u.name);
-    case 'members': return item.sharedWith.filter(n => n !== item.owner && names.includes(n));
+    case 'public':  return people.map(u => u.name);
+    case 'admin':   return people.filter(u => u.isAdmin || u.isSuperAdmin).map(u => u.name);
+    case 'members': return people.filter(u => inSharedWith(item.sharedWith, u)).map(u => u.name);
     default:        return [];
   }
 }
@@ -167,6 +209,8 @@ export async function fetchFolders(viewer: Viewer): Promise<NoteFolder[]> {
   const conds = [`owner.eq.${q(viewer.name)}`, 'visibility.eq.public',
     `and(visibility.eq.members,shared_with.cs.{${q(viewer.name)}})`];
   if (isViewerAdmin(viewer)) conds.push('visibility.eq.admin');
+  // 自分が案内できる商材で公開されているもの
+  (viewer.availableProducts ?? []).forEach(p => conds.push(`and(visibility.eq.members,shared_with.cs.{${q(groupToken(p))}})`));
   query = query.or(conds.join(','));
   const { data, error } = await query.order('sort_order', { ascending: true }).order('created_at', { ascending: true });
   if (error) fail('フォルダの取得に失敗しました', error);
@@ -247,6 +291,8 @@ export async function fetchNotes(viewer: Viewer): Promise<Note[]> {
   const conds = [`owner.eq.${q(viewer.name)}`, 'visibility.eq.public',
     `and(visibility.eq.members,shared_with.cs.{${q(viewer.name)}})`];
   if (isViewerAdmin(viewer)) conds.push('visibility.eq.admin');
+  // 自分が案内できる商材で公開されているもの
+  (viewer.availableProducts ?? []).forEach(p => conds.push(`and(visibility.eq.members,shared_with.cs.{${q(groupToken(p))}})`));
   const { data, error } = await supabase
     .from('notes')
     .select('*')

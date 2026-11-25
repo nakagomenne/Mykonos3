@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Note, NoteFolder, NoteTemplate, NoteVisibility, User } from '../types';
 import type { NotesApi } from '../hooks/useNotes';
 import {
-  VISIBILITY_LABELS, canView, fetchTemplates, getRecipients, isAnnounceOverdue, formatAnnounceDue, uploadNoteImage, uploadNoteFile,
+  VISIBILITY_LABELS, canView, sharedLabel, fetchTemplates, getRecipients, isAnnounceOverdue, formatAnnounceDue, uploadNoteImage, uploadNoteFile,
 } from '../services/notesService';
 import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
@@ -422,8 +422,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   // ── ほかの人から共有されたフォルダ(見られるものだけ)。中のノートは、ノートごとの公開範囲で見られるものだけ並ぶ ──
   const sharedFolders = useMemo(
-    () => folders.filter(f => f.owner !== me.name && canView(f, me)),
-    [folders, me]);
+    () => {
+      // 商材で公開されたフォルダの判定には、自分の最新の案内可能商材を使う
+      const viewer = users.find(u => u.name === me.name) ?? me;
+      return folders.filter(f => f.owner !== me.name && canView(f, viewer));
+    },
+    [folders, me, users]);
   const byFolderName = (a: NoteFolder, b: NoteFolder) =>
     a.owner.localeCompare(b.owner, 'ja') || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja');
   /** 共有フォルダのうち、一番上の階層に並べるもの(親フォルダが見えないサブフォルダも、ここに入る) */
@@ -1018,10 +1022,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
   })();
 
+  const unreadIdSet = new Set(unreadAnnouncements.map(n => n.id));
   const renderNoteRow = (n: Note) => {
     const preview = plainOf(n).replace(/\s+/g, ' ').slice(0, 70);
     const mine = n.owner === me.name;
-    const unread = n.isAnnouncement && !mine && !myReadIds.has(n.id);
+    const unread = unreadIdSet.has(n.id);
     const active = n.id === selectedId;
     // 自分が出したアナウンスは「何人中何人が確認したか」を一覧にも出す
     let announceText = 'アナウンス';
@@ -1030,7 +1035,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       const readNames = new Set(reads.filter(r => r.noteId === n.id).map(r => r.userName));
       announceText = `アナウンス中 ${recipients.filter(name => readNames.has(name)).length}/${recipients.length}`;
     }
-    const visibilityText = n.visibility === 'members' ? `${n.sharedWith.length}名`
+    const visibilityText = n.visibility === 'members' ? sharedLabel(n.sharedWith)
       : n.visibility === 'private' ? '自分だけ'
       : n.visibility === 'public' ? '全員'
       : VISIBILITY_LABELS[n.visibility];
@@ -1181,7 +1186,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition ${settingsOpen ? 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]' : `${border} ${hoverRow}`}`}
             >
               <span className={`text-xs ${muted}`}>公開範囲</span>
-              <span className="font-bold"><VisibilityIcon visibility={dr.visibility} /> {VISIBILITY_LABELS[dr.visibility]}{dr.visibility === 'members' ? `(${dr.sharedWith.length}名)` : ''}</span>
+              <span className="font-bold"><VisibilityIcon visibility={dr.visibility} /> {VISIBILITY_LABELS[dr.visibility]}{dr.visibility === 'members' ? `(${sharedLabel(dr.sharedWith)})` : ''}</span>
               <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
             </button>
             <label className="inline-flex items-center gap-1.5">
@@ -1473,7 +1478,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   className={`${chip} ${settingsOpen ? chipOn : chipIdle}`}
                 >
                   <VisibilityIcon visibility={shown.visibility} />
-                  <span className="font-bold">{VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${shown.sharedWith.length}名)` : ''}</span>
+                  <span className="font-bold">{VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${sharedLabel(shown.sharedWith)})` : ''}</span>
                   <span className="text-[9px]">{settingsOpen ? '▲' : '▼'}</span>
                 </button>
                 <label className="inline-flex items-center" title="入れるフォルダ">
@@ -1589,7 +1594,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           ) : (
             <div className={`px-4 py-2 flex flex-wrap gap-1.5 items-center border-b ${border} ${surface2}`}>
-              <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${n.sharedWith.length}名)` : ''}</span>
+              <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${sharedLabel(n.sharedWith)})` : ''}</span>
               {n.allowEdit && n.visibility !== 'private' && <span className={`${chip} ${border}`}><NoteIcon name="users" /> 共同編集</span>}
               {api.placementsAvailable && flatFolders.length > 0 && (
                 <label className="inline-flex items-center" title="このノートを、自分のフォルダに入れます(自分にだけそう見えます。作った人の置き場所や内容は変わりません)">
@@ -2127,7 +2132,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       >
         {announceTarget && (
           <>
-            <p>「{announceTarget.title || '(無題)'}」を、閲覧できる {getRecipients(announceTarget, users).length} 名にアナウンスします。</p>
+            <p>「{announceTarget.title || '(無題)'}」を、閲覧できる {getRecipients({ ...announceTarget, announcedAt: null }, users).length} 名にアナウンスします。</p>
             <p className="mt-2 text-sm">対象の方にはプッシュ通知(通知を許可している場合)とヘッダーのバッジでお知らせし、「確認しました」の状況を確認できます。</p>
             {announceTarget.isAnnouncement && <p className="mt-2 text-sm text-amber-600">再アナウンスすると、これまでの確認状況はリセットされます。</p>}
             <div className="mt-3">
