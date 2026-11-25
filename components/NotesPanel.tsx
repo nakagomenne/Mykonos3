@@ -362,6 +362,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   );
   /** 歯車のメニュー(サブフォルダ・設定・削除)を開いているフォルダ */
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  /** サブフォルダを開いて見せている、一番上の階層のフォルダ(フォルダを選ぶと開く。▼でも開閉できる) */
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   /** 「表示する共有フォルダを選ぶ」画面を開いているか */
   const [sharedPickerOpen, setSharedPickerOpen] = useState(false);
   /** 共同フォルダにノートを入れるときの「公開範囲をそろえますか」(target: 新規の下書き / ノートのID) */
@@ -563,6 +565,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   // 見ている場所(フォルダなど)を変えたら、絞り込みは解除する
   const viewId = view.kind === 'folder' ? `folder:${view.folderId}` : view.kind;
   useEffect(() => { setOwnerFilter(''); setTagFilter(''); }, [viewId]);
+  // フォルダを選んだら、そのフォルダ(サブフォルダを選んだときは、その親)のサブフォルダを開く。ほかの場所へ移ったら閉じる
+  useEffect(() => {
+    if (view.kind !== 'folder') { setOpenFolderId(null); return; }
+    const f = folders.find(x => x.id === view.folderId);
+    if (!f) return;
+    setOpenFolderId(f.parentId && folders.some(x => x.id === f.parentId) ? f.parentId : f.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewId]);
 
   /** 絞り込み前の一覧(見ている場所 + 検索語) */
   const baseNotes = useMemo(() => {
@@ -1096,11 +1106,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     setStep('list');
   });
 
-  const SideItem: React.FC<{ v: View; icon: React.ReactNode; label: React.ReactNode; count?: number; badge?: number; depth?: number; gearSpace?: boolean }> =
-    ({ v, icon, label, count, badge, depth = 0, gearSpace = false }) => (
+  const SideItem: React.FC<{ v: View; icon: React.ReactNode; label: React.ReactNode; count?: number; badge?: number; depth?: number; gearSpace?: number }> =
+    ({ v, icon, label, count, badge, depth = 0, gearSpace = 0 }) => (
       <button
         onClick={() => selectView(v)}
-        className={`w-full flex items-center gap-2 ${gearSpace ? 'pr-8' : 'pr-2'} py-1.5 rounded-md text-sm text-left transition ${isViewActive(v) ? activeRow : hoverRow}`}
+        className={`w-full flex items-center gap-2 ${gearSpace >= 2 ? 'pr-14' : gearSpace === 1 ? 'pr-8' : 'pr-2'} py-1.5 rounded-md text-sm text-left transition ${isViewActive(v) ? activeRow : hoverRow}`}
         style={{ paddingLeft: 8 + depth * 16 }}
       >
         <span className="flex-shrink-0">{icon}</span>
@@ -1110,6 +1120,22 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         {count !== undefined && count > 0 && !badge ? <span className={`text-xs ${isViewActive(v) ? '' : muted}`}>{count}</span> : null}
       </button>
     );
+
+  /** サブフォルダのあるフォルダの右はしに出す▼。押すと、フォルダを選ばずにサブフォルダだけ開閉できる */
+  const subArrow = (f: NoteFolder, active: boolean): React.ReactNode => {
+    const open = openFolderId === f.id;
+    return (
+      <button
+        type="button"
+        data-subfolder-toggle={f.id}
+        aria-expanded={open}
+        aria-label={open ? 'サブフォルダを閉じる' : 'サブフォルダを開く'}
+        title={open ? 'サブフォルダを閉じます' : 'サブフォルダを開きます'}
+        onClick={() => setOpenFolderId(cur => (cur === f.id ? null : f.id))}
+        className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-md ${active ? '' : muted} ${d ? 'hover:bg-white/15' : 'hover:bg-black/10'}`}
+      ><AccordionArrow open={open} size={11} /></button>
+    );
+  };
 
   /** フォルダの歯車と、押すと出るメニュー(サブフォルダ・設定・削除)。pos: 歯車の位置と大きさ */
   const folderGear = (f: NoteFolder, depth: number, pos: string): React.ReactNode => (
@@ -1145,6 +1171,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   const renderFolder = (f: NoteFolder, depth: number): React.ReactNode => {
     const active = isViewActive({ kind: 'folder', folderId: f.id });
+    const kids = depth === 0 ? childrenOf(f.id) : [];
+    const sideGear = active && listFolded;
     return (
       <React.Fragment key={f.id}>
         <div
@@ -1159,18 +1187,26 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             label={f.visibility === 'private' ? f.name : <>{f.name} <VisibilityIcon visibility={f.visibility} />{api.contributorsAvailable && f.contributors.length > 0 && <span data-folder-contrib-mark title="共同フォルダ(ほかの人も、ノートを入れられます)"> <NoteIcon name="users" /></span>}</>}
             count={folderNoteCount(f.id)}
             depth={depth}
-            gearSpace={active && listFolded}
+            gearSpace={Number(sideGear) + Number(kids.length > 0)}
           />
           {/* 歯車は、ふだんは一覧の見出しに出す。一覧をたたんでいるあいだだけ、選んでいるフォルダの右はしに出す */}
-          {active && listFolded && <span className="hidden md:contents">{folderGear(f, depth, 'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6')}</span>}
+          {sideGear && <span className="hidden md:contents">{folderGear(f, depth, `absolute ${kids.length > 0 ? 'right-7' : 'right-1'} top-1/2 -translate-y-1/2 w-6 h-6`)}</span>}
+          {kids.length > 0 && subArrow(f, active)}
         </div>
-        {depth === 0 && childrenOf(f.id).map(c => renderFolder(c, 1))}
+        {/* サブフォルダ: フォルダを選ぶと、アコーディオンで開く */}
+        {kids.length > 0 && (
+          <NoteAccordion open={openFolderId === f.id}>
+            <div data-subfolders={f.id}>{kids.map(c => renderFolder(c, 1))}</div>
+          </NoteAccordion>
+        )}
       </React.Fragment>
     );
   };
 
   /** 共有フォルダの1行(見るだけ。名前の変更や削除はできない) */
-  const renderSharedFolder = (f: NoteFolder, depth: number): React.ReactNode => (
+  const renderSharedFolder = (f: NoteFolder, depth: number): React.ReactNode => {
+    const kids = depth === 0 ? sharedChildrenOf(f.id) : [];
+    return (
     <React.Fragment key={f.id}>
       <div
         data-shared-folder={f.id}
@@ -1190,11 +1226,18 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           label={contribIds.has(f.id) ? <>{f.name} <span data-folder-contrib-mark><NoteIcon name="users" /></span></> : f.name}
           count={sharedFolderNoteCount(f.id)}
           depth={depth}
+          gearSpace={Number(kids.length > 0)}
         />
+        {kids.length > 0 && subArrow(f, isViewActive({ kind: 'folder', folderId: f.id }))}
       </div>
-      {depth === 0 && sharedChildrenOf(f.id).map(c => renderSharedFolder(c, 1))}
+      {kids.length > 0 && (
+        <NoteAccordion open={openFolderId === f.id}>
+          <div data-subfolders={f.id}>{kids.map(c => renderSharedFolder(c, 1))}</div>
+        </NoteAccordion>
+      )}
     </React.Fragment>
-  );
+    );
+  };
 
   const viewTitle = (() => {
     if (search.trim()) return `検索結果「${search.trim()}」`;
