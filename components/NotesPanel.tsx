@@ -444,9 +444,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const ids = new Set([folderId, ...sharedChildrenOf(folderId).map(c => c.id)]);
     return notes.filter(n => !!n.folderId && ids.has(n.folderId)).length;
   };
-  /** ふだん表示する、と自分で選んだ共有フォルダ */
+  /** 「シェアノート」に表示する、と自分で選んだ共有フォルダ */
   const shownSharedFolders = useMemo(
-    () => sharedTopFolders.filter(f => api.shownFolders.has(f.id)),
+    () => sharedTopFolders.filter(f => api.shownFolders.get(f.id) === 'shared'),
+    [sharedTopFolders, api.shownFolders]);
+  /** 「マイノート」(自分のフォルダの並び)に表示する、と自分で選んだ共有フォルダ */
+  const mineSharedFolders = useMemo(
+    () => sharedTopFolders.filter(f => api.shownFolders.get(f.id) === 'mine'),
     [sharedTopFolders, api.shownFolders]);
 
   const myNotes = useMemo(() => notes.filter(n => n.owner === me.name), [notes, me.name]);
@@ -1835,6 +1839,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'pinned' }} icon={<NoteIcon name="star" />} label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
               {topFolders.map(f => renderFolder(f, 0))}
+              {/* マイノートに置くと選んだ共有フォルダ(見るだけ。自分のフォルダの下に並べる) */}
+              {mineSharedFolders.map(f => renderSharedFolder(f, 0))}
 
               {/* シェアノート: アナウンス・共有されたノートと、表示すると選んだ共有フォルダ。
                   歯車は、共有されているフォルダがあるときだけ出す(数が増えすぎないよう、表示するものを自分で選ぶ) */}
@@ -1844,7 +1850,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <button
                     data-shared-folder-pick
                     onClick={() => setSharedPickerOpen(true)}
-                    title={`フォルダ欄に表示する共有フォルダを選びます(${sharedTopFolders.length}件のうち${shownSharedFolders.length}件を表示中)`}
+                    title={`共有フォルダを、フォルダ欄のどこに表示するかを選びます(${sharedTopFolders.length}件のうち${shownSharedFolders.length + mineSharedFolders.length}件を表示中)`}
                     aria-label="表示する共有フォルダを選ぶ"
                     className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
                   ><NoteIcon name="settings" className="text-base" /></button>
@@ -2064,7 +2070,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           entries={sharedTopFolders.map(f => ({ folder: f, childNames: sharedChildrenOf(f.id).map(c => c.name), noteCount: sharedFolderNoteCount(f.id) }))}
           shown={api.shownFolders}
           isDarkMode={d}
-          onToggle={(id, on) => { api.showSharedFolder(id, on).catch((e: any) => setLocalError(e?.message ?? '共有フォルダの表示設定を保存できませんでした')); }}
+          onChange={(id, place) => { api.showSharedFolder(id, place).catch((e: any) => setLocalError(e?.message ?? '共有フォルダの表示設定を保存できませんでした')); }}
           onClose={() => setSharedPickerOpen(false)}
         />
       )}

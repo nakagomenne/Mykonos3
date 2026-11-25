@@ -387,42 +387,51 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
 
   // ── 共有されたフォルダのうち、ふだん表示するもの(人ごと) ──
   //    保存先のテーブルがあればアカウントごと、無ければ(SQL 未実行)このブラウザにだけ覚える
-  const [shownFolders, setShownFolders] = useState<Set<string>>(() => new Set());
+  //    値は置き場所('shared' = シェアノート / 'mine' = マイノート)。入っていないフォルダは、表示しない。
+  //    ブラウザにも毎回覚えておく(テーブルや、置き場所の欄がまだ無いときに使う)
+  const [shownFolders, setShownFolders] = useState<Map<string, svc.SharedFolderPlace>>(() => new Map());
   const shownFoldersInDb = useRef(false);
   const shownFoldersKey = (name: string) => `mikonote_shown_shared_folders:${name}`;
+  /** ブラウザに覚えた内容(前の形式 = IDの一覧 は、すべてシェアノート扱い) */
+  const readLocalShown = (name: string): Map<string, svc.SharedFolderPlace> => {
+    const map = new Map<string, svc.SharedFolderPlace>();
+    try {
+      const raw = JSON.parse(localStorage.getItem(shownFoldersKey(name)) ?? 'null');
+      if (Array.isArray(raw)) raw.forEach(id => { if (typeof id === 'string') map.set(id, 'shared'); });
+      else if (raw && typeof raw === 'object') Object.entries(raw).forEach(([id, p]) => map.set(id, p === 'mine' ? 'mine' : 'shared'));
+    } catch { /* 読めなければ、何も選んでいない扱い */ }
+    return map;
+  };
   const loadShownFolders = useCallback(async () => {
     const name = viewerRef.current?.name;
     if (!name) return;
     try {
-      const ids = await svc.fetchShownSharedFolders(name);
+      const rows = await svc.fetchShownSharedFolders(name);
       if (viewerRef.current?.name !== name) return;
-      shownFoldersInDb.current = ids !== null;
-      if (ids !== null) { setShownFolders(new Set(ids)); return; }
-      let local: string[] = [];
-      try { local = JSON.parse(localStorage.getItem(shownFoldersKey(name)) ?? '[]'); } catch { /* 読めなければ、何も選んでいない扱い */ }
-      setShownFolders(new Set(Array.isArray(local) ? local.filter(x => typeof x === 'string') : []));
+      shownFoldersInDb.current = rows !== null;
+      const local = readLocalShown(name);
+      if (rows === null) { setShownFolders(local); return; }
+      // 置き場所の欄がまだ無いフォルダは、ブラウザに覚えた置き場所を使う(無ければシェアノート)
+      setShownFolders(new Map(Object.entries(rows).map(([id, place]) => [id, place ?? local.get(id) ?? 'shared'])));
     } catch { /* 通信の失敗は、前の内容を残す */ }
   }, []);
   useEffect(() => {
-    if (!viewer || unavailable) { setShownFolders(new Set()); return; }
+    if (!viewer || unavailable) { setShownFolders(new Map()); return; }
     void loadShownFolders();
   }, [viewer, unavailable, loadShownFolders]);
-  const showSharedFolder = useCallback(async (folderId: string, shown: boolean) => {
+  /** 共有フォルダを表示する(place = 置き場所) / 表示しない(place = null) */
+  const showSharedFolder = useCallback(async (folderId: string, place: svc.SharedFolderPlace | null) => {
     const name = viewerRef.current?.name;
     if (!name) return;
-    let nextIds: string[] = [];
     setShownFolders(prev => {
-      const next = new Set(prev);
-      if (shown) next.add(folderId); else next.delete(folderId);
-      nextIds = [...next];
-      if (!shownFoldersInDb.current) {
-        try { localStorage.setItem(shownFoldersKey(name), JSON.stringify(nextIds)); } catch { /* 覚えられなくても、この場の切り替えはできる */ }
-      }
+      const next = new Map(prev);
+      if (place) next.set(folderId, place); else next.delete(folderId);
+      try { localStorage.setItem(shownFoldersKey(name), JSON.stringify(Object.fromEntries(next))); } catch { /* 覚えられなくても、この場の切り替えはできる */ }
       return next;
     });
     if (!shownFoldersInDb.current) return;
     try {
-      await svc.setSharedFolderShown(folderId, name, shown);
+      await svc.setSharedFolderShown(folderId, name, place);
     } catch (e) {
       await loadShownFolders();
       throw e;

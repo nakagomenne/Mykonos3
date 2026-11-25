@@ -870,25 +870,41 @@ export async function setNotePlacement(noteId: string, userName: string, folderI
 // 共有されたフォルダのうち、ふだん表示するもの(人ごと)
 // ────────────────────────────────────────────────────────────
 
+/** 共有フォルダを並べる場所: 'shared' = シェアノート / 'mine' = マイノート(自分のフォルダの並び) */
+export type SharedFolderPlace = 'shared' | 'mine';
+
 /**
- * 自分が「表示する」と選んだ共有フォルダのID。
- * テーブルがまだ無い(SQL 未実行)ときは null を返す(このときは、ブラウザに覚える)
+ * 自分が「表示する」と選んだ共有フォルダ(フォルダID → 置き場所)。
+ * 置き場所の欄がまだ無い(SQL 未実行)フォルダは、値が null になる(このときは、ブラウザに覚えた置き場所を使う)。
+ * テーブルがまだ無い(SQL 未実行)ときは null を返す(このときは、すべてブラウザに覚える)
  */
-export async function fetchShownSharedFolders(userName: string): Promise<string[] | null> {
+export async function fetchShownSharedFolders(userName: string): Promise<Record<string, SharedFolderPlace | null> | null> {
   const { data, error } = await supabase.from('note_folder_shows').select('*').eq('user_name', userName);
   if (error) {
     if (isMissingTableError(error)) return null;
     throw new Error(`共有フォルダの表示設定の取得に失敗しました: ${error?.message ?? error}`);
   }
-  return (data ?? []).map((row: any) => row.folder_id).filter(Boolean);
+  const map: Record<string, SharedFolderPlace | null> = {};
+  for (const row of data ?? []) {
+    if (row.folder_id) map[row.folder_id] = row.place === 'mine' ? 'mine' : row.place === 'shared' ? 'shared' : null;
+  }
+  return map;
 }
 
-/** 共有フォルダを、自分のフォルダ欄に表示する / 表示しない */
-export async function setSharedFolderShown(folderId: string, userName: string, shown: boolean): Promise<void> {
-  const res = shown
-    ? await supabase.from('note_folder_shows')
-        .upsert({ folder_id: folderId, user_name: userName }, { onConflict: 'folder_id,user_name' })
-    : await supabase.from('note_folder_shows').delete().eq('folder_id', folderId).eq('user_name', userName);
+/** 共有フォルダを、自分のフォルダ欄に表示する(place = 置き場所) / 表示しない(place = null) */
+export async function setSharedFolderShown(folderId: string, userName: string, place: SharedFolderPlace | null): Promise<void> {
+  if (!place) {
+    const res = await supabase.from('note_folder_shows').delete().eq('folder_id', folderId).eq('user_name', userName);
+    if (res.error) throw new Error(`共有フォルダの表示設定を保存できませんでした: ${res.error?.message ?? res.error}`);
+    return;
+  }
+  let res = await supabase.from('note_folder_shows')
+    .upsert({ folder_id: folderId, user_name: userName, place }, { onConflict: 'folder_id,user_name' });
+  // 置き場所の欄がまだ無い(SQL 未実行)ときは、「表示する」だけを保存する(置き場所は、ブラウザに覚える)
+  if (res.error && String(res.error?.message ?? '').includes('place')) {
+    res = await supabase.from('note_folder_shows')
+      .upsert({ folder_id: folderId, user_name: userName }, { onConflict: 'folder_id,user_name' });
+  }
   if (res.error) throw new Error(`共有フォルダの表示設定を保存できませんでした: ${res.error?.message ?? res.error}`);
 }
 
