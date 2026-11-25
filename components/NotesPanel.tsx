@@ -1111,26 +1111,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       </button>
     );
 
-  const renderFolder = (f: NoteFolder, depth: number): React.ReactNode => {
-    const active = isViewActive({ kind: 'folder', folderId: f.id });
-    return (
-      <React.Fragment key={f.id}>
-        <div
-          data-reorder-folder={f.id}
-          className={`relative ${dragCls('folders', f.id)}`}
-          {...dragProps(depth === 0 ? 'folders:mine-top' : `folders:child:${f.parentId}`, f.id, moveFolder(depth === 0 ? mineTopFolders : childrenOf(f.parentId ?? '')))}
-        >
-          {dropLine(f.id)}
-          <SideItem
-            v={{ kind: 'folder', folderId: f.id }}
-            icon={<NoteIcon name="folder" />}
-            label={f.visibility === 'private' ? f.name : <>{f.name} <VisibilityIcon visibility={f.visibility} />{api.contributorsAvailable && f.contributors.length > 0 && <span data-folder-contrib-mark title="共同フォルダ(ほかの人も、ノートを入れられます)"> <NoteIcon name="users" /></span>}</>}
-            count={folderNoteCount(f.id)}
-            depth={depth}
-            gearSpace={active}
-          />
-          {/* 選んでいるフォルダだけ、右はしに歯車を出す。押すと、サブフォルダ・設定・削除を選べる */}
-          {active && (
+  /** フォルダの歯車と、押すと出るメニュー(サブフォルダ・設定・削除)。pos: 歯車の位置と大きさ */
+  const folderGear = (f: NoteFolder, depth: number, pos: string): React.ReactNode => (
             <>
               <button
                 data-folder-gear
@@ -1138,7 +1120,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 title="フォルダの設定(サブフォルダ・名前や公開範囲・削除)"
                 aria-label="フォルダの設定"
                 aria-expanded={folderMenuId === f.id}
-                className={`absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 inline-flex items-center justify-center rounded-md transition ${d ? 'hover:bg-white/15' : 'hover:bg-black/10'}`}
+                className={`${pos} inline-flex items-center justify-center rounded-md transition ${d ? 'hover:bg-white/15' : 'hover:bg-black/10'}`}
               ><NoteIcon name="settings" className="text-base" /></button>
               {folderMenuId === f.id && (
                 <>
@@ -1159,7 +1141,28 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 </>
               )}
             </>
-          )}
+  );
+
+  const renderFolder = (f: NoteFolder, depth: number): React.ReactNode => {
+    const active = isViewActive({ kind: 'folder', folderId: f.id });
+    return (
+      <React.Fragment key={f.id}>
+        <div
+          data-reorder-folder={f.id}
+          className={`relative ${dragCls('folders', f.id)}`}
+          {...dragProps(depth === 0 ? 'folders:mine-top' : `folders:child:${f.parentId}`, f.id, moveFolder(depth === 0 ? mineTopFolders : childrenOf(f.parentId ?? '')))}
+        >
+          {dropLine(f.id)}
+          <SideItem
+            v={{ kind: 'folder', folderId: f.id }}
+            icon={<NoteIcon name="folder" />}
+            label={f.visibility === 'private' ? f.name : <>{f.name} <VisibilityIcon visibility={f.visibility} />{api.contributorsAvailable && f.contributors.length > 0 && <span data-folder-contrib-mark title="共同フォルダ(ほかの人も、ノートを入れられます)"> <NoteIcon name="users" /></span>}</>}
+            count={folderNoteCount(f.id)}
+            depth={depth}
+            gearSpace={active && listFolded}
+          />
+          {/* 歯車は、ふだんは一覧の見出しに出す。一覧をたたんでいるあいだだけ、選んでいるフォルダの右はしに出す */}
+          {active && listFolded && <span className="hidden md:contents">{folderGear(f, depth, 'absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6')}</span>}
         </div>
         {depth === 0 && childrenOf(f.id).map(c => renderFolder(c, 1))}
       </React.Fragment>
@@ -2109,10 +2112,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 listFolded ? 'md:w-0 md:invisible' : `md:w-72 lg:w-80 border-r ${border}`}`}
             >
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-72 lg:w-80">
-              <div className={`px-3 py-2 text-sm font-bold border-b ${border} flex items-center justify-between gap-2`}>
+              <div className={`relative px-3 py-2 text-sm font-bold border-b ${border} flex items-center justify-between gap-2`}>
                 <button onClick={() => setStep('folders')} className={`md:hidden flex-shrink-0 text-xs font-semibold px-2 py-1 rounded border ${border}`}><NoteIcon name="folder-open" /> フォルダ</button>
                 <span className="truncate flex-1">{viewTitle}</span>
                 <span className={`text-xs font-normal ${muted}`}>{visibleNotes.length}件</span>
+                {currentFolder && currentFolder.owner === me.name && !search.trim() && (
+                  <span data-list-folder-gear className={`font-normal ${listFolded ? 'md:hidden' : ''}`}>
+                    {folderGear(currentFolder, currentFolder.parentId && myFolders.some(x => x.id === currentFolder.parentId) ? 1 : 0, `flex-shrink-0 w-8 h-8 ${muted}`)}
+                  </span>
+                )}
                 {(
                   <button
                     onClick={() => setListCollapsed(true)}
