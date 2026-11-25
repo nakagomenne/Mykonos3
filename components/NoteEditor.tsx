@@ -10,6 +10,7 @@ import { TaskItem } from '@tiptap/extension-task-item';
 import { TextStyle, Color, BackgroundColor, FontSize } from '@tiptap/extension-text-style';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { NoteIcon } from './NoteIcons';
+import { NoteAccordion, AccordionArrow } from './NoteAccordion';
 import { NoteAudio, NoteVideo, toVideoEmbedUrl, isAutoEmbedVideoUrl } from './noteMedia';
 import { getNoteLinkApi, noteIdFromUrl } from './noteLinks';
 import { CommentAnchorExtension, NoteCommentContext, anchorFromSelection, resolveAnchors } from './noteCommentAnchors';
@@ -491,7 +492,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
               }`}
             >
               <span><NoteIcon name="wrench" /> もっと(書式・添付)</span>
-              <span className="text-[10px]">{toolsOpen ? '▲' : '▼'}</span>
+              <AccordionArrow open={toolsOpen} />
             </button>
             <button type="button" title="元に戻す" disabled={!state?.canUndo} className={btn(false, !state?.canUndo)}
               onMouseDown={run(() => editor.chain().focus().undo().run())}><NoteIcon name="undo" /></button>
@@ -503,7 +504,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
             )}
           </div>
 
-          {toolsOpen && (
+          <NoteAccordion open={toolsOpen}>
             <div className="px-2 pb-2 pt-0.5 space-y-1">
               <ToolRow dark={isDarkMode} label="見出し">
                 <button type="button" title="大きな見出し" className={btn(!!state?.h2)}
@@ -676,7 +677,7 @@ const NoteEditor: React.FC<NoteEditorProps> = ({
                 )}
               </ToolRow>
             </div>
-          )}
+          </NoteAccordion>
 
           {/* 画像を選んでいるときだけ出る、大きさの操作(閉じていても使えるように常時表示) */}
           {state?.imageSelected && (

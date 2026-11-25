@@ -9,6 +9,7 @@ import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
+import { NoteAccordion, AccordionArrow } from './NoteAccordion';
 import NoteSharedFolderPicker from './NoteSharedFolderPicker';
 import NoteReadStatus from './NoteReadStatus';
 import NoteComments from './NoteComments';
@@ -1187,7 +1188,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             >
               <span className={`text-xs ${muted}`}>公開範囲</span>
               <span className="font-bold"><VisibilityIcon visibility={dr.visibility} /> {VISIBILITY_LABELS[dr.visibility]}{dr.visibility === 'members' ? `(${sharedLabel(dr.sharedWith)})` : ''}</span>
-              <span className="text-[10px]">{settingsOpen ? '▲' : '▼'}</span>
+              <AccordionArrow open={settingsOpen} />
             </button>
             <label className="inline-flex items-center gap-1.5">
               <span className={`text-xs ${muted}`}>フォルダ</span>
@@ -1221,7 +1222,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             </div>
           </div>
 
-          {settingsOpen && (
+          <NoteAccordion open={settingsOpen} gap={12}>
             <div className={`rounded-lg border ${border} ${surface2} p-3 space-y-2`}>
               <div className={`text-xs ${muted}`}>このノートを誰が見られるかを選びます。「保存」を押すと反映されます。</div>
               <NoteVisibilityPicker
@@ -1233,7 +1234,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 onChange={(v: NoteVisibility, sh: string[]) => patch({ visibility: v, sharedWith: sh })}
               />
             </div>
-          )}
+          </NoteAccordion>
 
           {(() => {
             const count = dr.visibility === 'private' ? 0 : getRecipients({ owner: me.name, visibility: dr.visibility, sharedWith: dr.sharedWith }, users).length;
@@ -1479,7 +1480,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 >
                   <VisibilityIcon visibility={shown.visibility} />
                   <span className="font-bold">{VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${sharedLabel(shown.sharedWith)})` : ''}</span>
-                  <span className="text-[9px]">{settingsOpen ? '▲' : '▼'}</span>
+                  <AccordionArrow open={settingsOpen} size={9} />
                 </button>
                 <label className="inline-flex items-center" title="入れるフォルダ">
                   <span className="sr-only">フォルダ</span>
@@ -1505,7 +1506,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     ? <><span className="font-bold">アナウンス中 {readCount}/{recipients.length}人</span><AnnounceBadges note={n} done={readCount >= recipients.length} /></>
                     : <span>アナウンス</span>}
                   {n.visibility !== 'private' && <span>・共同編集{n.allowEdit ? ' オン' : ''}</span>}
-                  <span className="text-[9px]">{moreOpen ? '▲' : '▼'}</span>
+                  <AccordionArrow open={moreOpen} size={9} />
                 </button>
                 {isEditing ? (
                   <div className="inline-flex items-center gap-1 flex-wrap">
@@ -1528,7 +1529,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 {!isEditing && linkChip(n, `${chip} ${chipIdle}`)}
               </div>
 
-              {settingsOpen && (
+              <NoteAccordion open={settingsOpen} gap={8}>
                 <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-2`}>
                   <div className={`text-xs ${muted}`}>
                     このノートを誰が見られるかを選びます。{isEditing ? '「保存」を押すと反映されます。' : '選ぶとすぐに反映されます。'}
@@ -1542,9 +1543,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     onChange={(v: NoteVisibility, sh: string[]) => changeVisibility(n.id, v, sh)}
                   />
                 </div>
-              )}
+              </NoteAccordion>
 
-              {moreOpen && (
+              <NoteAccordion open={moreOpen} gap={8}>
                 <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-3`}>
                   {/* アナウンス */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -1590,7 +1591,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     </label>
                   )}
                 </div>
-              )}
+              </NoteAccordion>
             </div>
           ) : (
             <div className={`px-4 py-2 flex flex-wrap gap-1.5 items-center border-b ${border} ${surface2}`}>
@@ -1871,9 +1872,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     onClick={() => setFilterOpen(o => !o)}
                     aria-expanded={filterOpen}
                     title="作った人やタグで絞り込みます"
-                    className={`text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
                       (activeOwner || activeTag) ? 'border-[#0193be] text-[#0193be] font-bold' : `${border} ${muted} ${hoverRow}`}`}
-                  >絞り込み{(activeOwner || activeTag) ? `(${(activeOwner ? 1 : 0) + (activeTag ? 1 : 0)})` : ''} <span className="text-[9px]">{filterOpen ? '▲' : '▼'}</span></button>
+                  >絞り込み{(activeOwner || activeTag) ? `(${(activeOwner ? 1 : 0) + (activeTag ? 1 : 0)})` : ''} <AccordionArrow open={filterOpen} size={9} /></button>
                 )}
                 {(view.kind === 'announce' || view.kind === 'shared') && !search.trim() && (
                   <label
@@ -1900,7 +1901,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k} className={d ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-800'}>{SORT_LABELS[k]}</option>)}
                 </select>
               </div>
-              {filterOpen && (showOwnerFilter || showTagFilter) && (
+              <NoteAccordion open={filterOpen && (showOwnerFilter || showTagFilter)}>
                 <div className={`px-2 py-1.5 border-b ${border} ${surface2} flex flex-wrap items-center gap-1.5`}>
                   {showOwnerFilter && (
                     <select
@@ -1933,7 +1934,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     >解除</button>
                   )}
                 </div>
-              )}
+              </NoteAccordion>
               <div className="flex-1 overflow-y-auto">
                 {draft && (
                   <button

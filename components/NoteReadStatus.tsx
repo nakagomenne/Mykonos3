@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Note, NoteRead, User } from '../types';
 import { getRecipients } from '../services/notesService';
 import { NoteIcon } from './NoteIcons';
+import { NoteAccordion, AccordionArrow } from './NoteAccordion';
 
 interface NoteReadStatusProps {
   note: Note;
@@ -34,9 +35,9 @@ const NoteReadStatus: React.FC<NoteReadStatusProps> = ({ note, users, reads, isD
         <span className={`flex-1 h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-slate-700' : 'bg-slate-200'}`}>
           <span className="block h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
         </span>
-        <span className="text-xs text-slate-400">{open ? '▲' : '▼'}</span>
+        <AccordionArrow open={open} className="text-slate-400" />
       </button>
-      {open && (
+      <NoteAccordion open={open}>
         <div className="mt-2 grid sm:grid-cols-2 gap-3 text-sm">
           <div>
             <div className="text-xs font-bold text-red-500 mb-1">未確認({todo.length})</div>
@@ -55,7 +56,7 @@ const NoteReadStatus: React.FC<NoteReadStatusProps> = ({ note, users, reads, isD
                 ))}</ul>}
           </div>
         </div>
-      )}
+      </NoteAccordion>
     </div>
   );
 };
