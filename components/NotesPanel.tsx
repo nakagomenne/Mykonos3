@@ -78,7 +78,7 @@ interface NotesPanelProps {
 
 /** 一覧の並び順(ピン留めは常に先頭) */
 type SortKey = 'updated' | 'created' | 'title' | 'manual';
-const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順', manual: '自分で並べた順' };
+const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順', manual: 'ユーザー設定順' };
 
 /** 並べ替え: ids の中で dragId を、targetId の前(after=false)か後ろ(after=true)へ動かす */
 function moveInList(ids: string[], dragId: string, targetId: string, after: boolean): string[] {
@@ -627,7 +627,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const toggleReorder = () => {
     setDragItem(null); setDropAt(null);
     if (reorderMode) { setReorderMode(false); return; }
-    // 並び替えを始めるときは、並び順を「自分で並べた順」にし、たたんであるフォルダ欄も開く
+    // 並び替えを始めるときは、並び順を「ユーザー設定順」にし、たたんであるフォルダ欄も開く
     if (sortKey !== 'manual') changeSort('manual');
     setFoldersCollapsed(false);
     setReorderMode(true);
@@ -1944,6 +1944,14 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               {/* マイノート: すべて・ピン留め・フォルダ未設定と、自分のフォルダ */}
               <div data-side-section="mine" className={`pl-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center gap-0.5`}>
                 <span className="flex-1">マイノート</span>
+                <button
+                  data-reorder-toggle-side
+                  onClick={toggleReorder}
+                  aria-pressed={reorderMode}
+                  title={reorderMode ? '並び替えを終わります' : 'フォルダとノートを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
+                  aria-label={reorderMode ? '並び替えを終わる' : 'フォルダとノートを並び替える'}
+                  className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded ${reorderMode ? 'bg-[#0193be] text-white' : hoverRow}`}
+                ><NoteIcon name="reorder" className="text-base" /></button>
                 <button
                   onClick={() => setFolderDlg({ mode: 'create', parent: null })}
                   className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
