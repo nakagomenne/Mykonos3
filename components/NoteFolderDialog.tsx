@@ -20,6 +20,8 @@ interface NoteFolderDialogProps {
   appliesToContents?: boolean;
   /** フォルダ(サブフォルダを含む)に入っている、自分のノートの数。1件以上あると「ノートの公開範囲もそろえる」を選べる */
   noteCount?: number;
+  /** サブフォルダの数。1個以上あると、「サブフォルダにも同じ設定が入る」ことを案内する */
+  subfolderCount?: number;
   /** 共同フォルダ(「ノートを入れられる人」)を設定できるか(SQL 未実行なら false。欄を出さない) */
   contributorsAvailable?: boolean;
   initialContributors?: string[];
@@ -31,7 +33,7 @@ interface NoteFolderDialogProps {
 
 const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
   mode, owner, users, initialName = '', initialVisibility = 'private', initialSharedWith = [],
-  parentName, appliesToContents = false, noteCount = 0, contributorsAvailable = false, initialContributors = [],
+  parentName, appliesToContents = false, noteCount = 0, subfolderCount = 0, contributorsAvailable = false, initialContributors = [],
   isDarkMode = false, onSubmit, onClose,
 }) => {
   /** ノートを入れられる人(共同フォルダ) */
@@ -101,6 +103,11 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
               isDarkMode={isDarkMode}
               onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
             />
+            {mode === 'edit' && subfolderCount > 0 && (
+              <p data-folder-subfolder-note className="text-xs text-slate-500 mt-2">
+                公開範囲{contributorsAvailable ? 'や「ノートを入れられる人」' : ''}を変えて保存すると、サブフォルダ({subfolderCount}個)にも同じ設定が入ります。
+              </p>
+            )}
             {appliesToContents && noteCount > 0 && (
               <label className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${applyToNotes ? 'border-amber-400 bg-amber-50/70 text-slate-700' : border}`}>
                 <input

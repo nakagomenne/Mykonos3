@@ -2390,6 +2390,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           initialVisibility={folderDlg.mode === 'edit' ? folderDlg.folder.visibility : (folderDlg.parent?.visibility ?? 'private')}
           initialSharedWith={folderDlg.mode === 'edit' ? folderDlg.folder.sharedWith : (folderDlg.parent?.sharedWith ?? [])}
           appliesToContents={folderDlg.mode === 'edit'}
+          subfolderCount={folderDlg.mode === 'edit' ? myFolders.filter(c => c.parentId === folderDlg.folder.id).length : 0}
           contributorsAvailable={api.contributorsAvailable}
           initialContributors={folderDlg.mode === 'edit' ? folderDlg.folder.contributors : (folderDlg.parent?.contributors ?? [])}
           noteCount={folderDlg.mode === 'edit' ? (() => {
