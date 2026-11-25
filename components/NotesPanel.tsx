@@ -462,7 +462,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   };
   const otherNotes = useMemo(() => notes.filter(n => n.owner !== me.name), [notes, me.name]);
   /**
-   * 「みんなから」(アナウンス・共有されたノート)に、自分が作ったノートも出すか。
+   * 「シェアノート」(アナウンス・共有されたノート)に、自分が作ったノートも出すか。
    * ふだんは出さない(受け取ったものだけを見る場所なので)。チェックを入れたときだけ出し、次に開いたときも覚えておく
    */
   const [showMineInShared, setShowMineInShared] = useState<boolean>(() => {
@@ -1003,8 +1003,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       <div data-shared-folder={f.id} title={`${f.owner} さんが共有しているフォルダ`}>
         <SideItem
           v={{ kind: 'folder', folderId: f.id }}
-          icon={<NoteIcon name="folder" />}
-          label={depth === 0 ? <>{f.name} <span className={`text-[11px] font-normal ${muted}`}>{f.owner}</span></> : f.name}
+          icon={<NoteIcon name={depth === 0 ? 'folder-open' : 'folder'} />}
+          label={f.name}
           count={sharedFolderNoteCount(f.id)}
           depth={depth}
         />
@@ -1016,9 +1016,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const viewTitle = (() => {
     if (search.trim()) return `検索結果「${search.trim()}」`;
     switch (view.kind) {
-      case 'pinned': return <>★ ピン留め</>;
+      case 'pinned': return <><NoteIcon name="star" /> ピン留め</>;
       case 'unsorted': return <><NoteIcon name="inbox" /> フォルダ未設定</>;
-      case 'mine': return <><NoteIcon name="file-text" /> 自分のノート(すべて)</>;
+      case 'mine': return <><NoteIcon name="file-text" /> マイノート(すべて)</>;
       case 'announce': return <><NoteIcon name="megaphone" /> アナウンス(お知らせ)</>;
       case 'shared': return <><NoteIcon name="globe" /> 共有されたノート</>;
       case 'folder': return <><NoteIcon name="folder" /> {currentFolder?.name ?? 'フォルダ'}</>;
@@ -1813,7 +1813,15 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 foldersFolded ? 'md:w-0 md:invisible' : `md:w-56 lg:w-60 border-r ${border}`}`}
             >
              <div className="flex flex-col flex-1 min-h-0 w-full md:w-56 lg:w-60 overflow-y-auto p-2 gap-0.5">
-              <div className={`px-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-end`}>
+              {/* マイノート: すべて・ピン留め・フォルダ未設定と、自分のフォルダ */}
+              <div data-side-section="mine" className={`pl-2 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center gap-0.5`}>
+                <span className="flex-1">マイノート</span>
+                <button
+                  onClick={() => setFolderDlg({ mode: 'create', parent: null })}
+                  className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
+                  title="フォルダを作る"
+                  aria-label="フォルダを作る"
+                ><PlusIcon className="w-4 h-4" /></button>
                 {(
                   <button
                     onClick={() => setFoldersCollapsed(true)}
@@ -1824,44 +1832,27 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 )}
               </div>
               <SideItem v={{ kind: 'mine' }} icon={<NoteIcon name="file-text" />} label="すべて" count={myNotes.length} />
-              <SideItem v={{ kind: 'pinned' }} icon="★" label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
+              <SideItem v={{ kind: 'pinned' }} icon={<NoteIcon name="star" />} label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
+              {topFolders.map(f => renderFolder(f, 0))}
 
-              <div className={`mx-1 mt-2 px-1 pt-2.5 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
+              {/* シェアノート: アナウンス・共有されたノートと、表示すると選んだ共有フォルダ。
+                  歯車は、共有されているフォルダがあるときだけ出す(数が増えすぎないよう、表示するものを自分で選ぶ) */}
+              <div data-side-section="shared" className={`mx-1 mt-2 pl-1 pt-2 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted} flex items-center min-h-[2.25rem]`}>
+                <span className="flex-1">シェアノート</span>
+                {sharedTopFolders.length > 0 && (
+                  <button
+                    data-shared-folder-pick
+                    onClick={() => setSharedPickerOpen(true)}
+                    title={`フォルダ欄に表示する共有フォルダを選びます(${sharedTopFolders.length}件のうち${shownSharedFolders.length}件を表示中)`}
+                    aria-label="表示する共有フォルダを選ぶ"
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
+                  ><NoteIcon name="settings" className="text-base" /></button>
+                )}
+              </div>
               <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={announceNotes.length} />
               <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={sharedNotes.length} />
-              {/* 共有されたフォルダ。数が増えすぎないよう、ふだん表示するものを自分で選ぶ */}
-              {sharedTopFolders.length > 0 && (
-                <>
-                  <div className={`mx-1 mt-1 px-1 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
-                    <span>共有フォルダ</span>
-                    <button
-                      data-shared-folder-pick
-                      onClick={() => setSharedPickerOpen(true)}
-                      title={`フォルダ欄に表示する共有フォルダを選びます(${sharedTopFolders.length}件のうち${shownSharedFolders.length}件を表示中)`}
-                      aria-label="表示する共有フォルダを選ぶ"
-                      className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
-                    ><NoteIcon name="settings" className="text-base" /></button>
-                  </div>
-                  {shownSharedFolders.map(f => renderSharedFolder(f, 0))}
-                </>
-              )}
-
-              <div className={`mx-1 mt-2 px-1 pt-2 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
-                <span>フォルダ</span>
-                <button
-                  onClick={() => setFolderDlg({ mode: 'create', parent: null })}
-                  className={`inline-flex items-center justify-center w-6 h-6 rounded ${hoverRow}`}
-                  title="フォルダを作る"
-                  aria-label="フォルダを作る"
-                ><PlusIcon className="w-4 h-4" /></button>
-              </div>
-              {topFolders.map(f => renderFolder(f, 0))}
-              {topFolders.length === 0 && (
-                <div className={`px-2 py-1 text-xs leading-relaxed ${muted}`}>
-                  フォルダはまだありません。右上の「＋」で、ノートを分類するフォルダを作れます。
-                </div>
-              )}
+              {shownSharedFolders.map(f => renderSharedFolder(f, 0))}
 
               {/* スマホでは右上の「？」が出ないので、ここから使い方を開けるようにしておく */}
               <div className="flex-1 sm:hidden" />
