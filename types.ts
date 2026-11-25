@@ -155,6 +155,8 @@ export interface NoteFolder {
   parentId: string | null;
   visibility: NoteVisibility;
   sharedWith: string[];
+  /** 共同フォルダ: 持ち主のほかに、ノートを入れられる人(人の名前、または商材の指定) */
+  contributors: string[];
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

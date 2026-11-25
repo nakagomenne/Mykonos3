@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { NoteVisibility, User } from '../types';
 import { XMarkIcon } from './icons';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
+import NoteContributorPicker from './NoteContributorPicker';
+import { getRecipients } from '../services/notesService';
 import { NoteIcon } from './NoteIcons';
 
 interface NoteFolderDialogProps {
@@ -18,16 +20,22 @@ interface NoteFolderDialogProps {
   appliesToContents?: boolean;
   /** フォルダ(サブフォルダを含む)に入っている、自分のノートの数。1件以上あると「ノートの公開範囲もそろえる」を選べる */
   noteCount?: number;
+  /** 共同フォルダ(「ノートを入れられる人」)を設定できるか(SQL 未実行なら false。欄を出さない) */
+  contributorsAvailable?: boolean;
+  initialContributors?: string[];
   isDarkMode?: boolean;
-  /** applyToNotes: 中のノートの公開範囲も、同じ設定にそろえるか */
-  onSubmit: (name: string, visibility: NoteVisibility, sharedWith: string[], applyToNotes: boolean) => Promise<void>;
+  /** applyToNotes: 中のノートの公開範囲も、同じ設定にそろえるか / contributors: ノートを入れられる人 */
+  onSubmit: (name: string, visibility: NoteVisibility, sharedWith: string[], applyToNotes: boolean, contributors: string[]) => Promise<void>;
   onClose: () => void;
 }
 
 const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
   mode, owner, users, initialName = '', initialVisibility = 'private', initialSharedWith = [],
-  parentName, appliesToContents = false, noteCount = 0, isDarkMode = false, onSubmit, onClose,
+  parentName, appliesToContents = false, noteCount = 0, contributorsAvailable = false, initialContributors = [],
+  isDarkMode = false, onSubmit, onClose,
 }) => {
+  /** ノートを入れられる人(共同フォルダ) */
+  const [contributors, setContributors] = useState<string[]>(initialContributors);
   /** 中のノートの公開範囲も、同じ設定にそろえるか(ふだんはオフ。ノートごとの設定を残す) */
   const [applyToNotes, setApplyToNotes] = useState(false);
   const [name, setName] = useState(initialName);
@@ -42,7 +50,8 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
     setSaving(true);
     setError(null);
     try {
-      await onSubmit(trimmed, visibility, sharedWith, mode === 'edit' && noteCount > 0 && applyToNotes);
+      await onSubmit(trimmed, visibility, sharedWith, mode === 'edit' && noteCount > 0 && applyToNotes,
+        visibility === 'private' ? [] : contributors);
       onClose();
     } catch (e: any) {
       setError(e?.message ?? '保存に失敗しました');
@@ -51,6 +60,9 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
   };
 
   const border = isDarkMode ? 'border-slate-700' : 'border-slate-200';
+  /** 「ノートを入れられる人」の候補: いまの公開範囲で、このフォルダを見られる人 */
+  const viewerNames = new Set(getRecipients({ owner, visibility, sharedWith }, users));
+  const contributorCandidates = users.filter(u => viewerNames.has(u.name));
   const visibilityChanged = mode === 'edit' && (visibility !== initialVisibility ||
     JSON.stringify([...sharedWith].sort()) !== JSON.stringify([...initialSharedWith].sort()));
 
@@ -112,6 +124,20 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
               <p className="text-xs text-slate-500 mt-2">すでにフォルダの中にあるノートの公開範囲は変わりません(ノートごとの設定のままです)。</p>
             )}
           </div>
+          {contributorsAvailable && visibility !== 'private' && (
+            <div>
+              <label className="block text-xs font-bold mb-1 text-slate-500">ノートを入れられる人(共同フォルダ)</label>
+              <NoteContributorPicker
+                contributors={contributors}
+                candidates={contributorCandidates}
+                isDarkMode={isDarkMode}
+                onChange={setContributors}
+              />
+              <p className="text-xs text-slate-500 mt-1.5">
+                選ばれた人は、自分のノートをこのフォルダに入れたり外したりできます。フォルダの名前・公開範囲の変更や削除は、あなただけができます。ノートの中身を直せるかは、ノートごとの「共同編集」の設定のままです。
+              </p>
+            </div>
+          )}
           {error && <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{error}</div>}
         </div>
         <div className={`p-3 border-t ${border} flex justify-end gap-2`}>

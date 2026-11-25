@@ -145,10 +145,61 @@ function rowToFolder(row: any): NoteFolder {
     parentId:   row.parent_id ?? null,
     visibility: row.visibility,
     sharedWith: row.shared_with ?? [],
+    contributors: row.contributors ?? [],
     sortOrder:  row.sort_order ?? 0,
     createdAt:  row.created_at,
     updatedAt:  row.updated_at,
   };
+}
+
+// ── 共同フォルダ ──
+// フォルダの持ち主が「ノートを入れられる人」を決めると、その人たちも、自分のノートをそのフォルダに入れられる。
+// フォルダの名前・公開範囲の変更や削除は、持ち主だけ。ノートの中身を直せる人は、ノートごとの設定(共同編集)に従う
+
+/** viewer が、ほかの人のこのフォルダに、自分のノートを入れられるか(フォルダを見られて、入れられる人に選ばれている) */
+export function canContribute(folder: NoteFolder, viewer: Viewer): boolean {
+  if (folder.owner === viewer.name) return false;
+  return canView(folder, viewer) && inSharedWith(folder.contributors ?? [], viewer);
+}
+
+const CONTRIBUTORS_SQL_HINT =
+  'データベースの更新が必要です(supabase/migrations/20261204_add_note_folder_contributors.sql を実行してください)';
+
+let contributorsAvailableCache: boolean | null = null;
+/**
+ * 共同フォルダ(「ノートを入れられる人」の欄)が使えるか(追加の SQL を実行済みか)。
+ * 使えると分かったら覚えておく(使えないあいだは、SQL を実行したあとに気づけるよう毎回確かめる)
+ */
+export async function fetchFolderContributorsAvailable(): Promise<boolean> {
+  if (contributorsAvailableCache) return true;
+  try {
+    const { error } = await supabase.from('note_folders').select('id,contributors').limit(1);
+    contributorsAvailableCache = !error;
+  } catch {
+    contributorsAvailableCache = false;
+  }
+  return !!contributorsAvailableCache;
+}
+
+/** フォルダ(サブフォルダにも同じ設定)の「ノートを入れられる人」を変える */
+export async function updateFolderContributors(folderIds: string[], contributors: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('note_folders')
+    .update({ contributors, updated_at: new Date().toISOString() })
+    .in('id', folderIds);
+  if (error) {
+    if (String(error?.message ?? '').includes('contributors')) throw new Error(`「ノートを入れられる人」を保存できませんでした: ${CONTRIBUTORS_SQL_HINT}`);
+    fail('「ノートを入れられる人」の変更に失敗しました', error);
+  }
+}
+
+/**
+ * ノートをフォルダから外す(フォルダの持ち主が、ほかの人が入れたノートを外すとき)。
+ * 置き場所だけを変える。内容・更新日時・最後に編集した人は変えない
+ */
+export async function removeNoteFromFolder(noteId: string): Promise<void> {
+  const { error } = await supabase.from('notes').update({ folder_id: null }).eq('id', noteId);
+  if (error) fail('ノートをフォルダから外せませんでした', error);
 }
 
 export function rowToNote(row: any): Note {
@@ -219,20 +270,26 @@ export async function fetchFolders(viewer: Viewer): Promise<NoteFolder[]> {
 
 export async function createFolder(params: {
   owner: string; name: string; parentId: string | null;
-  visibility?: NoteVisibility; sharedWith?: string[]; sortOrder?: number;
+  visibility?: NoteVisibility; sharedWith?: string[]; sortOrder?: number; contributors?: string[];
 }): Promise<NoteFolder> {
+  const row: Record<string, unknown> = {
+    owner: params.owner,
+    name: params.name,
+    parent_id: params.parentId,
+    visibility: params.visibility ?? 'private',
+    shared_with: params.sharedWith ?? [],
+    sort_order: params.sortOrder ?? 0,
+  };
+  // 「ノートを入れられる人」は、選んだときだけ送る(追加の SQL を実行する前でも、ふつうのフォルダは作れるように)
+  if (params.contributors && params.contributors.length > 0) row.contributors = params.contributors;
   const { data, error } = await supabase
     .from('note_folders')
-    .insert({
-      owner: params.owner,
-      name: params.name,
-      parent_id: params.parentId,
-      visibility: params.visibility ?? 'private',
-      shared_with: params.sharedWith ?? [],
-      sort_order: params.sortOrder ?? 0,
-    })
+    .insert(row)
     .select('*')
     .single();
+  if (error && row.contributors && String(error?.message ?? '').includes('contributors')) {
+    throw new Error(`フォルダを作成できませんでした: ${CONTRIBUTORS_SQL_HINT}`);
+  }
   if (error) fail('フォルダの作成に失敗しました', error);
   return rowToFolder(data);
 }

@@ -317,7 +317,7 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
 
   // ── フォルダ操作 ──────────────────────────────────────
   const addFolder = useCallback(async (params: {
-    name: string; parentId: string | null; visibility?: NoteVisibility; sharedWith?: string[];
+    name: string; parentId: string | null; visibility?: NoteVisibility; sharedWith?: string[]; contributors?: string[];
   }): Promise<NoteFolder> => {
     const v = viewerRef.current;
     if (!v) throw new Error('ログインしていません');
@@ -350,6 +350,27 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
     await svc.deleteFolder(id);
     await load();
   }, [load]);
+
+  // ── 共同フォルダ(持ち主のほかに、ノートを入れられる人を決める) ──
+  /** 「ノートを入れられる人」の欄があるか(SQL 未実行なら false。このときは、設定の欄を出さない) */
+  const [contributorsAvailable, setContributorsAvailable] = useState(false);
+  useEffect(() => {
+    if (!viewer || unavailable) { setContributorsAvailable(false); return; }
+    let cancelled = false;
+    void svc.fetchFolderContributorsAvailable().then(ok => { if (!cancelled) setContributorsAvailable(ok); });
+    return () => { cancelled = true; };
+  }, [viewer, unavailable]);
+  /** フォルダ(サブフォルダにも同じ設定)の「ノートを入れられる人」を変える */
+  const setFolderContributors = useCallback(async (id: string, contributors: string[]) => {
+    const childIds = folders.filter(f => f.parentId === id).map(f => f.id);
+    await svc.updateFolderContributors([id, ...childIds], contributors);
+    await load();
+  }, [folders, load]);
+  /** 自分のフォルダに入っている、ほかの人のノートを、フォルダから外す */
+  const ejectNote = useCallback(async (noteId: string) => {
+    await svc.removeNoteFromFolder(noteId);
+    setNotes(prev => prev.map(n => (n.id === noteId ? { ...n, folderId: null } : n)));
+  }, []);
 
   // ── 共有されたノートを、自分のフォルダに入れる(人ごとの置き場所。原本は動かさない) ──
   const [placements, setPlacements] = useState<Record<string, string>>({});
@@ -634,6 +655,7 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
     reload: load, flushAll, clearError: () => setError(null),
     editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
     addFolder, renameFolder, setFolderVisibility, setNotesVisibilityInFolder, removeFolder,
+    contributorsAvailable, setFolderContributors, ejectNote,
     placements, placementsAvailable, placeNote,
     shownFolders, showSharedFolder,
     orders, saveOrder,
