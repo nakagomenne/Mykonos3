@@ -1065,7 +1065,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: `grid-template-rows ${OUTLINE_SLIDE_MS}ms ease` }}
         >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
-        <div className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
+        <div className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1.5 max-h-80 overflow-y-auto`}>
           {outline.length === 0 ? (
             <div className={`px-3 py-1.5 text-xs ${muted}`}>見出しがありません(編集で「大見出し」「小見出し」を付けると、ここに並びます)</div>
           ) : outline.map(h => (
@@ -1075,7 +1075,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               data-outline-level={h.level}
               onClick={() => { jumpToHeading(h.index); }}
               title={`「${h.text}」へ移動`}
-              className={`block w-full text-left truncate py-1 pr-3 ${h.level === 2 ? 'pl-3 text-xs font-semibold' : 'pl-7 text-[11px]'} ${d ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-[#0193be]/15'}`}
+              className={`block w-full text-left truncate py-1.5 pr-3 leading-snug ${h.level === 2 ? 'pl-3 text-sm font-semibold' : 'pl-7 text-[13px]'} ${d ? 'text-slate-200 hover:bg-white/10' : 'text-slate-700 hover:bg-[#0193be]/15'}`}
             >
               <span className="text-[#0193be] mr-1">{h.level === 2 ? '▸' : '・'}</span>{h.text}
             </button>
