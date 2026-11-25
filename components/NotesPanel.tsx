@@ -618,8 +618,13 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseNotes, activeOwner, activeTag, sortKey, noteRank]);
 
-  // ── 並び替えモード(ドラッグで、ノートとフォルダを好きな順に並べる) ──
+  // ── 並び替えモード(ドラッグで好きな順に並べる)。ノートとフォルダで、別々に入り切りする ──
+  /** ノートの並び替えモード(一覧の上の「並び替え」) */
   const [reorderMode, setReorderMode] = useState(false);
+  /** フォルダの並び替えモード(フォルダ欄の上下矢印のボタン) */
+  const [folderReorder, setFolderReorder] = useState(false);
+  /** その並び(group)が、いま並び替えできるか */
+  const canReorder = (group: string) => (group.startsWith('folders:') ? folderReorder : reorderMode);
   /** いま掴んでいる物(group = 同じ並びの中だけで動かせる) */
   const [dragItem, setDragItem] = useState<{ group: string; id: string } | null>(null);
   /** いま重なっている相手と、その前後どちらに入るか */
@@ -627,14 +632,17 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const toggleReorder = () => {
     setDragItem(null); setDropAt(null);
     if (reorderMode) { setReorderMode(false); return; }
-    // 並び替えを始めるときは、並び順を「ユーザー設定順」にし、たたんであるフォルダ欄も開く
+    // ノートの並び替えを始めるときは、並び順を「ユーザー設定順」にする
     if (sortKey !== 'manual') changeSort('manual');
-    setFoldersCollapsed(false);
     setReorderMode(true);
+  };
+  const toggleFolderReorder = () => {
+    setDragItem(null); setDropAt(null);
+    setFolderReorder(on => !on);
   };
   /** ドラッグできる行に付ける設定。onMove: 動かした結果を保存する */
   const dragProps = (group: string, id: string, onMove: (dragId: string, targetId: string, after: boolean) => void): React.HTMLAttributes<HTMLDivElement> => {
-    if (!reorderMode) return {};
+    if (!canReorder(group)) return {};
     const isAfter = (e: React.DragEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
     return {
       draggable: true,
@@ -659,7 +667,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const dropLine = (id: string) => (dropAt?.id === id && dragItem ? (
     <div aria-hidden="true" data-drop-line={dropAt.after ? 'after' : 'before'} className="absolute inset-x-0 h-[3px] bg-[#0193be] z-10 pointer-events-none rounded-full" style={dropAt.after ? { bottom: -2 } : { top: -2 }} />
   ) : null);
-  const dragCls = (id: string) => (reorderMode ? `cursor-grab ${dragItem?.id === id ? 'opacity-40' : ''}` : '');
+  const dragCls = (kind: 'folders' | 'notes', id: string) => ((kind === 'folders' ? folderReorder : reorderMode) ? `cursor-grab ${dragItem?.id === id ? 'opacity-40' : ''}` : '');
   const saveOrderSafe = (kind: 'notes' | 'folders', ids: string[]) => {
     api.saveOrder(kind, ids).catch((e: any) => setLocalError(e?.message ?? '並び順を保存できませんでした'));
   };
@@ -1060,7 +1068,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       <React.Fragment key={f.id}>
         <div
           data-reorder-folder={f.id}
-          className={`relative ${dragCls(f.id)}`}
+          className={`relative ${dragCls('folders', f.id)}`}
           {...dragProps(depth === 0 ? 'folders:mine-top' : `folders:child:${f.parentId}`, f.id, moveFolder(depth === 0 ? mineTopFolders : childrenOf(f.parentId ?? '')))}
         >
           {dropLine(f.id)}
@@ -1116,7 +1124,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         data-shared-folder={f.id}
         data-reorder-folder={f.id}
         title={`${f.owner} さんが共有しているフォルダ`}
-        className={`relative ${dragCls(f.id)}`}
+        className={`relative ${dragCls('folders', f.id)}`}
         {...(depth === 0
           ? (api.shownFolders.get(f.id) === 'mine'
             ? dragProps('folders:mine-top', f.id, moveFolder(mineTopFolders))
@@ -1179,7 +1187,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       <React.Fragment key={n.id}>
       <div
         data-reorder-note={n.id}
-        className={`relative ${dragCls(n.id)}`}
+        className={`relative ${dragCls('notes', n.id)}`}
         {...dragProps(`notes:${n.pinned ? 'pinned' : 'normal'}`, n.id, moveNote)}
       >
       {dropLine(n.id)}
@@ -1946,11 +1954,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 <span className="flex-1">マイノート</span>
                 <button
                   data-reorder-toggle-side
-                  onClick={toggleReorder}
-                  aria-pressed={reorderMode}
-                  title={reorderMode ? '並び替えを終わります' : 'フォルダとノートを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
-                  aria-label={reorderMode ? '並び替えを終わる' : 'フォルダとノートを並び替える'}
-                  className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded ${reorderMode ? 'bg-[#0193be] text-white' : hoverRow}`}
+                  onClick={toggleFolderReorder}
+                  aria-pressed={folderReorder}
+                  title={folderReorder ? 'フォルダの並び替えを終わります' : 'フォルダを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
+                  aria-label={folderReorder ? 'フォルダの並び替えを終わる' : 'フォルダを並び替える'}
+                  className={`hidden md:inline-flex items-center justify-center w-6 h-6 rounded ${folderReorder ? 'bg-[#0193be] text-white' : hoverRow}`}
                 ><NoteIcon name="reorder" className="text-base" /></button>
                 <button
                   onClick={() => setFolderDlg({ mode: 'create', parent: null })}
@@ -1967,6 +1975,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   ><FoldArrow key={foldersFolded ? 'folded' : 'open'} dir="left" /></button>
                 )}
               </div>
+              <NoteAccordion open={folderReorder}>
+                <div data-folder-reorder-hint className={`mx-1 mb-1 px-2 py-1.5 rounded-md text-xs leading-relaxed ${d ? 'bg-[#0193be]/20 text-sky-200' : 'bg-[#0193be]/10 text-[#01607a]'}`}>
+                  フォルダをドラッグして並べ替えられます。あなたの画面だけの並びです。
+                </div>
+              </NoteAccordion>
               <SideItem v={{ kind: 'mine' }} icon={<NoteIcon name="file-text" />} label="すべて" count={myNotes.length} />
               <SideItem v={{ kind: 'pinned' }} icon={<NoteIcon name="star" />} label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
@@ -2065,7 +2078,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   data-reorder-toggle
                   onClick={toggleReorder}
                   aria-pressed={reorderMode}
-                  title={reorderMode ? '並び替えを終わります' : 'ノートとフォルダを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
+                  title={reorderMode ? 'ノートの並び替えを終わります' : 'ノートを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
                   className={`ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
                     reorderMode ? 'border-[#0193be] bg-[#0193be] text-white font-bold' : `${border} ${muted} ${hoverRow}`}`}
                 >{reorderMode ? '並び替えを終わる' : '並び替え'}</button>
@@ -2081,7 +2094,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               </div>
               <NoteAccordion open={reorderMode}>
                 <div data-reorder-hint className={`px-3 py-1.5 border-b ${border} text-xs leading-relaxed ${d ? 'bg-[#0193be]/20 text-sky-200' : 'bg-[#0193be]/10 text-[#01607a]'}`}>
-                  ノートや、左のフォルダをドラッグして並べ替えられます。あなたの画面だけの並びです。
+                  ノートをドラッグして並べ替えられます。あなたの画面だけの並びです。
                 </div>
               </NoteAccordion>
               <NoteAccordion open={filterOpen && (showOwnerFilter || showTagFilter)}>
