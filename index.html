@@ -79,7 +79,7 @@
   /* 開いたあと(◀が出るとき)は時計回り */
   @keyframes note-fold-spin-cw { from { transform: rotate(-180deg); } to { transform: rotate(0deg); } }
   .note-fold-arrow.note-fold-arrow-cw { animation-name: note-fold-spin-cw; }
-  @media (prefers-reduced-motion: reduce) { .note-fold-arrow { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .note-fold-arrow { animation: none; } .note-outline-arrow { transition: none !important; } }
   /* 音声(再生バー)と動画(外部プレーヤー) */
   .note-prose .note-audio { margin: 0.5em 0; padding: 8px 10px; max-width: 520px; border: 1px solid rgba(100,116,139,0.35); border-radius: 10px; }
   .note-prose .note-audio-name { font-size: 0.85em; font-weight: 600; margin-bottom: 4px; word-break: break-all; }

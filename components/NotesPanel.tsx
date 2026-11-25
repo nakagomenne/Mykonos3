@@ -185,6 +185,19 @@ function outlineOf(html: string): OutlineItem[] {
   return out;
 }
 
+const outlineCache = new Map<string, { body: string; items: OutlineItem[] }>();
+/** ノートの見出し(本文が前と同じなら、前に拾ったものを返す) */
+function outlineOfNote(id: string, body: string): OutlineItem[] {
+  const hit = outlineCache.get(id);
+  if (hit && hit.body === body) return hit.items;
+  const items = outlineOf(body);
+  outlineCache.set(id, { body, items });
+  return items;
+}
+/** 目次の開閉の動き: ▼が回る時間 / 目次が伸び縮みする時間(ミリ秒) */
+const OUTLINE_SPIN_MS = 300;
+const OUTLINE_SLIDE_MS = 220;
+
 /** 開いているノートの本文を、index 番目の見出しのところまで動かし、見出しを一瞬光らせる */
 function jumpToHeading(index: number): boolean {
   const body = document.querySelector('[data-note-body]');
@@ -354,7 +367,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [outlineOpenId, setOutlineOpenId] = useState<string | null>(null);
 
   // 別のノートを開いたら、公開範囲の設定パネルと目次は閉じる
-  useEffect(() => { setSettingsOpen(false); setOutlineOpenId(null); }, [selectedId]);
+  useEffect(() => { setSettingsOpen(false); setOutlineOpenId(cur => (cur === selectedId ? cur : null)); }, [selectedId]);
 
   useEffect(() => {
     fetchTemplates(me.name).then(setTemplates).catch(() => setTemplates([]));
@@ -974,9 +987,16 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     // 選択中のノートをもう一度押すと、目次(見出しの一覧)を開閉する。編集中は、書いている途中の本文から拾う
     const showing = active && !draft;
     const outlineOpen = showing && outlineOpenId === n.id;
-    const outline = showing ? selectedOutline : [];
+    const outline = showing ? selectedOutline : outlineOfNote(n.id, n.body);
+    const hasOutline = outline.length > 0;
+    /** ▼を押したとき: 開いているノートなら開閉、ほかのノートなら、そのノートを開いて目次も開く */
+    const toggleOutline = () => {
+      if (showing) { setOutlineOpenId(cur => (cur === n.id ? null : n.id)); return; }
+      guard(() => { endEdit(); setSelectedId(n.id); setOutlineOpenId(n.id); foldPanes(); setStep('note'); });
+    };
     return (
       <React.Fragment key={n.id}>
+      <div className="relative">
       <button
         data-note-row={n.id}
         aria-expanded={showing ? outlineOpen : undefined}
@@ -1002,7 +1022,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         {/* 2行目: 本文の出だし(中くらいの濃さ) */}
         <div className={`text-xs mt-0.5 truncate ${d ? 'text-slate-300' : 'text-slate-600'}`}>{preview || '(本文なし)'}</div>
         {/* 3行目: 補足(薄く)。アイコンだけでなく、ことばも添える */}
-        <div className={`text-[11px] mt-1 flex items-center gap-2.5 whitespace-nowrap overflow-hidden ${muted}`}>
+        <div className={`text-[11px] mt-1 flex items-center gap-2.5 whitespace-nowrap overflow-hidden ${hasOutline ? 'md:pr-6' : ''} ${muted}`}>
           {n.isAnnouncement && !unread && <span><NoteIcon name="megaphone" /> {announceText}</span>}
           <span title={VISIBILITY_LABELS[n.visibility]}><VisibilityIcon visibility={n.visibility} /> {visibilityText}</span>
           {!mine && <span className="truncate"><NoteIcon name="user" /> {n.owner}</span>}
@@ -1016,14 +1036,33 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
         </div>
       </button>
+      {/* 見出しのあるノートには、右下に▼を出す(フォルダ欄の ◀▶ と同じ三角)。
+          開くとき: ▼が180度まわってから目次が伸びる / 閉じるとき: 目次が縮んでから▼が戻る */}
+      {hasOutline && (
+        <button
+          type="button"
+          data-outline-toggle={n.id}
+          aria-expanded={outlineOpen}
+          aria-label={outlineOpen ? '目次を閉じる' : '目次(見出しの一覧)を開く'}
+          title={outlineOpen ? '目次を閉じます' : '目次(見出しの一覧)を開きます'}
+          onClick={toggleOutline}
+          className={`hidden md:inline-flex absolute right-1 bottom-1 items-center justify-center w-7 h-7 rounded-md ${muted} ${d ? 'hover:bg-white/10' : 'hover:bg-[#0193be]/15'}`}
+        >
+          <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className="note-outline-arrow"
+            style={{ transform: outlineOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform ${OUTLINE_SPIN_MS}ms ease-out ${outlineOpen ? 0 : OUTLINE_SLIDE_MS}ms` }}>
+            <path d="M1 2 L9 2 L5 8 Z" fill="currentColor" />
+          </svg>
+        </button>
+      )}
+      </div>
       {/* 目次(アコーディオン): 高さをなめらかに変えて開閉する。閉じているあいだは押せない・読み上げない */}
-      {showing && (
+      {(showing || hasOutline) && (
         <div
           data-note-outline={n.id}
           data-open={outlineOpen ? 'true' : 'false'}
           aria-hidden={!outlineOpen}
           {...(outlineOpen ? {} : { inert: true })}
-          style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: 'grid-template-rows 220ms ease' }}
+          style={{ display: 'grid', gridTemplateRows: outlineOpen ? '1fr' : '0fr', transition: `grid-template-rows ${OUTLINE_SLIDE_MS}ms ease ${outlineOpen && hasOutline ? OUTLINE_SPIN_MS : 0}ms` }}
         >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
         <div className={`border-b ${border} border-l-[3px] border-l-[#0193be] ${d ? 'bg-[#0193be]/10' : 'bg-[#0193be]/5'} py-1 max-h-64 overflow-y-auto`}>
