@@ -16,15 +16,20 @@ interface NoteFolderDialogProps {
   parentName?: string;
   /** 公開範囲の変更が中のノートにも適用されることを示す */
   appliesToContents?: boolean;
+  /** フォルダ(サブフォルダを含む)に入っている、自分のノートの数。1件以上あると「ノートの公開範囲もそろえる」を選べる */
+  noteCount?: number;
   isDarkMode?: boolean;
-  onSubmit: (name: string, visibility: NoteVisibility, sharedWith: string[]) => Promise<void>;
+  /** applyToNotes: 中のノートの公開範囲も、同じ設定にそろえるか */
+  onSubmit: (name: string, visibility: NoteVisibility, sharedWith: string[], applyToNotes: boolean) => Promise<void>;
   onClose: () => void;
 }
 
 const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
   mode, owner, users, initialName = '', initialVisibility = 'private', initialSharedWith = [],
-  parentName, appliesToContents = false, isDarkMode = false, onSubmit, onClose,
+  parentName, appliesToContents = false, noteCount = 0, isDarkMode = false, onSubmit, onClose,
 }) => {
+  /** 中のノートの公開範囲も、同じ設定にそろえるか(ふだんはオフ。ノートごとの設定を残す) */
+  const [applyToNotes, setApplyToNotes] = useState(false);
   const [name, setName] = useState(initialName);
   const [visibility, setVisibility] = useState<NoteVisibility>(initialVisibility);
   const [sharedWith, setSharedWith] = useState<string[]>(initialSharedWith);
@@ -37,7 +42,7 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
     setSaving(true);
     setError(null);
     try {
-      await onSubmit(trimmed, visibility, sharedWith);
+      await onSubmit(trimmed, visibility, sharedWith, mode === 'edit' && noteCount > 0 && applyToNotes);
       onClose();
     } catch (e: any) {
       setError(e?.message ?? '保存に失敗しました');
@@ -84,7 +89,26 @@ const NoteFolderDialog: React.FC<NoteFolderDialogProps> = ({
               isDarkMode={isDarkMode}
               onChange={(v, s) => { setVisibility(v); setSharedWith(s); }}
             />
-            {appliesToContents && visibilityChanged && (
+            {appliesToContents && noteCount > 0 && (
+              <label className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer ${applyToNotes ? 'border-amber-400 bg-amber-50/70 text-slate-700' : border}`}>
+                <input
+                  type="checkbox"
+                  data-folder-apply-notes
+                  checked={applyToNotes}
+                  onChange={e => setApplyToNotes(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0193be] focus:ring-[#0193be]"
+                />
+                <span className="text-sm">
+                  <span className="font-semibold">フォルダの中のノート({noteCount}件)の公開範囲も、これにそろえる</span>
+                  <span className="block text-xs text-slate-500 mt-0.5">
+                    {applyToNotes
+                      ? '保存すると、このフォルダ(サブフォルダを含む)に入っている自分のノートの公開範囲が、すべて上の設定に変わります。元の設定には戻せません。'
+                      : 'チェックを入れないときは、ノートの公開範囲は変わりません(ノートごとの設定のままです)。'}
+                  </span>
+                </span>
+              </label>
+            )}
+            {appliesToContents && noteCount === 0 && visibilityChanged && (
               <p className="text-xs text-slate-500 mt-2">すでにフォルダの中にあるノートの公開範囲は変わりません(ノートごとの設定のままです)。</p>
             )}
           </div>

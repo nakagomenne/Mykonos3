@@ -216,6 +216,22 @@ export async function updateFolderVisibility(
   if (e1) fail('フォルダの公開範囲の変更に失敗しました', e1);
 }
 
+/**
+ * フォルダ(サブフォルダを含む)に入っている、自分のノートの公開範囲を、まとめて同じ設定にする。
+ * 更新日時は変えない(一覧の並び順を動かさないため)
+ */
+export async function updateNotesVisibilityInFolders(
+  folderIds: string[], owner: string, visibility: NoteVisibility, sharedWith: string[]
+): Promise<void> {
+  if (folderIds.length === 0) return;
+  const { error } = await supabase
+    .from('notes')
+    .update({ visibility, shared_with: sharedWith })
+    .eq('owner', owner)
+    .in('folder_id', folderIds);
+  if (error) fail('ノートの公開範囲の変更に失敗しました', error);
+}
+
 /** フォルダ削除。中のノートは「未整理」に移動(DB の ON DELETE SET NULL)、子フォルダは一緒に削除 */
 export async function deleteFolder(id: string): Promise<void> {
   const { error } = await supabase.from('note_folders').delete().eq('id', id);
@@ -802,6 +818,32 @@ export async function setNotePlacement(noteId: string, userName: string, folderI
     if (isMissingTableError(res.error)) throw new Error('データベースの更新が必要です(supabase/migrations/20261127_add_note_placements.sql を実行してください)');
     throw new Error(`フォルダに入れられませんでした: ${res.error?.message ?? res.error}`);
   }
+}
+
+// ────────────────────────────────────────────────────────────
+// 共有されたフォルダのうち、ふだん表示するもの(人ごと)
+// ────────────────────────────────────────────────────────────
+
+/**
+ * 自分が「表示する」と選んだ共有フォルダのID。
+ * テーブルがまだ無い(SQL 未実行)ときは null を返す(このときは、ブラウザに覚える)
+ */
+export async function fetchShownSharedFolders(userName: string): Promise<string[] | null> {
+  const { data, error } = await supabase.from('note_folder_shows').select('*').eq('user_name', userName);
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw new Error(`共有フォルダの表示設定の取得に失敗しました: ${error?.message ?? error}`);
+  }
+  return (data ?? []).map((row: any) => row.folder_id).filter(Boolean);
+}
+
+/** 共有フォルダを、自分のフォルダ欄に表示する / 表示しない */
+export async function setSharedFolderShown(folderId: string, userName: string, shown: boolean): Promise<void> {
+  const res = shown
+    ? await supabase.from('note_folder_shows')
+        .upsert({ folder_id: folderId, user_name: userName }, { onConflict: 'folder_id,user_name' })
+    : await supabase.from('note_folder_shows').delete().eq('folder_id', folderId).eq('user_name', userName);
+  if (res.error) throw new Error(`共有フォルダの表示設定を保存できませんでした: ${res.error?.message ?? res.error}`);
 }
 
 // ────────────────────────────────────────────────────────────

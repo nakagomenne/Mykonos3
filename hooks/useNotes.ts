@@ -331,6 +331,15 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     await load();
   }, [folders, load]);
 
+  /** フォルダ(サブフォルダを含む)の中の自分のノートの公開範囲を、まとめて同じ設定にする */
+  const setNotesVisibilityInFolder = useCallback(async (id: string, visibility: NoteVisibility, sharedWith: string[]) => {
+    const v = viewerRef.current;
+    if (!v) throw new Error('ログインしていません');
+    const childIds = folders.filter(f => f.parentId === id && f.owner === v.name).map(f => f.id);
+    await svc.updateNotesVisibilityInFolders([id, ...childIds], v.name, visibility, sharedWith);
+    await load();
+  }, [folders, load]);
+
   const removeFolder = useCallback(async (id: string) => {
     await svc.deleteFolder(id);
     await load();
@@ -369,6 +378,50 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
       throw e;
     }
   }, [loadPlacements]);
+
+  // ── 共有されたフォルダのうち、ふだん表示するもの(人ごと) ──
+  //    保存先のテーブルがあればアカウントごと、無ければ(SQL 未実行)このブラウザにだけ覚える
+  const [shownFolders, setShownFolders] = useState<Set<string>>(() => new Set());
+  const shownFoldersInDb = useRef(false);
+  const shownFoldersKey = (name: string) => `mikonote_shown_shared_folders:${name}`;
+  const loadShownFolders = useCallback(async () => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    try {
+      const ids = await svc.fetchShownSharedFolders(name);
+      if (viewerRef.current?.name !== name) return;
+      shownFoldersInDb.current = ids !== null;
+      if (ids !== null) { setShownFolders(new Set(ids)); return; }
+      let local: string[] = [];
+      try { local = JSON.parse(localStorage.getItem(shownFoldersKey(name)) ?? '[]'); } catch { /* 読めなければ、何も選んでいない扱い */ }
+      setShownFolders(new Set(Array.isArray(local) ? local.filter(x => typeof x === 'string') : []));
+    } catch { /* 通信の失敗は、前の内容を残す */ }
+  }, []);
+  useEffect(() => {
+    if (!viewer || unavailable) { setShownFolders(new Set()); return; }
+    void loadShownFolders();
+  }, [viewer, unavailable, loadShownFolders]);
+  const showSharedFolder = useCallback(async (folderId: string, shown: boolean) => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    let nextIds: string[] = [];
+    setShownFolders(prev => {
+      const next = new Set(prev);
+      if (shown) next.add(folderId); else next.delete(folderId);
+      nextIds = [...next];
+      if (!shownFoldersInDb.current) {
+        try { localStorage.setItem(shownFoldersKey(name), JSON.stringify(nextIds)); } catch { /* 覚えられなくても、この場の切り替えはできる */ }
+      }
+      return next;
+    });
+    if (!shownFoldersInDb.current) return;
+    try {
+      await svc.setSharedFolderShown(folderId, name, shown);
+    } catch (e) {
+      await loadShownFolders();
+      throw e;
+    }
+  }, [loadShownFolders]);
 
   // ── コメントの数と、まだ見ていないコメント ───────────────
   const [commentMeta, setCommentMeta] = useState<svc.NoteCommentMeta[]>([]);
@@ -519,8 +572,9 @@ export function useNotes({ me, onAnnounce, onComment }: UseNotesOptions) {
     myReadIds, myHiddenIds, unreadAnnouncements, readsLoaded,
     reload: load, flushAll, clearError: () => setError(null),
     editNote, saveNote, addNote, removeNote, copyToMine, announce, unannounce, remindUnread, markRead, hideAnnouncement, unhideAnnouncement,
-    addFolder, renameFolder, setFolderVisibility, removeFolder,
+    addFolder, renameFolder, setFolderVisibility, setNotesVisibilityInFolder, removeFolder,
     placements, placementsAvailable, placeNote,
+    shownFolders, showSharedFolder,
     commentInfo, commentSeen, commentSeenAvailable, commentSeenLoaded, markCommentsSeen, reloadCommentMeta: loadCommentMeta,
   };
 }

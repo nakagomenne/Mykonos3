@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import { Note, NoteFolder, NoteTemplate, NoteVisibility, User } from '../types';
 import type { NotesApi } from '../hooks/useNotes';
 import {
-  VISIBILITY_LABELS, fetchTemplates, getRecipients, isAnnounceOverdue, formatAnnounceDue, uploadNoteImage, uploadNoteFile,
+  VISIBILITY_LABELS, canView, fetchTemplates, getRecipients, isAnnounceOverdue, formatAnnounceDue, uploadNoteImage, uploadNoteFile,
 } from '../services/notesService';
 import type { NotePatch } from '../services/notesService';
 import NoteEditor, { htmlToPlainText } from './NoteEditor';
 import NoteVisibilityPicker from './NoteVisibilityPicker';
 import NoteFolderDialog from './NoteFolderDialog';
+import NoteSharedFolderPicker from './NoteSharedFolderPicker';
 import NoteReadStatus from './NoteReadStatus';
 import NoteComments from './NoteComments';
 import { noteLinkUrl } from './noteLinks';
@@ -341,6 +342,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   );
   /** 歯車のメニュー(サブフォルダ・設定・削除)を開いているフォルダ */
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  /** 「表示する共有フォルダを選ぶ」画面を開いているか */
+  const [sharedPickerOpen, setSharedPickerOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [draft, setDraft] = useState<NoteDraft | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
@@ -417,6 +420,28 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topFolders, myFolders]);
 
+  // ── ほかの人から共有されたフォルダ(見られるものだけ)。中のノートは、ノートごとの公開範囲で見られるものだけ並ぶ ──
+  const sharedFolders = useMemo(
+    () => folders.filter(f => f.owner !== me.name && canView(f, me)),
+    [folders, me]);
+  const byFolderName = (a: NoteFolder, b: NoteFolder) =>
+    a.owner.localeCompare(b.owner, 'ja') || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja');
+  /** 共有フォルダのうち、一番上の階層に並べるもの(親フォルダが見えないサブフォルダも、ここに入る) */
+  const sharedTopFolders = useMemo(
+    () => sharedFolders.filter(f => !f.parentId || !sharedFolders.some(p => p.id === f.parentId)).sort(byFolderName),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sharedFolders]);
+  const sharedChildrenOf = (id: string) => sharedFolders.filter(f => f.parentId === id).sort(byFolderName);
+  /** 共有フォルダ(サブフォルダを含む)に入っていて、自分が見られるノートの数 */
+  const sharedFolderNoteCount = (folderId: string) => {
+    const ids = new Set([folderId, ...sharedChildrenOf(folderId).map(c => c.id)]);
+    return notes.filter(n => !!n.folderId && ids.has(n.folderId)).length;
+  };
+  /** ふだん表示する、と自分で選んだ共有フォルダ */
+  const shownSharedFolders = useMemo(
+    () => sharedTopFolders.filter(f => api.shownFolders.has(f.id)),
+    [sharedTopFolders, api.shownFolders]);
+
   const myNotes = useMemo(() => notes.filter(n => n.owner === me.name), [notes, me.name]);
   const myFolderIds = useMemo(() => new Set(myFolders.map(f => f.id)), [myFolders]);
   /**
@@ -490,6 +515,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         case 'announce': base = announceNotes; break;
         case 'shared': base = sharedNotes; break;
         case 'folder': {
+          if (sharedFolders.some(f => f.id === view.folderId)) {
+            // ほかの人の共有フォルダ: 原本の置き場所で並べる(自分が見られるノートだけ)
+            const ids = new Set([view.folderId, ...sharedFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
+            base = notes.filter(n => !!n.folderId && ids.has(n.folderId));
+            break;
+          }
           const ids = new Set([view.folderId, ...myFolders.filter(f => f.parentId === view.folderId).map(f => f.id)]);
           base = notes.filter(n => { const f = folderOf(n); return !!f && ids.has(f); });
           break;
@@ -505,7 +536,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, myNotes, otherNotes, announceNotes, sharedNotes, myFolders, view, search, myHiddenIds, api.placements]);
+  }, [notes, myNotes, otherNotes, announceNotes, sharedNotes, myFolders, sharedFolders, view, search, myHiddenIds, api.placements]);
 
   // 絞り込みの選択肢(今の一覧に出てくる人・タグだけ。件数つき)
   const ownerOptions = useMemo(() => {
@@ -571,6 +602,9 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const hasOpenNote = !!selected || !!draft;
   useEffect(() => { if (!hasOpenNote) setFoldersCollapsed(false); }, [hasOpenNote]);
   const currentFolder = view.kind === 'folder' ? folders.find(f => f.id === view.folderId) ?? null : null;
+  // 見ていたフォルダが無くなった(削除された・共有が取り消された)ら、「すべて」に戻す
+  const viewFolderGone = view.kind === 'folder' && !loading && !currentFolder;
+  useEffect(() => { if (viewFolderGone) setView({ kind: 'mine' }); }, [viewFolderGone]);
 
   // 選択中のノートが消えた(削除・非公開化など)ら選択解除
   useEffect(() => {
@@ -955,6 +989,22 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       </React.Fragment>
     );
   };
+
+  /** 共有フォルダの1行(見るだけ。名前の変更や削除はできない) */
+  const renderSharedFolder = (f: NoteFolder, depth: number): React.ReactNode => (
+    <React.Fragment key={f.id}>
+      <div data-shared-folder={f.id} title={`${f.owner} さんが共有しているフォルダ`}>
+        <SideItem
+          v={{ kind: 'folder', folderId: f.id }}
+          icon={<NoteIcon name="folder" />}
+          label={depth === 0 ? <>{f.name} <span className={`text-[11px] font-normal ${muted}`}>{f.owner}</span></> : f.name}
+          count={sharedFolderNoteCount(f.id)}
+          depth={depth}
+        />
+      </div>
+      {depth === 0 && sharedChildrenOf(f.id).map(c => renderSharedFolder(c, 1))}
+    </React.Fragment>
+  );
 
   const viewTitle = (() => {
     if (search.trim()) return `検索結果「${search.trim()}」`;
@@ -1732,6 +1782,26 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <div className={`mx-1 mt-2 px-1 pt-2.5 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted}`}>みんなから</div>
               <SideItem v={{ kind: 'announce' }} icon={<NoteIcon name="megaphone" />} label="アナウンス(お知らせ)" badge={unreadAnnouncements.length} count={announceNotes.length} />
               <SideItem v={{ kind: 'shared' }} icon={<NoteIcon name="globe" />} label="共有されたノート" count={sharedNotes.length} />
+              {/* 共有されたフォルダ。数が増えすぎないよう、ふだん表示するものを自分で選ぶ */}
+              {sharedTopFolders.length > 0 && (
+                <>
+                  <div className={`mx-1 mt-1 px-1 pt-1 pb-0.5 text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
+                    <span>共有フォルダ</span>
+                    <button
+                      data-shared-folder-pick
+                      onClick={() => setSharedPickerOpen(true)}
+                      title="フォルダ欄に表示する共有フォルダを選びます"
+                      className={`inline-flex items-center gap-1 px-1.5 h-6 rounded font-semibold ${d ? 'text-sky-300' : 'text-[#0193be]'} ${hoverRow}`}
+                    ><NoteIcon name="settings" /> 選ぶ ({shownSharedFolders.length}/{sharedTopFolders.length})</button>
+                  </div>
+                  {shownSharedFolders.map(f => renderSharedFolder(f, 0))}
+                  {shownSharedFolders.length === 0 && (
+                    <div className={`px-2 py-1 text-xs leading-relaxed ${muted}`}>
+                      共有されているフォルダが{sharedTopFolders.length}件あります。「選ぶ」から、ここに表示するフォルダを選べます。
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className={`mx-1 mt-2 px-1 pt-2 pb-0.5 border-t ${border} text-[11px] font-bold tracking-wide ${muted} flex items-center justify-between`}>
                 <span>フォルダ</span>
@@ -1953,6 +2023,17 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <p className="mt-2 text-sm">このまま保存すると、あなたの内容で上書きされます。相手の内容は「履歴」に残るので、あとで見たり戻したりできます。</p>
       </ConfirmationModal>
 
+      {/* 表示する共有フォルダを選ぶ */}
+      {sharedPickerOpen && (
+        <NoteSharedFolderPicker
+          entries={sharedTopFolders.map(f => ({ folder: f, childNames: sharedChildrenOf(f.id).map(c => c.name), noteCount: sharedFolderNoteCount(f.id) }))}
+          shown={api.shownFolders}
+          isDarkMode={d}
+          onToggle={(id, on) => { api.showSharedFolder(id, on).catch((e: any) => setLocalError(e?.message ?? '共有フォルダの表示設定を保存できませんでした')); }}
+          onClose={() => setSharedPickerOpen(false)}
+        />
+      )}
+
       {/* フォルダ作成・設定 */}
       {folderDlg && (
         <NoteFolderDialog
@@ -1965,8 +2046,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           initialVisibility={folderDlg.mode === 'edit' ? folderDlg.folder.visibility : (folderDlg.parent?.visibility ?? 'private')}
           initialSharedWith={folderDlg.mode === 'edit' ? folderDlg.folder.sharedWith : (folderDlg.parent?.sharedWith ?? [])}
           appliesToContents={folderDlg.mode === 'edit'}
+          noteCount={folderDlg.mode === 'edit' ? (() => {
+            const ids = new Set([folderDlg.folder.id, ...myFolders.filter(c => c.parentId === folderDlg.folder.id).map(c => c.id)]);
+            return myNotes.filter(n => !!n.folderId && ids.has(n.folderId)).length;
+          })() : 0}
           onClose={() => setFolderDlg(null)}
-          onSubmit={async (name, visibility, sharedWith) => {
+          onSubmit={async (name, visibility, sharedWith, applyToNotes) => {
             if (folderDlg.mode === 'create') {
               const f = await api.addFolder({ name, parentId: folderDlg.parent?.id ?? null, visibility, sharedWith });
               setView({ kind: 'folder', folderId: f.id });
@@ -1976,6 +2061,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               if (name !== f.name) await api.renameFolder(f.id, name);
               const sameShared = JSON.stringify([...sharedWith].sort()) === JSON.stringify([...f.sharedWith].sort());
               if (visibility !== f.visibility || !sameShared) await api.setFolderVisibility(f.id, visibility, sharedWith);
+              if (applyToNotes) await api.setNotesVisibilityInFolder(f.id, visibility, sharedWith);
             }
           }}
         />
