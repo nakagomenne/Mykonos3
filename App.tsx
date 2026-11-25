@@ -892,6 +892,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // 押した瞬間に画面から消えた物(例: ミコポスのメンション候補)は、「外側を押した」と数えない
+      // (消えたあとだと、どの枠の中にあったか分からず、開いている画面まで閉じてしまうため)
+      if (!(event.target as Node | null)?.isConnected) return;
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
       }
