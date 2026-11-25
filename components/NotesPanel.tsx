@@ -1008,8 +1008,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         className={`w-full text-left pl-[9px] pr-3 py-2.5 border-b ${border} border-l-[3px] transition ${
           active ? `${d ? 'bg-[#0193be]/25' : 'bg-[#0193be]/10'} border-l-[#0193be]` : `border-l-transparent ${hoverRow}`}`}
       >
-        {/* 1行目: タイトル(濃く) と 日付(右端に薄く) */}
-        <div className="flex items-baseline gap-1.5">
+        {/* 1行目: タイトル(濃く) と 日付(右端に薄く)。見出しのあるノートは、右上の▼のぶんだけ右を空ける */}
+        <div className={`flex items-baseline gap-1.5 ${hasOutline ? 'md:pr-6' : ''}`}>
           {n.pinned && <span className="text-amber-500 text-xs">★</span>}
           <span className={`truncate flex-1 text-sm font-semibold ${n.title ? '' : muted}`}>{n.title || '(無題)'}</span>
           {(api.commentInfo.unseen[n.id] ?? 0) > 0 && (
@@ -1022,7 +1022,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         {/* 2行目: 本文の出だし(中くらいの濃さ) */}
         <div className={`text-xs mt-0.5 truncate ${d ? 'text-slate-300' : 'text-slate-600'}`}>{preview || '(本文なし)'}</div>
         {/* 3行目: 補足(薄く)。アイコンだけでなく、ことばも添える */}
-        <div className={`text-[11px] mt-1 flex items-center gap-2.5 whitespace-nowrap overflow-hidden ${hasOutline ? 'md:pr-6' : ''} ${muted}`}>
+        <div className={`text-[11px] mt-1 flex items-center gap-2.5 whitespace-nowrap overflow-hidden ${muted}`}>
           {n.isAnnouncement && !unread && <span><NoteIcon name="megaphone" /> {announceText}</span>}
           <span title={VISIBILITY_LABELS[n.visibility]}><VisibilityIcon visibility={n.visibility} /> {visibilityText}</span>
           {!mine && <span className="truncate"><NoteIcon name="user" /> {n.owner}</span>}
@@ -1036,7 +1036,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           )}
         </div>
       </button>
-      {/* 見出しのあるノートには、右下に▼を出す(フォルダ欄の ◀▶ と同じ三角)。
+      {/* 見出しのあるノートには、右上に▼を出す(フォルダ欄の ◀▶ と同じ三角)。
           開くとき: ▼が180度まわってから目次が伸びる / 閉じるとき: 目次が縮んでから▼が戻る */}
       {hasOutline && (
         <button
@@ -1046,7 +1046,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
           aria-label={outlineOpen ? '目次を閉じる' : '目次(見出しの一覧)を開く'}
           title={outlineOpen ? '目次を閉じます' : '目次(見出しの一覧)を開きます'}
           onClick={toggleOutline}
-          className={`hidden md:inline-flex absolute right-1 bottom-1 items-center justify-center w-7 h-7 rounded-md ${muted} ${d ? 'hover:bg-white/10' : 'hover:bg-[#0193be]/15'}`}
+          className={`hidden md:inline-flex absolute right-1 top-1 items-center justify-center w-7 h-7 rounded-md ${muted} ${d ? 'hover:bg-white/10' : 'hover:bg-[#0193be]/15'}`}
         >
           <svg viewBox="0 0 10 10" width="16" height="16" aria-hidden="true" className="note-outline-arrow"
             style={{ transform: outlineOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: `transform ${OUTLINE_SPIN_MS}ms ease-out ${outlineOpen ? 0 : OUTLINE_SLIDE_MS}ms` }}>
