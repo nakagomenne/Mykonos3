@@ -909,6 +909,36 @@ export async function setSharedFolderShown(folderId: string, userName: string, p
 }
 
 // ────────────────────────────────────────────────────────────
+// ノートとフォルダを、自分の好きな順に並べる(人ごと)
+// ────────────────────────────────────────────────────────────
+
+/** 自分で並べた順(IDを、並べた順に入れた一覧) */
+export interface NoteUserOrders { notes: string[]; folders: string[] }
+
+const idList = (value: unknown): string[] => (Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : []);
+
+/**
+ * 自分で並べた順を取得する。
+ * テーブルがまだ無い(SQL 未実行)ときは null を返す(このときは、ブラウザに覚える)
+ */
+export async function fetchUserOrders(userName: string): Promise<NoteUserOrders | null> {
+  const { data, error } = await supabase.from('note_user_orders').select('*').eq('user_name', userName).maybeSingle();
+  if (error) {
+    if (isMissingTableError(error)) return null;
+    throw new Error(`並び順の取得に失敗しました: ${error?.message ?? error}`);
+  }
+  return { notes: idList(data?.note_order), folders: idList(data?.folder_order) };
+}
+
+/** 自分で並べた順を保存する */
+export async function saveUserOrders(userName: string, orders: NoteUserOrders): Promise<void> {
+  const { error } = await supabase.from('note_user_orders').upsert(
+    { user_name: userName, note_order: orders.notes, folder_order: orders.folders, updated_at: new Date().toISOString() },
+    { onConflict: 'user_name' });
+  if (error) throw new Error(`並び順を保存できませんでした: ${error?.message ?? error}`);
+}
+
+// ────────────────────────────────────────────────────────────
 // コメントの数と、「どこまで見たか」(人ごと)
 // ────────────────────────────────────────────────────────────
 

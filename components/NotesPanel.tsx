@@ -77,14 +77,31 @@ interface NotesPanelProps {
 }
 
 /** 一覧の並び順(ピン留めは常に先頭) */
-type SortKey = 'updated' | 'created' | 'title';
-const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順' };
+type SortKey = 'updated' | 'created' | 'title' | 'manual';
+const SORT_LABELS: Record<SortKey, string> = { updated: '更新が新しい順', created: '作成が新しい順', title: 'タイトル順', manual: '自分で並べた順' };
+
+/** 並べ替え: ids の中で dragId を、targetId の前(after=false)か後ろ(after=true)へ動かす */
+function moveInList(ids: string[], dragId: string, targetId: string, after: boolean): string[] {
+  if (dragId === targetId || !ids.includes(dragId) || !ids.includes(targetId)) return ids;
+  const rest = ids.filter(id => id !== dragId);
+  const at = rest.indexOf(targetId) + (after ? 1 : 0);
+  return [...rest.slice(0, at), dragId, ...rest.slice(at)];
+}
+/**
+ * 全体の並び(all)のうち、いま見えている一部(subset)だけを並べ替えた結果を、全体の並びに戻す。
+ * 見えていない物の位置は動かさない(見えている物が入っていた場所に、新しい順で入れ直す)
+ */
+function mergeOrder(all: string[], subset: string[]): string[] {
+  const inSubset = new Set(subset);
+  let i = 0;
+  return all.map(id => (inSubset.has(id) ? subset[i++] : id));
+}
 const SORT_STORAGE_KEY = 'mikonote_sort';
 const SHOW_MINE_STORAGE_KEY = 'mikonote_show_mine_in_shared';
 const loadSortKey = (): SortKey => {
   try {
     const v = localStorage.getItem(SORT_STORAGE_KEY);
-    return v === 'created' || v === 'title' ? v : 'updated';
+    return v === 'created' || v === 'title' || v === 'manual' ? v : 'updated';
   } catch { return 'updated'; }
 };
 
@@ -406,13 +423,24 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
 
   // ── 派生データ ─────────────────────────────────────────
   const myFolders = useMemo(() => folders.filter(f => f.owner === me.name), [folders, me.name]);
+  /** 自分で並べた順(ID → 何番目か) */
+  const folderRank = useMemo(() => new Map(api.orders.folders.map((id, i) => [id, i])), [api.orders.folders]);
+  const noteRank = useMemo(() => new Map(api.orders.notes.map((id, i) => [id, i])), [api.orders.notes]);
+  /** フォルダの並び順: 自分で並べた物が先(並べた順)。並べていない物は、自分のフォルダ → 共有フォルダ(作った人ごと)の順 */
+  const cmpFolders = (a: NoteFolder, b: NoteFolder) => {
+    const ia = folderRank.get(a.id), ib = folderRank.get(b.id);
+    if (ia !== undefined && ib !== undefined) return ia - ib;
+    if (ia !== undefined) return -1;
+    if (ib !== undefined) return 1;
+    return Number(a.owner !== me.name) - Number(b.owner !== me.name)
+      || a.owner.localeCompare(b.owner, 'ja') || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja');
+  };
   const topFolders = useMemo(
-    () => myFolders.filter(f => !f.parentId || !myFolders.some(p => p.id === f.parentId))
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja')),
-    [myFolders]
+    () => myFolders.filter(f => !f.parentId || !myFolders.some(p => p.id === f.parentId)).sort(cmpFolders),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [myFolders, folderRank]
   );
-  const childrenOf = (id: string) =>
-    myFolders.filter(f => f.parentId === id).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja'));
+  const childrenOf = (id: string) => myFolders.filter(f => f.parentId === id).sort(cmpFolders);
   const flatFolders = useMemo(() => {
     const out: { folder: NoteFolder; depth: number }[] = [];
     topFolders.forEach(f => {
@@ -421,7 +449,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topFolders, myFolders]);
+  }, [topFolders, myFolders, folderRank]);
 
   // ── ほかの人から共有されたフォルダ(見られるものだけ)。中のノートは、ノートごとの公開範囲で見られるものだけ並ぶ ──
   const sharedFolders = useMemo(
@@ -431,14 +459,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
       return folders.filter(f => f.owner !== me.name && canView(f, viewer));
     },
     [folders, me, users]);
-  const byFolderName = (a: NoteFolder, b: NoteFolder) =>
-    a.owner.localeCompare(b.owner, 'ja') || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ja');
   /** 共有フォルダのうち、一番上の階層に並べるもの(親フォルダが見えないサブフォルダも、ここに入る) */
   const sharedTopFolders = useMemo(
-    () => sharedFolders.filter(f => !f.parentId || !sharedFolders.some(p => p.id === f.parentId)).sort(byFolderName),
+    () => sharedFolders.filter(f => !f.parentId || !sharedFolders.some(p => p.id === f.parentId)).sort(cmpFolders),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sharedFolders]);
-  const sharedChildrenOf = (id: string) => sharedFolders.filter(f => f.parentId === id).sort(byFolderName);
+    [sharedFolders, folderRank]);
+  const sharedChildrenOf = (id: string) => sharedFolders.filter(f => f.parentId === id).sort(cmpFolders);
   /** 共有フォルダ(サブフォルダを含む)に入っていて、自分が見られるノートの数 */
   const sharedFolderNoteCount = (folderId: string) => {
     const ids = new Set([folderId, ...sharedChildrenOf(folderId).map(c => c.id)]);
@@ -452,6 +478,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const mineSharedFolders = useMemo(
     () => sharedTopFolders.filter(f => api.shownFolders.get(f.id) === 'mine'),
     [sharedTopFolders, api.shownFolders]);
+  /** マイノートに並べるフォルダ(自分のフォルダ + マイノートに置くと選んだ共有フォルダ) */
+  const mineTopFolders = useMemo(
+    () => [...topFolders, ...mineSharedFolders].sort(cmpFolders),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [topFolders, mineSharedFolders, folderRank]);
 
   const myNotes = useMemo(() => notes.filter(n => n.owner === me.name), [notes, me.name]);
   const myFolderIds = useMemo(() => new Set(myFolders.map(f => f.id)), [myFolders]);
@@ -566,16 +597,88 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const showOwnerFilter = ownerOptions.length > 1;
   const showTagFilter = tagOptions.length > 0;
 
+  /** ノートの「自分で並べた順」: 並べたことのないノート(新しく届いた物)が先(更新が新しい順)。そのあとに、並べた順 */
+  const cmpNotesManual = (a: Note, b: Note) => {
+    const ia = noteRank.get(a.id), ib = noteRank.get(b.id);
+    if (ia !== undefined && ib !== undefined) return ia - ib;
+    if (ia !== undefined) return 1;
+    if (ib !== undefined) return -1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  };
   const visibleNotes = useMemo(() => {
     let list = baseNotes;
     if (activeOwner) list = list.filter(n => n.owner === activeOwner);
     if (activeTag) list = list.filter(n => n.tags.includes(activeTag));
     const byKey = (a: Note, b: Note) =>
-      sortKey === 'title' ? (a.title || '').localeCompare(b.title || '', 'ja') || b.updatedAt.localeCompare(a.updatedAt)
+      sortKey === 'manual' ? cmpNotesManual(a, b)
+      : sortKey === 'title' ? (a.title || '').localeCompare(b.title || '', 'ja') || b.updatedAt.localeCompare(a.updatedAt)
       : sortKey === 'created' ? b.createdAt.localeCompare(a.createdAt)
       : b.updatedAt.localeCompare(a.updatedAt);
     return [...list].sort((a, b) => Number(b.pinned) - Number(a.pinned) || byKey(a, b));
-  }, [baseNotes, activeOwner, activeTag, sortKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseNotes, activeOwner, activeTag, sortKey, noteRank]);
+
+  // ── 並び替えモード(ドラッグで、ノートとフォルダを好きな順に並べる) ──
+  const [reorderMode, setReorderMode] = useState(false);
+  /** いま掴んでいる物(group = 同じ並びの中だけで動かせる) */
+  const [dragItem, setDragItem] = useState<{ group: string; id: string } | null>(null);
+  /** いま重なっている相手と、その前後どちらに入るか */
+  const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null);
+  const toggleReorder = () => {
+    setDragItem(null); setDropAt(null);
+    if (reorderMode) { setReorderMode(false); return; }
+    // 並び替えを始めるときは、並び順を「自分で並べた順」にし、たたんであるフォルダ欄も開く
+    if (sortKey !== 'manual') changeSort('manual');
+    setFoldersCollapsed(false);
+    setReorderMode(true);
+  };
+  /** ドラッグできる行に付ける設定。onMove: 動かした結果を保存する */
+  const dragProps = (group: string, id: string, onMove: (dragId: string, targetId: string, after: boolean) => void): React.HTMLAttributes<HTMLDivElement> => {
+    if (!reorderMode) return {};
+    const isAfter = (e: React.DragEvent<HTMLDivElement>) => { const r = e.currentTarget.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
+    return {
+      draggable: true,
+      onDragStart: e => { e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', id); } catch { /* 無くても動く */ } setDragItem({ group, id }); },
+      onDragOver: e => {
+        if (!dragItem || dragItem.group !== group || dragItem.id === id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const after = isAfter(e);
+        setDropAt(p => (p && p.id === id && p.after === after ? p : { id, after }));
+      },
+      onDrop: e => {
+        if (!dragItem || dragItem.group !== group || dragItem.id === id) return;
+        e.preventDefault();
+        onMove(dragItem.id, id, isAfter(e));
+        setDragItem(null); setDropAt(null);
+      },
+      onDragEnd: () => { setDragItem(null); setDropAt(null); },
+    };
+  };
+  /** 入る場所を示す線(重なっている行の上か下に出す) */
+  const dropLine = (id: string) => (dropAt?.id === id && dragItem ? (
+    <div aria-hidden="true" data-drop-line={dropAt.after ? 'after' : 'before'} className="absolute inset-x-0 h-[3px] bg-[#0193be] z-10 pointer-events-none rounded-full" style={dropAt.after ? { bottom: -2 } : { top: -2 }} />
+  ) : null);
+  const dragCls = (id: string) => (reorderMode ? `cursor-grab ${dragItem?.id === id ? 'opacity-40' : ''}` : '');
+  const saveOrderSafe = (kind: 'notes' | 'folders', ids: string[]) => {
+    api.saveOrder(kind, ids).catch((e: any) => setLocalError(e?.message ?? '並び順を保存できませんでした'));
+  };
+  /** ノートを動かす(いま見えている一覧の中で)。見えていないノートの位置は変えない */
+  const moveNote = (dragId: string, targetId: string, after: boolean) => {
+    const shown = visibleNotes.map(n => n.id);
+    const moved = moveInList(shown, dragId, targetId, after);
+    if (moved === shown) return;
+    const all = [...notes].sort(cmpNotesManual).map(n => n.id);
+    saveOrderSafe('notes', mergeOrder(all, moved));
+  };
+  /** フォルダを動かす(siblings = 同じ並びにあるフォルダ)。ほかのフォルダの位置は変えない */
+  const moveFolder = (siblings: NoteFolder[]) => (dragId: string, targetId: string, after: boolean) => {
+    const shown = siblings.map(f => f.id);
+    const moved = moveInList(shown, dragId, targetId, after);
+    if (moved === shown) return;
+    const all = [...folders].sort(cmpFolders).map(f => f.id);
+    saveOrderSafe('folders', mergeOrder(all, moved));
+  };
 
   // 自分が非表示にしたアナウンス(「アナウンス(お知らせ)」一覧の最下部に別枠で出す)
   const hiddenAnnouncements = useMemo(
@@ -955,7 +1058,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const active = isViewActive({ kind: 'folder', folderId: f.id });
     return (
       <React.Fragment key={f.id}>
-        <div className="relative">
+        <div
+          data-reorder-folder={f.id}
+          className={`relative ${dragCls(f.id)}`}
+          {...dragProps(depth === 0 ? 'folders:mine-top' : `folders:child:${f.parentId}`, f.id, moveFolder(depth === 0 ? mineTopFolders : childrenOf(f.parentId ?? '')))}
+        >
+          {dropLine(f.id)}
           <SideItem
             v={{ kind: 'folder', folderId: f.id }}
             icon={<NoteIcon name="folder" />}
@@ -1004,7 +1112,18 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   /** 共有フォルダの1行(見るだけ。名前の変更や削除はできない) */
   const renderSharedFolder = (f: NoteFolder, depth: number): React.ReactNode => (
     <React.Fragment key={f.id}>
-      <div data-shared-folder={f.id} title={`${f.owner} さんが共有しているフォルダ`}>
+      <div
+        data-shared-folder={f.id}
+        data-reorder-folder={f.id}
+        title={`${f.owner} さんが共有しているフォルダ`}
+        className={`relative ${dragCls(f.id)}`}
+        {...(depth === 0
+          ? (api.shownFolders.get(f.id) === 'mine'
+            ? dragProps('folders:mine-top', f.id, moveFolder(mineTopFolders))
+            : dragProps('folders:shared-top', f.id, moveFolder(shownSharedFolders)))
+          : dragProps(`folders:child:${f.parentId}`, f.id, moveFolder(sharedChildrenOf(f.parentId ?? ''))))}
+      >
+        {dropLine(f.id)}
         <SideItem
           v={{ kind: 'folder', folderId: f.id }}
           icon={<NoteIcon name={depth === 0 ? 'folder-open' : 'folder'} />}
@@ -1058,7 +1177,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     };
     return (
       <React.Fragment key={n.id}>
-      <div className="relative">
+      <div
+        data-reorder-note={n.id}
+        className={`relative ${dragCls(n.id)}`}
+        {...dragProps(`notes:${n.pinned ? 'pinned' : 'normal'}`, n.id, moveNote)}
+      >
+      {dropLine(n.id)}
       <button
         data-note-row={n.id}
         aria-expanded={showing ? outlineOpen : undefined}
@@ -1838,9 +1962,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               <SideItem v={{ kind: 'mine' }} icon={<NoteIcon name="file-text" />} label="すべて" count={myNotes.length} />
               <SideItem v={{ kind: 'pinned' }} icon={<NoteIcon name="star" />} label="ピン留め" count={myNotes.filter(n => n.pinned).length} />
               <SideItem v={{ kind: 'unsorted' }} icon={<NoteIcon name="inbox" />} label="フォルダ未設定" count={myNotes.filter(n => !n.folderId).length} />
-              {topFolders.map(f => renderFolder(f, 0))}
-              {/* マイノートに置くと選んだ共有フォルダ(見るだけ。自分のフォルダの下に並べる) */}
-              {mineSharedFolders.map(f => renderSharedFolder(f, 0))}
+              {/* 自分のフォルダと、マイノートに置くと選んだ共有フォルダ(見るだけ)。並び替えモードで、まとめて好きな順にできる */}
+              {mineTopFolders.map(f => (f.owner === me.name ? renderFolder(f, 0) : renderSharedFolder(f, 0)))}
 
               {/* シェアノート: アナウンス・共有されたノートと、表示すると選んだ共有フォルダ。
                   歯車は、共有されているフォルダがあるときだけ出す(数が増えすぎないよう、表示するものを自分で選ぶ) */}
@@ -1930,16 +2053,29 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                     自分のノートも表示
                   </label>
                 )}
+                <button
+                  data-reorder-toggle
+                  onClick={toggleReorder}
+                  aria-pressed={reorderMode}
+                  title={reorderMode ? '並び替えを終わります' : 'ノートとフォルダを、ドラッグして好きな順に並べ替えます(自分の画面だけの並びです)'}
+                  className={`ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md border whitespace-nowrap transition ${
+                    reorderMode ? 'border-[#0193be] bg-[#0193be] text-white font-bold' : `${border} ${muted} ${hoverRow}`}`}
+                >{reorderMode ? '並び替えを終わる' : '並び替え'}</button>
                 <select
                   value={sortKey}
-                  onChange={e => changeSort(e.target.value as SortKey)}
+                  onChange={e => { const k = e.target.value as SortKey; changeSort(k); if (k !== 'manual') { setReorderMode(false); setDragItem(null); setDropAt(null); } }}
                   aria-label="並び順"
                   title="並び順(ピン留めしたノートは常に上に出ます)"
-                  className={`ml-auto text-xs bg-transparent border-0 rounded-md px-1 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0193be] ${muted}`}
+                  className={`text-xs bg-transparent border-0 rounded-md px-1 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#0193be] ${muted}`}
                 >
                   {(Object.keys(SORT_LABELS) as SortKey[]).map(k => <option key={k} value={k} className={d ? 'bg-slate-800 text-slate-100' : 'bg-white text-slate-800'}>{SORT_LABELS[k]}</option>)}
                 </select>
               </div>
+              <NoteAccordion open={reorderMode}>
+                <div data-reorder-hint className={`px-3 py-1.5 border-b ${border} text-xs leading-relaxed ${d ? 'bg-[#0193be]/20 text-sky-200' : 'bg-[#0193be]/10 text-[#01607a]'}`}>
+                  ノートや、左のフォルダをドラッグして並べ替えられます。あなたの画面だけの並びです。
+                </div>
+              </NoteAccordion>
               <NoteAccordion open={filterOpen && (showOwnerFilter || showTagFilter)}>
                 <div className={`px-2 py-1.5 border-b ${border} ${surface2} flex flex-wrap items-center gap-1.5`}>
                   {showOwnerFilter && (

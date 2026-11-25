@@ -438,6 +438,50 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
     }
   }, [loadShownFolders]);
 
+  // ── ノートとフォルダを、自分の好きな順に並べる(人ごと) ──
+  //    保存先のテーブルがあればアカウントごと、無ければ(SQL 未実行)このブラウザにだけ覚える
+  const [orders, setOrders] = useState<svc.NoteUserOrders>({ notes: [], folders: [] });
+  const ordersRef = useRef(orders);
+  useEffect(() => { ordersRef.current = orders; }, [orders]);
+  const ordersInDb = useRef(false);
+  const ordersKey = (name: string) => `mikonote_orders:${name}`;
+  const loadOrders = useCallback(async () => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    try {
+      const fromDb = await svc.fetchUserOrders(name);
+      if (viewerRef.current?.name !== name) return;
+      ordersInDb.current = fromDb !== null;
+      if (fromDb !== null) { setOrders(fromDb); return; }
+      let local: any = null;
+      try { local = JSON.parse(localStorage.getItem(ordersKey(name)) ?? 'null'); } catch { /* 読めなければ、並べていない扱い */ }
+      const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+      setOrders({ notes: ids(local?.notes), folders: ids(local?.folders) });
+    } catch { /* 通信の失敗は、前の内容を残す */ }
+  }, []);
+  useEffect(() => {
+    if (!viewer || unavailable) { setOrders({ notes: [], folders: [] }); return; }
+    void loadOrders();
+  }, [viewer, unavailable, loadOrders]);
+  /** 並べた順を保存する(kind: ノート / フォルダ。ids: 並べた順のIDの一覧) */
+  const saveOrder = useCallback(async (kind: 'notes' | 'folders', ids: string[]) => {
+    const name = viewerRef.current?.name;
+    if (!name) return;
+    const next = { ...ordersRef.current, [kind]: ids };
+    ordersRef.current = next;
+    setOrders(next);
+    if (!ordersInDb.current) {
+      try { localStorage.setItem(ordersKey(name), JSON.stringify(next)); } catch { /* 覚えられなくても、この場の並び替えはできる */ }
+      return;
+    }
+    try {
+      await svc.saveUserOrders(name, next);
+    } catch (e) {
+      await loadOrders();
+      throw e;
+    }
+  }, [loadOrders]);
+
   // ── コメントの数と、まだ見ていないコメント ───────────────
   const [commentMeta, setCommentMeta] = useState<svc.NoteCommentMeta[]>([]);
   /** 自分が各ノートのコメントを最後に見た日時 */
@@ -592,6 +636,7 @@ export function useNotes({ me, users, onAnnounce, onComment }: UseNotesOptions) 
     addFolder, renameFolder, setFolderVisibility, setNotesVisibilityInFolder, removeFolder,
     placements, placementsAvailable, placeNote,
     shownFolders, showSharedFolder,
+    orders, saveOrder,
     commentInfo, commentSeen, commentSeenAvailable, commentSeenLoaded, markCommentsSeen, reloadCommentMeta: loadCommentMeta,
   };
 }
