@@ -303,6 +303,8 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** 「アナウンス・共同編集」の設定を開いているか */
   const [moreOpen, setMoreOpen] = useState(false);
+  /** 「入れるフォルダ」の選択を開いているか */
+  const [folderOpen, setFolderOpen] = useState(false);
   /** 一覧の「絞り込み」の欄を開いているか(ふだんは閉じておき、押したときだけ出す) */
   const [filterOpen, setFilterOpen] = useState(false);
   /** 「未確認の人に再通知」を送り終えたノートのID(ボタンの表示を「送りました」にする) */
@@ -595,7 +597,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
   const selectedOutline = useMemo(() => outlineOf(selectedOutlineBody), [selectedOutlineBody]);
   // 別のノートに移ったら、開いていた設定やメニューは閉じる
   const selectedNoteId = selected?.id ?? null;
-  useEffect(() => { setSettingsOpen(false); setMoreOpen(false); setMenuOpen(false); }, [selectedNoteId]);
+  useEffect(() => { setSettingsOpen(false); setMoreOpen(false); setFolderOpen(false); setMenuOpen(false); }, [selectedNoteId]);
   const [historyOpen, setHistoryOpen] = useState(false);
   /** 編集中に他の人がこのノートを更新していたときの「上書きしますか」確認 */
   const [overwriteConfirm, setOverwriteConfirm] = useState(false);
@@ -1340,6 +1342,37 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
     const chipIdle = `${border} ${hoverRow}`;
     const chipOn = 'border-[#0193be] bg-[#0193be]/10 text-[#0193be]';
     const tagCls = `text-xs rounded-full px-2 py-0.5 ${d ? 'bg-slate-700' : 'bg-slate-200'}`;
+    /** フォルダを選ぶ一覧。current: 今のフォルダ / noneLabel: 「入れない」の表示 / onPick: 選んだとき */
+    const folderChoices = (current: string | null, noneLabel: string, hint: string, onPick: (folderId: string | null) => void) => {
+      const item = (id: string | null, label: React.ReactNode, depth: number) => {
+        const on = (current ?? null) === id;
+        return (
+          <button
+            key={id ?? '__none__'}
+            type="button"
+            data-folder-choice={id ?? ''}
+            aria-pressed={on}
+            disabled={busy}
+            onClick={() => { setFolderOpen(false); if (!on) onPick(id); }}
+            className={`w-full flex items-center gap-2 py-1.5 pr-2 rounded-md text-sm text-left transition disabled:opacity-50 ${on ? activeRow : hoverRow}`}
+            style={{ paddingLeft: 8 + depth * 16 }}
+          >
+            <span className="flex-shrink-0">{id ? <NoteIcon name="folder" /> : <NoteIcon name="inbox" />}</span>
+            <span className="truncate flex-1">{label}</span>
+            {on && <span className="text-xs flex-shrink-0">選択中</span>}
+          </button>
+        );
+      };
+      return (
+        <div data-folder-choices className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-2`}>
+          <div className={`text-xs ${muted}`}>{hint}</div>
+          <div className="max-h-56 overflow-y-auto space-y-0.5">
+            {item(null, noneLabel, 0)}
+            {folderOptions.map(({ folder, depth }) => item(folder.id, folder.name, depth))}
+          </div>
+        </div>
+      );
+    };
     return (
       <div className={`flex-1 flex flex-col min-h-0 p-2 md:p-3 ${d ? 'bg-[#0f1624]' : 'bg-slate-100'}`}>
        {/* ノート1枚ぶんの枠: タイトル・設定・本文・日付をひとまとまりに見せる */}
@@ -1390,7 +1423,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <>
               {canEdit && (
                 <button
-                  onClick={() => { setSettingsOpen(false); setMoreOpen(false); setMenuOpen(false); beginEdit(n); }}
+                  onClick={() => { setSettingsOpen(false); setMoreOpen(false); setFolderOpen(false); setMenuOpen(false); beginEdit(n); }}
                   className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1 whitespace-nowrap"
                 ><NoteIcon name="pencil" /> 編集</button>
               )}
@@ -1473,7 +1506,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
             <div className={`px-4 py-2 space-y-2 border-b ${border} ${surface2}`}>
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => { setMoreOpen(false); setSettingsOpen(o => !o); }}
+                  onClick={() => { setMoreOpen(false); setFolderOpen(false); setSettingsOpen(o => !o); }}
                   title="このノートを誰が見られるかを変更します"
                   aria-expanded={settingsOpen}
                   className={`${chip} ${settingsOpen ? chipOn : chipIdle}`}
@@ -1482,21 +1515,19 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   <span className="font-bold">{VISIBILITY_LABELS[shown.visibility]}{shown.visibility === 'members' ? `(${sharedLabel(shown.sharedWith)})` : ''}</span>
                   <AccordionArrow open={settingsOpen} size={9} />
                 </button>
-                <label className="inline-flex items-center" title="入れるフォルダ">
-                  <span className="sr-only">フォルダ</span>
-                  <select
-                    value={shown.folderId ?? ''}
-                    onChange={ev => changeFolder(n.id, ev.target.value || null)}
-                    className={`text-xs rounded-full border px-2 py-1 max-w-[11rem] focus:outline-none focus:ring-2 focus:ring-[#0193be] ${d ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
-                  >
-                    <option value="">フォルダなし</option>
-                    {folderOptions.map(({ folder, depth }) => (
-                      <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
-                    ))}
-                  </select>
-                </label>
                 <button
-                  onClick={() => { setSettingsOpen(false); setMoreOpen(o => !o); }}
+                  data-note-folder-chip
+                  onClick={() => { setSettingsOpen(false); setMoreOpen(false); setFolderOpen(o => !o); }}
+                  title="このノートを入れるフォルダを変更します"
+                  aria-expanded={folderOpen}
+                  className={`${chip} ${folderOpen ? chipOn : chipIdle}`}
+                >
+                  <NoteIcon name="folder" />
+                  <span className="truncate max-w-[9rem]">{(shown.folderId && folders.find(f => f.id === shown.folderId)?.name) || 'フォルダなし'}</span>
+                  <AccordionArrow open={folderOpen} size={9} />
+                </button>
+                <button
+                  onClick={() => { setSettingsOpen(false); setFolderOpen(false); setMoreOpen(o => !o); }}
                   title="アナウンス(読んだか確認する)と、共同編集の設定を開きます"
                   aria-expanded={moreOpen}
                   className={`${chip} ${moreOpen ? chipOn : n.isAnnouncement ? (d ? 'border-amber-600 bg-amber-900/20 text-amber-400' : 'border-amber-300 bg-amber-50 text-amber-700') : chipIdle}`}
@@ -1528,6 +1559,12 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                 ) : n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
                 {!isEditing && linkChip(n, `${chip} ${chipIdle}`)}
               </div>
+
+              <NoteAccordion open={folderOpen} gap={8}>
+                {folderChoices(shown.folderId ?? null, 'フォルダなし',
+                  `このノートを入れるフォルダを選びます。${isEditing ? '「保存」を押すと反映されます。' : '選ぶとすぐに反映されます。'}`,
+                  id => changeFolder(n.id, id))}
+              </NoteAccordion>
 
               <NoteAccordion open={settingsOpen} gap={8}>
                 <div className={`rounded-lg border ${border} ${d ? 'bg-[#1a2234]' : 'bg-white'} p-3 space-y-2`}>
@@ -1594,29 +1631,34 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
               </NoteAccordion>
             </div>
           ) : (
-            <div className={`px-4 py-2 flex flex-wrap gap-1.5 items-center border-b ${border} ${surface2}`}>
+            <div className={`px-4 py-2 border-b ${border} ${surface2}`}>
+            <div className="flex flex-wrap gap-1.5 items-center">
               <span className={`${chip} ${border}`}><VisibilityIcon visibility={n.visibility} /> {VISIBILITY_LABELS[n.visibility]}{n.visibility === 'members' ? `(${sharedLabel(n.sharedWith)})` : ''}</span>
               {n.allowEdit && n.visibility !== 'private' && <span className={`${chip} ${border}`}><NoteIcon name="users" /> 共同編集</span>}
               {api.placementsAvailable && flatFolders.length > 0 && (
-                <label className="inline-flex items-center" title="このノートを、自分のフォルダに入れます(自分にだけそう見えます。作った人の置き場所や内容は変わりません)">
-                  <span className="sr-only">自分のフォルダに入れる</span>
-                  <select
-                    data-note-place
-                    value={folderOf(n) ?? ''}
-                    disabled={busy}
-                    onChange={ev => { const to = ev.target.value || null; void run(() => api.placeNote(n.id, to)); }}
-                    className={`text-xs rounded-full border px-2 py-1 max-w-[13rem] focus:outline-none focus:ring-2 focus:ring-[#0193be] ${d ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'}`}
-                  >
-                    <option value="">{folderOf(n) ? "(自分のフォルダから出す)" : "自分のフォルダに入れる…"}</option>
-                    {flatFolders.map(({ folder, depth }) => (
-                      <option key={folder.id} value={folder.id}>{depth ? '　└ ' : ''}{folder.name}</option>
-                    ))}
-                  </select>
-                </label>
+                <button
+                  data-note-place
+                  onClick={() => setFolderOpen(o => !o)}
+                  title="このノートを、自分のフォルダに入れます(自分にだけそう見えます。作った人の置き場所や内容は変わりません)"
+                  aria-expanded={folderOpen}
+                  className={`${chip} ${folderOpen ? chipOn : chipIdle}`}
+                >
+                  <NoteIcon name="folder" />
+                  <span className="truncate max-w-[11rem]">{(folderOf(n) && folders.find(f => f.id === folderOf(n))?.name) || '自分のフォルダに入れる'}</span>
+                  <AccordionArrow open={folderOpen} size={9} />
+                </button>
               )}
               {n.tags.map(t => <span key={t} className={tagCls}>#{t}</span>)}
               {!canEdit && <span className={`text-xs ${muted}`}>読み取り専用です</span>}
               {!isEditing && linkChip(n, `${chip} ${chipIdle}`)}
+            </div>
+              {api.placementsAvailable && flatFolders.length > 0 && (
+                <NoteAccordion open={folderOpen} gap={8}>
+                  {folderChoices(folderOf(n), '自分のフォルダに入れない',
+                    'このノートを入れる、自分のフォルダを選びます。自分にだけそう見えます(作った人の置き場所や内容は変わりません)。',
+                    id => { void run(() => api.placeNote(n.id, id)); })}
+                </NoteAccordion>
+              )}
             </div>
           )}
 
