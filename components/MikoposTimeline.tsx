@@ -104,6 +104,23 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
   // ── 返信欄(開いているポストと、その入力) ──
   const [replyOpen, setReplyOpen] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  /** 返信に付ける画像(ドラッグ・貼り付け・ボタンで選ぶ) */
+  const [replyImage, setReplyImage] = useState<{ file: File; preview: string } | null>(null);
+  const [replyBusy, setReplyBusy] = useState(false);
+  /** 画像ファイルを、返信欄を開いているポストの上にドラッグしているか(そのポストのID) */
+  const [replyDrag, setReplyDrag] = useState<string | null>(null);
+  const replyFileRef = useRef<HTMLInputElement>(null);
+  const clearReplyImage = () => {
+    if (replyImage) URL.revokeObjectURL(replyImage.preview);
+    setReplyImage(null);
+  };
+  const pickReplyImage = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setError('画像ファイル(GIF を含む)を選んでください'); return; }
+    setError('');
+    clearReplyImage();
+    setReplyImage({ file, preview: URL.createObjectURL(file) });
+  };
   const [deleteTarget, setDeleteTarget] = useState<MikoposPost | null>(null);
 
   const remaining = MIKOPOS_BODY_MAX - lengthWithoutNoteLinks(body);
@@ -201,13 +218,18 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
 
   const handleReply = async (postId: string) => {
     const t = replyText.trim();
-    if (!t || lengthWithoutNoteLinks(t) > MIKOPOS_REPLY_MAX) return;
+    if (replyBusy || (!t && !replyImage) || lengthWithoutNoteLinks(t) > MIKOPOS_REPLY_MAX) return;
     setError('');
+    setReplyBusy(true);
     try {
-      await api.reply(postId, t);
+      const imageUrl = replyImage ? await uploadMikoposImage(replyImage.file, me.name) : null;
+      await api.reply(postId, t, imageUrl);
       setReplyText('');
+      clearReplyImage();
     } catch (e: any) {
       setError(e?.message ?? '返信に失敗しました');
+    } finally {
+      setReplyBusy(false);
     }
   };
 
@@ -224,18 +246,19 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
         e.dataTransfer.dropEffect = 'copy';
         if (!dragOver) setDragOver(true);
       }}
-      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false); }}
+      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) { setDragOver(false); setReplyDrag(null); } }}
       onDrop={e => {
         if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
         e.preventDefault();
         setDragOver(false);
+        setReplyDrag(null);
         const files = Array.from(e.dataTransfer.files ?? []);
         const img = files.find(f => f.type.startsWith('image/'));
         if (img) pickImage(img);
         else if (files.length) setError('画像ファイル(GIF を含む)を選んでください');
       }}
     >
-      {dragOver && (
+      {dragOver && !replyDrag && (
         <div aria-hidden="true" style={{ position: 'absolute', inset: 6, zIndex: 15, borderRadius: 16, border: `2px dashed ${ACCENT}`, background: d ? 'rgba(168,85,247,0.22)' : 'rgba(168,85,247,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, fontWeight: 700, fontSize: 14, pointerEvents: 'none' }}>
           ここに画像・GIF を置くと、ポストに付きます
         </div>
@@ -343,7 +366,37 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
           const pill: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 5, padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', background: d ? '#2a2440' : '#f1f5f9', color: d ? '#94a3b8' : '#64748b', border: '1px solid transparent' };
           const isMine = post.author === me.name;
           return (
-            <article key={post.id} style={{ ...cardFrame, borderRadius: 16, padding: '10px 12px' }}>
+            <article
+              key={post.id}
+              data-mikopos-post={post.id}
+              style={{ ...cardFrame, borderRadius: 16, padding: '10px 12px', position: 'relative' }}
+              {...(replyOpen === post.id ? {
+                onDragOver: (e: React.DragEvent) => {
+                  if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.dataTransfer.dropEffect = 'copy';
+                  if (replyDrag !== post.id) setReplyDrag(post.id);
+                },
+                onDragLeave: (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setReplyDrag(null); },
+                onDrop: (e: React.DragEvent) => {
+                  if (!Array.from(e.dataTransfer?.types ?? []).includes('Files')) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDragOver(false);
+                  setReplyDrag(null);
+                  const files = Array.from(e.dataTransfer.files ?? []);
+                  const img = files.find(f => f.type.startsWith('image/'));
+                  if (img) pickReplyImage(img);
+                  else if (files.length) setError('画像ファイル(GIF を含む)を選んでください');
+                },
+              } : {})}
+            >
+              {replyDrag === post.id && (
+                <div aria-hidden="true" data-mikopos-reply-drop style={{ position: 'absolute', inset: 2, zIndex: 4, borderRadius: 14, border: `2px dashed ${ACCENT}`, background: d ? 'rgba(168,85,247,0.28)' : 'rgba(168,85,247,0.16)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: ACCENT, fontWeight: 700, fontSize: 13, pointerEvents: 'none', textAlign: 'center', padding: 8 }}>
+                  ここに画像・GIF を置くと、返信に付きます
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <button type="button" onClick={() => onOpenProfile(post.author)} title={`${post.author} さんのプロフィールを開く`} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'transparent', border: 0, padding: 0, color: text, cursor: 'pointer', minWidth: 0 }}>
                   <Avatar user={author} name={post.author} />
@@ -405,7 +458,7 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setReplyOpen(o => (o === post.id ? null : post.id)); setReplyText(''); }}
+                  onClick={() => { setReplyOpen(o => (o === post.id ? null : post.id)); setReplyText(''); clearReplyImage(); }}
                   aria-expanded={replyOpen === post.id}
                   style={pill}
                 >
@@ -422,13 +475,24 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <span style={{ fontWeight: 700 }}>{r.author}</span>
                         <span style={{ color: sub, fontSize: 11, marginLeft: 6 }}>{fmtWhen(r.createdAt)}</span>
-                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><NoteLinkText text={r.body} /></div>
+                        {r.body && <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}><NoteLinkText text={r.body} /></div>}
+                        {r.imageUrl && (
+                          <a href={r.imageUrl} target="_blank" rel="noopener noreferrer" title="画像を大きく開く" style={{ display: 'block', marginTop: 4 }}>
+                            <img src={r.imageUrl} alt="返信の画像" loading="lazy" data-mikopos-reply-image style={{ maxWidth: '100%', maxHeight: 180, borderRadius: 8, border: `1px solid ${line}`, display: 'block' }} />
+                          </a>
+                        )}
                       </div>
                       {r.author === me.name && (
                         <button type="button" onClick={() => run(() => api.removeReply(r.id))} aria-label="この返信を削除" title="この返信を削除" style={{ ...smallBtn, padding: '0 6px', fontSize: 11, alignSelf: 'flex-start' }}>×</button>
                       )}
                     </div>
                   ))}
+                  {replyOpen === post.id && replyImage && (
+                    <div style={{ position: 'relative', display: 'inline-block', alignSelf: 'flex-start' }}>
+                      <img src={replyImage.preview} alt="返信に付ける画像" data-mikopos-reply-preview style={{ maxHeight: 90, maxWidth: '100%', borderRadius: 8, border: `1px solid ${line}`, display: 'block' }} />
+                      <button type="button" onClick={clearReplyImage} aria-label="画像を外す" title="画像を外す" style={{ position: 'absolute', top: 3, right: 3, width: 20, height: 20, borderRadius: '50%', border: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', cursor: 'pointer', lineHeight: 1 }}>×</button>
+                    </div>
+                  )}
                   {replyOpen === post.id && (
                     <div style={{ display: 'flex', gap: 6 }}>
                       <input
@@ -437,11 +501,17 @@ const MikoposTimeline: React.FC<MikoposTimelineProps> = ({ api, me, users, isDar
                         autoFocus
                         onChange={e => setReplyText(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); void handleReply(post.id); } }}
+                        onPaste={e => {
+                          const f = Array.from(e.clipboardData?.files ?? []).find(x => x.type.startsWith('image/'));
+                          if (f) { e.preventDefault(); pickReplyImage(f); }
+                        }}
                         placeholder={`${post.author} さんに返信`}
                         aria-label="返信の本文"
                         style={inputStyle}
                       />
-                      <button type="button" onClick={() => void handleReply(post.id)} disabled={!replyText.trim()} style={{ ...smallBtn, color: '#fff', background: ACCENT, borderColor: ACCENT, fontWeight: 700, opacity: replyText.trim() ? 1 : 0.45 }}>送信</button>
+                      <button type="button" onClick={() => replyFileRef.current?.click()} disabled={replyBusy} title="返信に画像・GIF を付ける(ドラッグや貼り付けでも付けられます)" aria-label="返信に画像・GIF を付ける" style={smallBtn}>画像</button>
+                      <input ref={replyFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { pickReplyImage(e.target.files?.[0]); e.target.value = ''; }} />
+                      <button type="button" onClick={() => void handleReply(post.id)} disabled={replyBusy || (!replyText.trim() && !replyImage)} style={{ ...smallBtn, color: '#fff', background: ACCENT, borderColor: ACCENT, fontWeight: 700, opacity: !replyBusy && (replyText.trim() || replyImage) ? 1 : 0.45 }}>{replyBusy ? '送信中…' : '送信'}</button>
                     </div>
                   )}
                 </div>

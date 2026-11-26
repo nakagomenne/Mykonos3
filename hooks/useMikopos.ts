@@ -71,7 +71,7 @@ export function useMikopos({ me, onNotice }: UseMikoposOptions) {
             const reply = svc.rowToReply(change.row);
             const post = dataRef.current.posts.find(p => p.id === reply.postId);
             if (post && post.author === my && reply.author !== my) {
-              onNoticeRef.current?.({ kind: 'reply', post, from: reply.author, body: reply.body });
+              onNoticeRef.current?.({ kind: 'reply', post, from: reply.author, body: reply.body || (reply.imageUrl ? '(画像)' : '') });
             }
           } else if (change.table === 'reactions') {
             const reaction = svc.rowToReaction(change.row);
@@ -116,8 +116,8 @@ export function useMikopos({ me, onNotice }: UseMikoposOptions) {
     }
   }, []);
 
-  const reply = useCallback(async (postId: string, body: string) => {
-    const created = await svc.addMikoposReply(postId, meRef.current, body);
+  const reply = useCallback(async (postId: string, body: string, imageUrl: string | null = null) => {
+    const created = await svc.addMikoposReply(postId, meRef.current, body, imageUrl);
     setData(prev => (prev.replies.some(r => r.id === created.id) ? prev : { ...prev, replies: [...prev.replies, created] }));
   }, []);
 

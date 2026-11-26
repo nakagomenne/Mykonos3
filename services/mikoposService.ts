@@ -32,6 +32,8 @@ export interface MikoposReply {
   postId: string;
   author: string;
   body: string;
+  /** 返信に付けた画像(なければ null) */
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -82,7 +84,7 @@ export function rowToPost(row: any): MikoposPost {
   };
 }
 export const rowToReaction = (row: any): MikoposReaction => ({ postId: row.post_id, userName: row.user_name, emoji: row.emoji, createdAt: row.created_at });
-export const rowToReply = (row: any): MikoposReply => ({ id: row.id, postId: row.post_id, author: row.author, body: row.body ?? '', createdAt: row.created_at });
+export const rowToReply = (row: any): MikoposReply => ({ id: row.id, postId: row.post_id, author: row.author, body: row.body ?? '', imageUrl: row.image_url ?? null, createdAt: row.created_at });
 export const rowToVote = (row: any): MikoposVote => ({ postId: row.post_id, userName: row.user_name, optionIndex: row.option_index });
 
 /** タイムラインをまとめて取得(新しいポストから100件と、それに付いたリアクション・返信・投票) */
@@ -167,9 +169,15 @@ export async function removeMikoposReaction(postId: string, userName: string, em
   if (error) fail('リアクションの取り消しに失敗しました', error);
 }
 
-export async function addMikoposReply(postId: string, author: string, body: string): Promise<MikoposReply> {
+export async function addMikoposReply(postId: string, author: string, body: string, imageUrl: string | null = null): Promise<MikoposReply> {
+  // 画像の欄は、付けたときだけ送る(追加の SQL を実行する前でも、文字だけの返信は送れるように)
+  const row: Record<string, unknown> = { post_id: postId, author, body };
+  if (imageUrl) row.image_url = imageUrl;
   const { data, error } = await supabase
-    .from('mikopos_replies').insert({ post_id: postId, author, body }).select('*').single();
+    .from('mikopos_replies').insert(row).select('*').single();
+  if (error && imageUrl && String(error?.message ?? '').includes('image_url')) {
+    throw new Error('画像つきの返信を送れませんでした: データベースの更新が必要です(supabase/migrations/20261205_add_mikopos_reply_image.sql を実行してください)');
+  }
   if (error) fail('返信に失敗しました', error);
   return rowToReply(data);
 }
