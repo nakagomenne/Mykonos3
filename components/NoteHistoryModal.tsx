@@ -10,6 +10,8 @@ import { XMarkIcon } from './icons';
 interface NoteHistoryModalProps {
   note: Note;
   isDarkMode?: boolean;
+  /** 前の版に戻せるか(ノートを編集できる人だけ)。false のときは、見るだけ */
+  canRestore?: boolean;
   /** 選んだ版の内容でノートを書き換える(今の内容は履歴に残る) */
   onRestore: (version: NoteVersion) => Promise<void>;
   onClose: () => void;
@@ -24,7 +26,7 @@ const fmt = (iso: string) => {
 };
 
 /** ノートの編集履歴を見て、前の版に戻すためのダイアログ */
-const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = false, onRestore, onClose }) => {
+const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = false, canRestore = true, onRestore, onClose }) => {
   const d = isDarkMode;
   const [versions, setVersions] = useState<NoteVersion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
   const hoverRow = d ? 'hover:bg-slate-700/60' : 'hover:bg-slate-100';
 
   const restore = async () => {
-    if (!selected || isCurrent) return;
+    if (!canRestore || !selected || isCurrent) return;
     setBusy(true);
     setError(null);
     try {
@@ -101,7 +103,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
               <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
             ) : versions.length === 0 ? (
               <div className={`p-4 text-sm leading-relaxed ${muted}`}>
-                {error ? '履歴を表示できません。' : '履歴はまだありません。このノートを編集して「保存」するたびに、保存前の内容がここに残ります。'}
+                {error ? '履歴を表示できません。' : '履歴はまだありません。このノートが編集されて「保存」されるたびに、保存前の内容がここに残ります。'}
               </div>
             ) : entries.map(v => (
               <button
@@ -160,7 +162,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
           <span className={`flex-1 min-w-[200px] text-xs ${muted}`}>
             {confirming
               ? 'この版の内容でノートを書き換えます。今の内容は履歴に残るので、あとでまた戻せます。'
-              : `新しいものから${NOTE_VERSION_LIMIT}件まで残ります。`}
+              : `新しいものから${NOTE_VERSION_LIMIT}件まで残ります。${canRestore ? '' : '(前の版に戻せるのは、このノートを編集できる人だけです)'}`}
           </span>
           {confirming ? (
             <>
@@ -170,7 +172,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
           ) : (
             <>
               <button onClick={onClose} className={`px-4 py-2 rounded-md text-sm border ${border} ${hoverRow}`}>閉じる</button>
-              <button onClick={() => setConfirming(true)} disabled={!selected || isCurrent} title={isCurrent ? '今の内容です。戻したい版を左から選んでください' : undefined} className="px-5 py-2 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50">この版に戻す…</button>
+              {canRestore && <button data-note-history-restore onClick={() => setConfirming(true)} disabled={!selected || isCurrent} title={isCurrent ? '今の内容です。戻したい版を左から選んでください' : undefined} className="px-5 py-2 rounded-md text-sm font-bold text-white bg-[#0193be] hover:bg-[#017a9c] disabled:opacity-50">この版に戻す…</button>}
             </>
           )}
         </div>

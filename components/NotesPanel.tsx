@@ -1669,10 +1669,11 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
                   className="text-sm px-4 py-1.5 rounded-md font-bold text-white bg-[#0193be] hover:bg-[#017a9c] inline-flex items-center gap-1 whitespace-nowrap"
                 ><NoteIcon name="pencil" /> 編集</button>
               )}
-              {canEdit && (
+              {(
                 <button
+                  data-note-history
                   onClick={() => setHistoryOpen(true)}
-                  title="これまでに保存した内容を見て、前の版に戻せます"
+                  title={canEdit ? 'これまでに保存した内容を見て、前の版に戻せます' : 'これまでに保存された内容(いつ・だれが・どこを変えたか)を見られます'}
                   className={`text-sm px-3 py-1.5 rounded-md border ${border} ${hoverRow} inline-flex items-center gap-1 whitespace-nowrap`}
                 ><NoteIcon name="clock" /><span className="hidden sm:inline"> 履歴</span></button>
               )}
@@ -2328,6 +2329,7 @@ const NotesPanel: React.FC<NotesPanelProps> = ({ api, me, users, isDarkMode = fa
         <NoteHistoryModal
           note={selected}
           isDarkMode={d}
+          canRestore={canEdit}
           onClose={() => setHistoryOpen(false)}
           onRestore={async v => { await api.saveNote(selected.id, { title: v.title, body: v.body }); }}
         />
