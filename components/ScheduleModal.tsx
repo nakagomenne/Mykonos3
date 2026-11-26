@@ -17,12 +17,16 @@ const ScheduleModal: React.FC<ScheduleModalProps> = ({ isOpen, onClose, user, on
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
 
+  // 開いたとき(と、表示する人が変わったとき)だけ、保存済みの内容を読み込む。
+  // 開いているあいだにメンバーの情報が読み直されても(ほかの人の更新や定期的な再取得)、
+  // 選びかけの日付や、めくった月を元に戻さない
   useEffect(() => {
     if (isOpen) {
         setSelectedDates(new Set(user.nonWorkingDays || []));
         setCurrentDate(new Date());
     }
-  }, [isOpen, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, user.name]);
 
   const today = useMemo(() => {
     const d = new Date();
