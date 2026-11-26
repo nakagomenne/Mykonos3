@@ -38,11 +38,13 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
 
   useEffect(() => {
     let cancelled = false;
-    fetchNoteVersions(note.id)
+    // 見るだけの人には、共有した日時より前の版を取りに行かない(共有する前に書いて消した内容を、読まれないように)
+    fetchNoteVersions(note.id, canRestore ? undefined : (note.sharedAt ?? null))
       .then(v => { if (!cancelled) { setVersions(v); setSelectedId(v.length > 0 ? CURRENT_ID : null); } })
       .catch((e: any) => { if (!cancelled) { setVersions([]); setError(e?.message ?? '履歴の取得に失敗しました'); } });
     return () => { cancelled = true; };
-  }, [note.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.id, canRestore, note.sharedAt]);
 
   /** 一覧に並べるもの: 今の内容 + 履歴の版(新しい順)。それぞれ、1つ下(1つ前)と見比べる */
   const entries = useMemo<NoteVersion[]>(() => {
@@ -103,7 +105,9 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
               <div className={`p-4 text-sm ${muted}`}>読み込み中…</div>
             ) : versions.length === 0 ? (
               <div className={`p-4 text-sm leading-relaxed ${muted}`}>
-                {error ? '履歴を表示できません。' : '履歴はまだありません。このノートが編集されて「保存」されるたびに、保存前の内容がここに残ります。'}
+                {error ? '履歴を表示できません。' : canRestore
+                  ? '履歴はまだありません。このノートが編集されて「保存」されるたびに、保存前の内容がここに残ります。'
+                  : '共有されてからの変更は、まだありません。共有されたあとに編集されると、ここに並びます。'}
               </div>
             ) : entries.map(v => (
               <button
@@ -128,7 +132,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
                     変更されたところに色をつける
                   </label>
                   {showDiff && (!baseline ? (
-                    <span>これより前の版が残っていないため、変更されたところは表示できません</span>
+                    <span>{canRestore ? 'これより前の版が残っていないため、変更されたところは表示できません' : 'これより前の版は表示されないため、変更されたところは表示できません'}</span>
                   ) : diff && (diff.added > 0 || diff.removed > 0 || diff.codeChanged || titleChanged) ? (
                     <span>
                       <span className="px-1 rounded-sm" style={{ backgroundColor: NOTE_DIFF_COLOR, color: '#1e293b' }}>この色</span>
@@ -162,7 +166,7 @@ const NoteHistoryModal: React.FC<NoteHistoryModalProps> = ({ note, isDarkMode = 
           <span className={`flex-1 min-w-[200px] text-xs ${muted}`}>
             {confirming
               ? 'この版の内容でノートを書き換えます。今の内容は履歴に残るので、あとでまた戻せます。'
-              : `新しいものから${NOTE_VERSION_LIMIT}件まで残ります。${canRestore ? '' : '(前の版に戻せるのは、このノートを編集できる人だけです)'}`}
+              : `新しいものから${NOTE_VERSION_LIMIT}件まで残ります。${canRestore ? '' : '(共有される前の版は表示されません。前の版に戻せるのは、このノートを編集できる人だけです)'}`}
           </span>
           {confirming ? (
             <>

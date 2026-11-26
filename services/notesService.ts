@@ -221,6 +221,7 @@ export function rowToNote(row: any): Note {
     updatedAt:       row.updated_at,
     updatedBy:       row.updated_by ?? null,
     allowEdit:       row.allow_edit ?? false,
+    sharedAt:        row.shared_at ?? null,
     announceImportant: row.announce_important ?? false,
     announceDue:     row.announce_due ?? null,
   };
@@ -468,19 +469,29 @@ export async function saveNoteVersion(prev: Note): Promise<void> {
   } catch { /* 履歴を残せなくても保存は続ける */ }
 }
 
-/** ノートの編集履歴を新しい順に取得 */
-export async function fetchNoteVersions(noteId: string): Promise<NoteVersion[]> {
-  const { data, error } = await supabase
+/**
+ * ノートの編集履歴を新しい順に取得。
+ * since を渡すと、その日時以降に保存された版だけを返す(見るだけの人には、共有した日時より前の版を渡さない)。
+ * since が null のときは、共有した日時が分からないので、1件も返さない
+ */
+export async function fetchNoteVersions(noteId: string, since?: string | null): Promise<NoteVersion[]> {
+  if (since === null) return [];
+  let query = supabase
     .from('note_versions')
     .select('*')
-    .eq('note_id', noteId)
+    .eq('note_id', noteId);
+  if (since) query = query.gte('edited_at', since);
+  const { data, error } = await query
     .order('edited_at', { ascending: false })
     .limit(NOTE_VERSION_LIMIT);
   if (error) {
     if (isMissingTableError(error)) throw new Error(`履歴はまだ使えません: ${NOTE_EXT_SQL_HINT}`);
     throw new Error(`履歴の取得に失敗しました: ${error.message}`);
   }
-  return (data ?? []).map(rowToVersion);
+  const versions = (data ?? []).map(rowToVersion);
+  // 念のため、受け取ったあとにも同じ条件で絞る
+  const sinceMs = since ? Date.parse(since) : NaN;
+  return Number.isFinite(sinceMs) ? versions.filter(v => Date.parse(v.editedAt) >= sinceMs) : versions;
 }
 
 export async function deleteNote(id: string): Promise<void> {
