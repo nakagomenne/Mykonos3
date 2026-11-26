@@ -265,7 +265,7 @@ const CallList: React.FC<CallListProps> = ({
                     currentUser={currentUser}
                     isDuplicate={
                       call.assignee === PRECHECKER_ASSIGNEE_NAME || call.assignee === ELEC_ASSIGNEE_NAME
-                        ? precheckDuplicateIds.has(call.customerId.trim().toLowerCase())
+                        ? precheckDuplicateIds.has(call.assignee + '::' + call.customerId.trim().toLowerCase())   // タブ(回線前確 / 電気契確)ごとに別々に判定
                         : normalDuplicateIds.has(call.customerId.trim().toLowerCase())
                     }
                     isDarkMode={isDarkMode}

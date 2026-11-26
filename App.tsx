@@ -785,14 +785,17 @@ const App: React.FC = () => {
       normalCountPerAssignee.set(key, (normalCountPerAssignee.get(key) || 0) + 1);
     });
 
-    // 回線前確：同一 customerId が2件以上（前確は全員共通の担当者なので従来通り）
+    // 回線前確・電気契確：それぞれのタブの中で、同一 customerId が2件以上ある場合を重複とする
+    // ・回線前確と電気契確にまたがって同じIDがあっても、重複にしない(タブごとに別々に数える)
+    // ・キーは "担当(回線前確 / 電気契確)::customerId"
     const precheckCounts = new Map<string, number>();
     calls.forEach(call => {
       if (call.status === '完了') return;
-      if (call.assignee !== PRECHECKER_ASSIGNEE_NAME) return;
+      if (call.assignee !== PRECHECKER_ASSIGNEE_NAME && call.assignee !== ELEC_ASSIGNEE_NAME) return;
       const trimmedId = call.customerId.trim().toLowerCase();
       if (!trimmedId) return;
-      precheckCounts.set(trimmedId, (precheckCounts.get(trimmedId) || 0) + 1);
+      const key = call.assignee + '::' + trimmedId;
+      precheckCounts.set(key, (precheckCounts.get(key) || 0) + 1);
     });
 
     const normalDups   = new Set<string>();
