@@ -195,8 +195,12 @@ const CallEditForm: React.FC<CallEditFormProps> = ({ call, onSave, onCreateCall,
       setNotes(prev => '\n\n' + prev);
       // ★ クリア
       setEmoji('');
+      // 厳守 → いったん外す(もとの案件の厳守は、前確依頼には引き継がない。
+      //   前確依頼を厳守にしたいときは、このあと「厳守」にチェックを入れ直す)
+      setIsStrict(false);
     } else {
       // 元の値に戻す
+      setIsStrict(call.isStrict ?? false);
       setRank(call.rank);
       setAssignee(call.assignee);
       setRequester(call.requester);
