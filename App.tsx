@@ -14,7 +14,7 @@ import { MIKOPOS_LIKE } from './services/mikoposService';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, normalizePrecheckDateTime, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, LINE_KOUKAKU_RANKS, normalizePrecheckDateTime, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -1835,6 +1835,19 @@ const App: React.FC = () => {
       currentCall.prechecker
     ) {
       updatedData = { ...updatedData, prechecker: null };
+    }
+    // 回線前確の案件のランクを「後確」(SB光後確・AIR後確)に変えたときは、日時を当日の「順次」にする
+    // (後確は、その日のうちに順番に対応するため)。同じ保存で日時も自分で変えていたら、そちらを優先する
+    if (
+      updatedData.rank &&
+      (LINE_KOUKAKU_RANKS as string[]).includes(updatedData.rank) &&
+      !(LINE_KOUKAKU_RANKS as string[]).includes(currentCall.rank) &&
+      (updatedData.assignee ?? currentCall.assignee) === PRECHECKER_ASSIGNEE_NAME &&
+      (updatedData.dateTime === undefined || updatedData.dateTime === currentCall.dateTime)
+    ) {
+      const now = new Date();
+      const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      updatedData = { ...updatedData, dateTime: `${todayStr}T順次` };
     }
     // 担当者や日時を変えた結果、回線前確・電気契確の案件が「このあとOK」になるときは「順次」に直す
     // (担当者だけを前確・契確に付け替えた場合など)
