@@ -8,7 +8,7 @@ import ConfirmationModal from './ConfirmationModal';
 import AlertModal from './AlertModal';
 import EmojiPicker from './EmojiPicker';
 import { replaceNoteLinks, useNoteLinkApi } from './noteLinks';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS, LINE_KOUKAKU_RANKS } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
@@ -496,11 +496,28 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   // 対応者重複チェック用モーダルの状態
   const [precheckerConflictCall, setPrecheckerConflictCall] = useState<CallRequest | null>(null);
 
+  /**
+   * 「SB光後確」「AIR後確」の案件で対応者になったら、顧客IDをクリップボードにコピーする
+   * (後確はこのあとすぐ顧客IDを使うので、コピーの手間を省く)。コピーできなくても、対応者のチェックは進める
+   */
+  const copyCustomerIdForKoukaku = (targetCall: CallRequest) => {
+    if (!LINE_KOUKAKU_RANKS.includes(targetCall.rank) || !targetCall.customerId) return;
+    try {
+      void navigator.clipboard.writeText(targetCall.customerId).then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      }).catch(err => console.error('Failed to copy customer ID: ', err));
+    } catch (err) {
+      console.error('Failed to copy customer ID: ', err);
+    }
+  };
+
   const assignPrechecker = (targetCall: CallRequest, releaseOther?: CallRequest) => {
     if (releaseOther) {
       onUpdateCall(releaseOther.id, { prechecker: null });
     }
     onUpdateCall(targetCall.id, { prechecker: currentUser.name });
+    copyCustomerIdForKoukaku(targetCall);
   };
 
   const handlePrecheckerClick = (e: React.MouseEvent) => {
@@ -513,6 +530,7 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         onUpdateCall(call.id, { prechecker: null });
       } else {
         onUpdateCall(call.id, { prechecker: currentUser.name });
+        copyCustomerIdForKoukaku(call);
       }
       return;
     }
