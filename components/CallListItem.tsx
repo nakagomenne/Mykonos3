@@ -8,7 +8,7 @@ import ConfirmationModal from './ConfirmationModal';
 import AlertModal from './AlertModal';
 import EmojiPicker from './EmojiPicker';
 import { replaceNoteLinks, useNoteLinkApi } from './noteLinks';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS, LINE_KOUKAKU_RANKS } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS, LINE_KOUKAKU_RANKS, LINE_HONKAKU_RANKS } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
@@ -497,11 +497,11 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
   const [precheckerConflictCall, setPrecheckerConflictCall] = useState<CallRequest | null>(null);
 
   /**
-   * 「SB光後確」「AIR後確」の案件で対応者になったら、顧客IDをクリップボードにコピーする
-   * (後確はこのあとすぐ顧客IDを使うので、コピーの手間を省く)。コピーできなくても、対応者のチェックは進める
+   * 「SB光後確」「AIR後確」「SB光本確」「AIR本確」の案件で対応者になったら、顧客IDをクリップボードにコピーする
+   * (後確・本確はこのあとすぐ顧客IDを使うので、コピーの手間を省く)。コピーできなくても、対応者のチェックは進める
    */
   const copyCustomerIdForKoukaku = (targetCall: CallRequest) => {
-    if (!LINE_KOUKAKU_RANKS.includes(targetCall.rank) || !targetCall.customerId) return;
+    if (!(LINE_KOUKAKU_RANKS.includes(targetCall.rank) || LINE_HONKAKU_RANKS.includes(targetCall.rank)) || !targetCall.customerId) return;
     try {
       void navigator.clipboard.writeText(targetCall.customerId).then(() => {
         setIsCopied(true);

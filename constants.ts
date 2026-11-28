@@ -128,9 +128,9 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'SB光後確': { backgroundColor: '#333333', color: '#ffeb00', border: '1px solid #ffeb00' },
   // 本確は淡い地色に枠線（同じ商材だと分かり、前確・後確と見分けがつくように）
   'SB光本確': { backgroundColor: '#fffbd1', color: '#333333', border: '1px solid #333333' },
-  'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
+  'AIR前確': { backgroundColor: '#ffffff', color: '#003361', border: '1px solid #003361' },
   'AIR後確': { backgroundColor: '#003361', color: '#e8eaed' },
-  'AIR本確': { backgroundColor: '#ffffff', color: '#003361', border: '1px solid #003361' },
+  'AIR本確': { backgroundColor: '#e8eaed', color: '#003361' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
   '決済待ち': { backgroundColor: '#e2e2e2', color: '#008b7c' },
   'ET待ち':  { backgroundColor: '#e2e2e2', color: '#f55d00' },
