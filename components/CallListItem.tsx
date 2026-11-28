@@ -8,7 +8,7 @@ import ConfirmationModal from './ConfirmationModal';
 import AlertModal from './AlertModal';
 import EmojiPicker from './EmojiPicker';
 import { replaceNoteLinks, useNoteLinkApi } from './noteLinks';
-import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS, LINE_KOUKAKU_RANKS, LINE_HONKAKU_RANKS } from '../constants';
+import { RANK_STYLES, NON_PRECHECK_RANK_OPTIONS, PRECHECK_RANK_OPTIONS, ELEC_RANK_OPTIONS, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, JIRA_TRACKING_TARGET_RANKS, LINE_KOUKAKU_RANKS, LINE_HONKAKU_RANKS, LINE_NEXT_RANK } from '../constants';
 
 interface CallListItemProps {
   call: CallRequest;
@@ -268,6 +268,17 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
       console.error('Failed to copy text: ', err);
       alert('コピーに失敗しました。');
     }
+  };
+
+  /**
+   * 回線前確の案件で、完了にする前に「次のランクへの変更の誤りではないか」を確かめるランク
+   * (SB光・AIR の 前確 → 後確、後確 → 本確)。本確やほかのランクでは null
+   */
+  const nextLineRank = call.assignee === PRECHECKER_ASSIGNEE_NAME ? (LINE_NEXT_RANK[call.rank] ?? null) : null;
+  /** 完了にせず、次のランクに変える */
+  const handleChangeToNextRank = () => {
+    if (nextLineRank) onUpdateCall(call.id, { rank: nextLineRank });
+    setConfirmationModalOpen(false);
   };
 
   const handleConfirmComplete = () => {
@@ -1050,12 +1061,25 @@ const CallListItem: React.FC<CallListItemProps> = ({ call, onUpdateCall, onCreat
         isOpen={isConfirmationModalOpen}
         onClose={() => setConfirmationModalOpen(false)}
         onConfirm={handleConfirmComplete}
-        title={isElecTheme && call.rank === 'プラチナIMP' ? '警告！' : '完了確認'}
-        titleClassName={isElecTheme && call.rank === 'プラチナIMP' ? 'text-red-600' : 'text-slate-800'}
-        confirmLabel="完了"
+        title={isElecTheme && call.rank === 'プラチナIMP' ? '警告！' : nextLineRank ? 'ランクの確認' : '完了確認'}
+        titleClassName={isElecTheme && call.rank === 'プラチナIMP' ? 'text-red-600' : nextLineRank ? 'text-amber-600' : 'text-slate-800'}
+        confirmLabel={nextLineRank ? 'このまま完了' : '完了'}
         cancelLabel="キャンセル"
+        extraLabel={nextLineRank ? `「${nextLineRank}」に変更` : undefined}
+        onExtra={nextLineRank ? handleChangeToNextRank : undefined}
       >
-        {isElecTheme && call.rank === 'プラチナIMP' ? (
+        {nextLineRank ? (
+          <div data-next-rank-confirm>
+            <p className="font-bold text-amber-600">
+              「{nextLineRank}」へのランク変更の誤りではありませんか？
+            </p>
+            <p className="mt-2">
+              この案件のランクは<strong className="text-slate-800 mx-1">「{call.rank}」</strong>です。
+              完了にするのではなく、ランクを「{nextLineRank}」に進める場合は、緑のボタンを押してください。
+            </p>
+            <p className="mt-2">顧客ID: {call.customerId}</p>
+          </div>
+        ) : isElecTheme && call.rank === 'プラチナIMP' ? (
           <p className="text-red-600">
             この案件を完了してよろしいですか？
             追跡案件ではないかご確認ください。

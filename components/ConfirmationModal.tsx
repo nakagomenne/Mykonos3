@@ -11,9 +11,12 @@ interface ConfirmationModalProps {
   children: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** もう1つの選択肢のボタン(指定したときだけ、右端に目立つ色で出す) */
+  extraLabel?: string;
+  onExtra?: () => void;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, titleClassName = 'text-slate-800', children, confirmLabel = 'OK', cancelLabel = 'キャンセル' }) => {
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, titleClassName = 'text-slate-800', children, confirmLabel = 'OK', cancelLabel = 'キャンセル', extraLabel, onExtra }) => {
   if (!isOpen) return null;
 
   return createPortal(
@@ -36,7 +39,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
           {children}
         </div>
         
-        <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end items-center gap-3">
+        <div className="p-4 bg-slate-100 border-t border-slate-200 flex flex-wrap justify-end items-center gap-3">
             <button 
               onClick={onClose} 
               className="bg-white text-slate-700 border border-slate-300 font-bold py-2 px-5 rounded-lg hover:bg-slate-50 transition"
@@ -49,6 +52,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
             >
                 {confirmLabel}
             </button>
+            {extraLabel && onExtra && (
+              <button
+                data-confirm-extra
+                onClick={onExtra}
+                className="bg-[#118f82] text-white font-bold py-2 px-5 rounded-lg hover:bg-[#0d7a6f] transition"
+              >
+                {extraLabel}
+              </button>
+            )}
         </div>
       </div>
        <style>{`

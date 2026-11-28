@@ -53,6 +53,13 @@ export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 /** 回線前確の「前確」ランクと、そこから進む「後確」ランク */
 export const LINE_MAEKAKU_RANKS: Rank[] = ['SB光前確', 'AIR前確'];
 export const LINE_KOUKAKU_RANKS: Rank[] = ['SB光後確', 'AIR後確'];
+/** 回線前確の案件で、いまのランクの次に進むランク(前確 → 後確 → 本確)。本確など、次が無いランクには無い */
+export const LINE_NEXT_RANK: Partial<Record<Rank, Rank>> = {
+  'SB光前確': 'SB光後確',
+  'SB光後確': 'SB光本確',
+  'AIR前確': 'AIR後確',
+  'AIR後確': 'AIR本確',
+};
 /** 回線前確の「本確」ランク */
 export const LINE_HONKAKU_RANKS: Rank[] = ['SB光本確', 'AIR本確'];
 /** 回線前確の案件が、ほかのランクから「本確」に変わったか */
