@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CallRequest, User } from '../types';
 import CallListItem from './CallListItem';
 import { CalendarIcon } from './icons';
-import { PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_TRACKING_RANKS } from '../constants';
+import { PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, ELEC_TRACKING_RANKS, LINE_HONKAKU_RANKS } from '../constants';
 
 interface CallListProps {
   calls: CallRequest[];
@@ -50,6 +50,10 @@ const CallList: React.FC<CallListProps> = ({
   const [hideCompleted, setHideCompleted] = useState(true);
   const [hideTracking, setHideTracking] = useState(false);
   const [hideWaiting, setHideWaiting] = useState(false);
+  /** 回線前確タブで、「本確」(SB光本確・AIR本確)の案件を隠すか */
+  const [hideHonkaku, setHideHonkaku] = useState(false);
+  /** 回線前確タブか(電気契確タブは含めない) */
+  const isLinePrecheckTab = isPrecheckTheme && !isElecTheme;
 
   const mainColor = isElecTheme ? '#2d5a9e' : isPrecheckTheme ? '#118f82' : '#0193be';
   const mainColorClass = isElecTheme ? 'text-[#2d5a9e]' : isPrecheckTheme ? 'text-[#118f82]' : 'text-[#0193be]';
@@ -68,7 +72,12 @@ const CallList: React.FC<CallListProps> = ({
     ? filteredByTracking.filter(c => c.dateTime.split('T')[1] !== '待機中')
     : filteredByTracking;
 
-  if (filteredByWaiting.length === 0 && calls.length === 0) {
+  // 回線前確タブの「本確」案件フィルタリング（ランクが SB光本確・AIR本確 のもの）
+  const filteredByHonkaku = isLinePrecheckTab && hideHonkaku
+    ? filteredByWaiting.filter(c => !LINE_HONKAKU_RANKS.includes(c.rank))
+    : filteredByWaiting;
+
+  if (filteredByHonkaku.length === 0 && calls.length === 0) {
     const isPrechecker = selectedMember === PRECHECKER_ASSIGNEE_NAME;
     const isElecChecker = selectedMember === ELEC_ASSIGNEE_NAME;
 
@@ -102,9 +111,9 @@ const CallList: React.FC<CallListProps> = ({
   const isAllMembersView = !selectedMember || selectedMember === '全体';
   const showRequesterColumn = !isAllMembersView && calls.some(call => call.requester !== call.assignee);
 
-  const displayedCalls = filteredByWaiting.filter(call => !hideCompleted || call.status !== '完了');
-  const hasCompletedCalls = filteredByWaiting.some(call => call.status === '完了');
-  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByWaiting.length > 0;
+  const displayedCalls = filteredByHonkaku.filter(call => !hideCompleted || call.status !== '完了');
+  const hasCompletedCalls = filteredByHonkaku.some(call => call.status === '完了');
+  const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByHonkaku.length > 0;
 
   const hasTrackingCalls = isElecTheme && calls.some(c => ELEC_TRACKING_RANKS.includes(c.rank as any));
 
@@ -124,7 +133,7 @@ const CallList: React.FC<CallListProps> = ({
     ? 'bg-[#0193be]/15 border-[#0193be]/25'
     : 'bg-gradient-to-r from-[#0193be]/10 to-[#0277a8]/5 border-[#0193be]/20';
 
-  const showToggleRow = hasCompletedCalls || isElecTheme;
+  const showToggleRow = hasCompletedCalls || isElecTheme || isLinePrecheckTab;
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ boxShadow: isDarkMode ? '0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)' : '0 2px 12px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)' }}>
@@ -188,6 +197,26 @@ const CallList: React.FC<CallListProps> = ({
                 <span className={`text-[10px] font-bold ${mainColorClass80}`}>待機中非表示</span>
               </label>
             )}
+            {isLinePrecheckTab && (
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <button
+                  data-hide-honkaku
+                  onClick={() => setHideHonkaku(prev => !prev)}
+                  title={hideHonkaku ? '本確の案件を表示' : '本確の案件を非表示'}
+                  aria-pressed={hideHonkaku}
+                  className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-1 ${focusRingClass} ${
+                    hideHonkaku ? 'bg-[#118f82]' : isDarkMode ? 'bg-slate-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out ${
+                      hideHonkaku ? 'translate-x-3' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className={`text-[10px] font-bold ${mainColorClass80}`}>本確非表示</span>
+              </label>
+            )}
           </div>
         )}
         {/* Header */}
@@ -237,6 +266,21 @@ const CallList: React.FC<CallListProps> = ({
             >
               <span className="text-white text-xs font-bold">
                 待機中の案件（{filteredByTracking.length - filteredByWaiting.length}件）は非表示中
+              </span>
+              <span className="text-white/80 text-xs">— クリックして表示</span>
+            </div>
+        )}
+        {/* 本確案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
+        {isLinePrecheckTab && hideHonkaku && filteredByHonkaku.length < filteredByWaiting.length && (
+            <div
+              data-hide-honkaku-banner
+              className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
+              style={{ backgroundColor: '#118f82' }}
+              onClick={() => setHideHonkaku(false)}
+              title="クリックして本確の案件を表示"
+            >
+              <span className="text-white text-xs font-bold">
+                本確の案件（{filteredByWaiting.length - filteredByHonkaku.length}件）は非表示中
               </span>
               <span className="text-white/80 text-xs">— クリックして表示</span>
             </div>
