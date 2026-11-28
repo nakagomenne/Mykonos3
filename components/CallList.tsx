@@ -48,10 +48,11 @@ const CallList: React.FC<CallListProps> = ({
   allCallsForPrecheckerCheck,
 }) => {
   const [hideCompleted, setHideCompleted] = useState(true);
-  const [hideTracking, setHideTracking] = useState(false);
+  // 最初の状態: 電気契確は「追跡」と「完了」を隠す。回線前確は「本確」と「完了」を隠す
+  const [hideTracking, setHideTracking] = useState(true);
   const [hideWaiting, setHideWaiting] = useState(false);
   /** 回線前確タブで、「本確」(SB光本確・AIR本確)の案件を隠すか */
-  const [hideHonkaku, setHideHonkaku] = useState(false);
+  const [hideHonkaku, setHideHonkaku] = useState(true);
   /** 回線前確タブか(電気契確タブは含めない) */
   const isLinePrecheckTab = isPrecheckTheme && !isElecTheme;
 
