@@ -3,7 +3,7 @@ import { ListType, Rank, CallStatus, User, AvailabilityStatus } from './types';
 export const LIST_TYPE_OPTIONS: ListType[] = ['回線', 'MF', 'OK', 'NG', '保険'];
 
 // 回線前確専用ランク（通常ランクの選択肢からは除外される）
-export const PRECHECK_ONLY_RANK_OPTIONS: Rank[] = ['SB光前確', 'SB光後確', 'AIR前確', 'AIR後確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち', 'CB対応', 'キャンセル依頼'];
+export const PRECHECK_ONLY_RANK_OPTIONS: Rank[] = ['SB光前確', 'SB光後確', 'SB光本確', 'AIR前確', 'AIR後確', 'AIR本確', '賃ね前確', 'IMP依頼', '決済待ち', 'ET待ち', 'CB対応', 'キャンセル依頼'];
 // 回線前確タブの選択肢（専用ランク + 通常ランクと共通の「対応」「共有」）
 export const PRECHECK_RANK_OPTIONS: Rank[] = [...PRECHECK_ONLY_RANK_OPTIONS, '対応', '共有'];
 
@@ -53,6 +53,14 @@ export const PRECHECKER_ASSIGNEE_NAME = '回線前確';
 /** 回線前確の「前確」ランクと、そこから進む「後確」ランク */
 export const LINE_MAEKAKU_RANKS: Rank[] = ['SB光前確', 'AIR前確'];
 export const LINE_KOUKAKU_RANKS: Rank[] = ['SB光後確', 'AIR後確'];
+/** 回線前確の「本確」ランク */
+export const LINE_HONKAKU_RANKS: Rank[] = ['SB光本確', 'AIR本確'];
+/** 回線前確の案件が、ほかのランクから「本確」に変わったか */
+export const isChangedToHonkaku = (assignee: string, fromRank: string | undefined, toRank: string | undefined): boolean =>
+  assignee === PRECHECKER_ASSIGNEE_NAME &&
+  !!toRank &&
+  (LINE_HONKAKU_RANKS as string[]).includes(toRank) &&
+  !(LINE_HONKAKU_RANKS as string[]).includes(fromRank ?? '');
 /** 回線前確の案件が「前確」から「後確」に変わったか */
 export const isMaekakuToKoukaku = (assignee: string, fromRank: string | undefined, toRank: string | undefined): boolean =>
   assignee === PRECHECKER_ASSIGNEE_NAME &&
@@ -118,8 +126,11 @@ export const RANK_STYLES: Record<Rank, { backgroundColor: string; color: string;
   'SB光前確': { backgroundColor: '#ffeb00', color: '#333333' },
   // 後確は前確の配色を反転（同じ商材だと分かり、前確と見分けがつくように）
   'SB光後確': { backgroundColor: '#333333', color: '#ffeb00', border: '1px solid #ffeb00' },
+  // 本確は淡い地色に枠線（同じ商材だと分かり、前確・後確と見分けがつくように）
+  'SB光本確': { backgroundColor: '#fffbd1', color: '#333333', border: '1px solid #333333' },
   'AIR前確': { backgroundColor: '#e8eaed', color: '#003361' },
   'AIR後確': { backgroundColor: '#003361', color: '#e8eaed' },
+  'AIR本確': { backgroundColor: '#ffffff', color: '#003361', border: '1px solid #003361' },
   'IMP依頼': { backgroundColor: '#f55d00', color: '#f1f1f1' },
   '決済待ち': { backgroundColor: '#e2e2e2', color: '#008b7c' },
   'ET待ち':  { backgroundColor: '#e2e2e2', color: '#f55d00' },

@@ -14,7 +14,7 @@ import { MIKOPOS_LIKE } from './services/mikoposService';
 const NotesPanel = lazy(() => import('./components/NotesPanel'));
 const MoveToNoteModal = lazy(() => import('./components/MoveToNoteModal'));
 const UsageGuideModal = lazy(() => import('./components/UsageGuideModal'));
-import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, LINE_KOUKAKU_RANKS, normalizePrecheckDateTime, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
+import { DEFAULT_USERS, SUPER_ADMIN_NAMES, AVAILABILITY_STATUS_OPTIONS, AVAILABILITY_STATUS_STYLES, ADMIN_USER_NAME, PRECHECKER_ASSIGNEE_NAME, ELEC_ASSIGNEE_NAME, isMaekakuToKoukaku, isChangedToHonkaku, LINE_KOUKAKU_RANKS, normalizePrecheckDateTime, ELEC_RANK_OPTIONS, DEFAULT_INITIAL_PASSWORD, NAKAGOMI_INITIAL_PASSWORD, RANK_OPTIONS } from './constants';
 import CallRequestForm from './components/CallRequestForm';
 import CallDetailModal from './components/CallDetailModal';
 import Login from './components/Login';
@@ -1830,8 +1830,10 @@ const App: React.FC = () => {
       }
     }
     // 回線前確の案件を「前確」→「後確」に変えたときは、対応者をクリアする(後確は誰が対応してもよいため)
+    // 「本確」(SB光本確・AIR本確)に変えたときも、同じように対応者をクリアする
     if (
-      isMaekakuToKoukaku(updatedData.assignee ?? currentCall.assignee, currentCall.rank, updatedData.rank) &&
+      (isMaekakuToKoukaku(updatedData.assignee ?? currentCall.assignee, currentCall.rank, updatedData.rank) ||
+        isChangedToHonkaku(updatedData.assignee ?? currentCall.assignee, currentCall.rank, updatedData.rank)) &&
       currentCall.prechecker
     ) {
       updatedData = { ...updatedData, prechecker: null };
