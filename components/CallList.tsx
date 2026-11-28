@@ -116,6 +116,13 @@ const CallList: React.FC<CallListProps> = ({
   const hasCompletedCalls = filteredByHonkaku.some(call => call.status === '完了');
   const allCallsHidden = hideCompleted && displayedCalls.length === 0 && filteredByHonkaku.length > 0;
 
+  // 「〜は非表示中」の帯に出す件数。「完了非表示」で隠れている完了案件は数えない
+  // (数えると、帯を押しても何も出てこない案件まで「非表示中」と出てしまう)
+  const countShown = (list: CallRequest[]) => list.filter(call => !hideCompleted || call.status !== '完了').length;
+  const hiddenTrackingCount = countShown(calls) - countShown(filteredByTracking);
+  const hiddenWaitingCount = countShown(filteredByTracking) - countShown(filteredByWaiting);
+  const hiddenHonkakuCount = countShown(filteredByWaiting) - countShown(filteredByHonkaku);
+
   const hasTrackingCalls = isElecTheme && calls.some(c => ELEC_TRACKING_RANKS.includes(c.rank as any));
 
   const listBg = isDarkMode
@@ -244,7 +251,7 @@ const CallList: React.FC<CallListProps> = ({
             <div className="w-8 flex-shrink-0" aria-hidden="true" />
         </div>
         {/* 追跡案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
-        {isElecTheme && hideTracking && filteredByTracking.length < calls.length && (
+        {isElecTheme && hideTracking && hiddenTrackingCount > 0 && (
             <div
               className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
               style={{ backgroundColor: '#2d5a9e' }}
@@ -252,13 +259,13 @@ const CallList: React.FC<CallListProps> = ({
               title="クリックして追跡案件を表示"
             >
               <span className="text-white text-xs font-bold">
-                追跡案件（{calls.length - filteredByTracking.length}件）は非表示中
+                追跡案件（{hiddenTrackingCount}件）は非表示中
               </span>
               <span className="text-white/80 text-xs">— クリックして表示</span>
             </div>
         )}
         {/* 待機中案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
-        {isElecTheme && hideWaiting && filteredByWaiting.length < filteredByTracking.length && (
+        {isElecTheme && hideWaiting && hiddenWaitingCount > 0 && (
             <div
               className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
               style={{ backgroundColor: '#2d5a9e' }}
@@ -266,13 +273,13 @@ const CallList: React.FC<CallListProps> = ({
               title="クリックして待機中の案件を表示"
             >
               <span className="text-white text-xs font-bold">
-                待機中の案件（{filteredByTracking.length - filteredByWaiting.length}件）は非表示中
+                待機中の案件（{hiddenWaitingCount}件）は非表示中
               </span>
               <span className="text-white/80 text-xs">— クリックして表示</span>
             </div>
         )}
         {/* 本確案件非表示バナー — ヘッダー直下・リスト最上部に表示 */}
-        {isLinePrecheckTab && hideHonkaku && filteredByHonkaku.length < filteredByWaiting.length && (
+        {isLinePrecheckTab && hideHonkaku && hiddenHonkakuCount > 0 && (
             <div
               data-hide-honkaku-banner
               className="flex items-center justify-center gap-2 px-4 py-2 cursor-pointer select-none"
@@ -281,7 +288,7 @@ const CallList: React.FC<CallListProps> = ({
               title="クリックして本確の案件を表示"
             >
               <span className="text-white text-xs font-bold">
-                本確の案件（{filteredByWaiting.length - filteredByHonkaku.length}件）は非表示中
+                本確の案件（{hiddenHonkakuCount}件）は非表示中
               </span>
               <span className="text-white/80 text-xs">— クリックして表示</span>
             </div>
