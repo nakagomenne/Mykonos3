@@ -226,6 +226,25 @@ export async function updateCallRequest(
   return { ...rowToCallRequest(data), history: newHistory };
 }
 
+/**
+ * 「昨日以前+待機中」の案件を、当日の待機中へ進める(毎朝の自動更新用)。
+ * データベース上の日時が、いまも expectedDateTime のままのときだけ書き換える。
+ * (開きっぱなしの画面が持っている古い情報で、あとから設定された日時を上書きしないため)
+ * 書き換えたら true、だれかがすでに日時を変えていて何もしなかったら false
+ */
+export async function rolloverWaitingCall(id: string, expectedDateTime: string, newDateTime: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('call_requests')
+    .update({ date_time: newDateTime })
+    .eq('id', id)
+    .eq('date_time', expectedDateTime)
+    .eq('status', '追客中')
+    .select('id');
+
+  if (error) throw new Error(`待機中案件の日付更新に失敗しました: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
 /** 案件を論理削除する（deleted_at を現在時刻にセット） */
 export async function deleteCallRequest(id: string): Promise<void> {
   const { error } = await supabase

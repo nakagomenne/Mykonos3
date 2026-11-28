@@ -37,6 +37,7 @@ import {
   fetchCallHistory,
   createCallRequest,
   updateCallRequest as apiUpdateCallRequest,
+  rolloverWaitingCall as apiRolloverWaitingCall,
   deleteExpiredCompletedCalls,
   purgeOldDeletedRecords,
   purgeOldFeedbackReports,
@@ -1173,7 +1174,10 @@ const App: React.FC = () => {
       const todayStr = localNow.toISOString().split('T')[0];
 
       // 対象: 回線前確 or 電気契確、追客中、日付が昨日以前、時刻が待機中
-      const targets = calls.filter(call => {
+      // ※ 必ず「いまの一覧」(callsRef)から選ぶ。この処理は画面を開いたときに1回だけ仕掛けるので、
+      //   そのときの一覧(calls)を使うと、翌朝には前日の古い情報になっていて、
+      //   あとから日時を設定した案件まで「待機中」に書き戻してしまう。
+      const targets = callsRef.current.filter(call => {
         if (call.status !== '追客中') return false;
         if (call.assignee !== PRECHECKER_ASSIGNEE_NAME && call.assignee !== ELEC_ASSIGNEE_NAME) return false;
         const [datePart, timePart] = call.dateTime.split('T');
@@ -1182,20 +1186,21 @@ const App: React.FC = () => {
         return true;
       });
 
+      // データベース上でも、いまも同じ「昨日以前+待機中」のままの案件だけを書き換える
+      const updated = new Map<string, string>(); // id → 書き換える前の日時
       for (const call of targets) {
         try {
-          await apiUpdateCallRequest(call.id, { dateTime: `${todayStr}T待機中` }, 'system', call);
+          if (await apiRolloverWaitingCall(call.id, call.dateTime, `${todayStr}T待機中`)) updated.set(call.id, call.dateTime);
         } catch {
           // 個別失敗は無視して続行
         }
       }
 
-      if (targets.length > 0) {
-        // ローカル状態も即時反映
-        setCalls(prev => prev.map(c => {
-          if (!targets.find(t => t.id === c.id)) return c;
-          return { ...c, dateTime: `${todayStr}T待機中` };
-        }));
+      if (updated.size > 0) {
+        // ローカル状態も即時反映(そのあいだに日時が変わっていた案件には触らない)
+        setCalls(prev => prev.map(c => (
+          updated.get(c.id) === c.dateTime ? { ...c, dateTime: `${todayStr}T待機中` } : c
+        )));
       }
     };
 
@@ -1219,13 +1224,13 @@ const App: React.FC = () => {
     })();
 
     // 9時ちょうどに1回実行 → 以降24時間ごとに繰り返す
+    let intervalId: ReturnType<typeof setInterval> | undefined;
     const timeoutId = setTimeout(() => {
       runDailyReset();
-      const intervalId = setInterval(runDailyReset, 24 * 60 * 60 * 1000);
-      return () => clearInterval(intervalId);
+      intervalId = setInterval(runDailyReset, 24 * 60 * 60 * 1000);
     }, msUntilNext9am);
 
-    return () => clearTimeout(timeoutId);
+    return () => { clearTimeout(timeoutId); if (intervalId) clearInterval(intervalId); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!calls.length]); // calls がロードされたら1回だけセットアップ
 
