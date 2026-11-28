@@ -221,6 +221,15 @@ const App: React.FC = () => {
   const [scheduleViewingUser, setScheduleViewingUser] = useState<User | null>(null);
   const [isScheduleViewReadOnly, setIsScheduleViewReadOnly] = useState(false);
   const [pendingNonWorkingDayConfirmation, setPendingNonWorkingDayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
+  /**
+   * 自分以外のメンバーの案件を「時設なし」「待機中」にしようとしたときの確認。
+   * (時刻が無いので相手に通知が届かず、気づかれないおそれがある。原則禁止)
+   */
+  const [pendingNoTime, setPendingNoTime] = useState<
+    | { kind: 'create'; assignee: string; time: string; data: Omit<CallRequest, 'id' | 'status' | 'createdAt'> }
+    | { kind: 'update'; assignee: string; time: string; id: string; data: Partial<Omit<CallRequest, 'id'>> }
+    | null
+  >(null);
   const [pendingUnavailableTodayConfirmation, setPendingUnavailableTodayConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [pendingUnavailableConfirmation, setPendingUnavailableConfirmation] = useState<Omit<CallRequest, 'id' | 'status' | 'createdAt'> | null>(null);
   const [previewMember, setPreviewMember] = useState<string | null>(null);
@@ -1660,11 +1669,27 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddCall = async (newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>): Promise<boolean> => {
+  /** 「時設なし」「待機中」を立てると確認を出す相手か(自分以外のメンバー。回線前確・電気契確の箱は対象外) */
+  const isOtherMemberAssignee = (assignee: string) =>
+    !!assignee && assignee !== currentUser.name && assignee !== PRECHECKER_ASSIGNEE_NAME && assignee !== ELEC_ASSIGNEE_NAME;
+  /** 予定日時の時刻が「時設なし」「待機中」なら、その言葉を返す */
+  const noTimeLabelOf = (dateTime: string | undefined): string | null => {
+    const t = (dateTime ?? '').split('T')[1] ?? '';
+    return t === '時設なし' || t === '待機中' ? t : null;
+  };
+
+  const handleAddCall = async (newCallData: Omit<CallRequest, 'id' | 'status' | 'createdAt'>, opts: { noTimeConfirmed?: boolean } = {}): Promise<boolean> => {
     const trimmedCustomerId = newCallData.customerId.trim();
     if (!trimmedCustomerId) {
         alert('顧客IDを入力してください。');
         return false;
+    }
+
+    // 自分以外のメンバーに「時設なし」「待機中」で立てようとしたら、先に確かめる
+    const noTime = noTimeLabelOf(newCallData.dateTime);
+    if (!opts.noTimeConfirmed && noTime && isOtherMemberAssignee(newCallData.assignee)) {
+      setPendingNoTime({ kind: 'create', assignee: newCallData.assignee, time: noTime, data: newCallData });
+      return false;
     }
     
     const existingCalls = calls.filter(call => call.customerId.trim().toLowerCase() === trimmedCustomerId.toLowerCase());
@@ -1771,9 +1796,34 @@ const App: React.FC = () => {
     setFormResetCounter(c => c + 1);
   };
 
-  const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>) => {
+  /** 「時設なし」「待機中」の確認で「このまま進める」を押したとき */
+  const handleConfirmNoTime = async () => {
+    const pending = pendingNoTime;
+    if (!pending) return;
+    setPendingNoTime(null);
+    if (pending.kind === 'create') {
+      // ほかの確認(重複・非稼働日など)が続くときは、そちらの画面が引き継ぐ
+      const created = await handleAddCall(pending.data, { noTimeConfirmed: true });
+      if (created) setFormResetCounter(c => c + 1);
+    } else {
+      await handleUpdateCall(pending.id, pending.data, { noTimeConfirmed: true });
+    }
+  };
+
+  const handleUpdateCall = async (id: string, updatedData: Partial<Omit<CallRequest, 'id'>>, opts: { noTimeConfirmed?: boolean } = {}) => {
     const currentCall = calls.find(c => c.id === id);
     if (!currentCall) return;
+    // 自分以外のメンバーの案件を、新しく「時設なし」「待機中」にしようとしたら、先に確かめる
+    // (もともとそうだった案件の、ほかの項目を直すだけなら確かめない)
+    if (!opts.noTimeConfirmed && ('assignee' in updatedData || 'dateTime' in updatedData)) {
+      const nextAssignee = updatedData.assignee ?? currentCall.assignee;
+      const nextNoTime = noTimeLabelOf(updatedData.dateTime ?? currentCall.dateTime);
+      const changed = nextAssignee !== currentCall.assignee || nextNoTime !== noTimeLabelOf(currentCall.dateTime);
+      if (nextNoTime && changed && isOtherMemberAssignee(nextAssignee)) {
+        setPendingNoTime({ kind: 'update', assignee: nextAssignee, time: nextNoTime, id, data: updatedData });
+        return;
+      }
+    }
     // 回線前確の案件を「前確」→「後確」に変えたときは、対応者をクリアする(後確は誰が対応してもよいため)
     if (
       isMaekakuToKoukaku(updatedData.assignee ?? currentCall.assignee, currentCall.rank, updatedData.rank) &&
@@ -5177,6 +5227,31 @@ const App: React.FC = () => {
           />
         </Suspense>
       )}
+
+      <ConfirmationModal
+        isOpen={!!pendingNoTime}
+        onClose={() => setPendingNoTime(null)}
+        onConfirm={() => { void handleConfirmNoTime(); }}
+        title={`「${pendingNoTime?.time ?? ''}」の確認`}
+        titleClassName="text-red-600"
+        confirmLabel="このまま進める"
+        cancelLabel={pendingNoTime?.kind === 'update' ? 'やめる' : '戻って選び直す'}
+      >
+        {pendingNoTime && (
+          <div data-no-time-confirm>
+            <p className="font-bold text-red-600">
+              自分以外のメンバーの案件に「時設なし」「待機中」を立てるのは、原則禁止です。
+            </p>
+            <p className="mt-2">
+              <strong className="text-slate-800">{pendingNoTime.assignee}</strong>さんの案件を
+              <strong className="text-slate-800 mx-1">「{pendingNoTime.time}」</strong>
+              {pendingNoTime.kind === 'create' ? 'で作成しようとしています。' : 'にしようとしています。'}
+            </p>
+            <p className="mt-2">時刻が無いため、{pendingNoTime.assignee}さんに通知が届かず、気づかれないおそれがあります。</p>
+            <p className="mt-2">やむを得ない場合だけ、「このまま進める」を押してください。</p>
+          </div>
+        )}
+      </ConfirmationModal>
 
       <ConfirmationModal
         isOpen={!!pendingNonWorkingDayConfirmation}
