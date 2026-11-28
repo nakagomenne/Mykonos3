@@ -77,10 +77,10 @@ const CallDetailModal: React.FC<CallDetailModalProps> = ({
     setIsEditing(false);
   }, [calls]);
 
-  // history が空のとき遅延取得（初期ロード時に history を除外しているため）
+  // 開くたびに、データベースから編集履歴を取り直す
+  // （初期ロード時は history を除外している。画面が持っている履歴は、空か一部だけのことがある）
   useEffect(() => {
     if (!detailedCall) return;
-    if (detailedCall.history && detailedCall.history.length > 0) return;
     let cancelled = false;
     fetchCallHistory(detailedCall.id).then(history => {
       if (!cancelled && history && history.length > 0) {

@@ -190,18 +190,37 @@ export async function updateCallRequest(
     }
   });
 
+  // 編集履歴は、データベースに残っているものを読み直して、その先頭に今回の変更を足す。
+  // (一覧を読み込むときは、速くするために履歴を取ってきていない。
+  //  画面が持っている履歴(空、または一部)に足して保存すると、それまでの履歴が消えてしまう)
   let newHistory = currentCall.history ?? [];
+  /** 履歴を書き込むか。変更が無いとき・今の履歴を読めなかったときは、履歴には触らない(消さないことを優先) */
+  let writeHistory = false;
   if (changes.length > 0) {
     const entry: EditHistory = {
       editor: editorName,
       timestamp: new Date().toISOString(),
       changes,
     };
-    newHistory = [entry, ...newHistory];
+    try {
+      const { data: current, error: historyError } = await supabase
+        .from('call_requests')
+        .select('history')
+        .eq('id', id)
+        .single();
+      if (!historyError && current) {
+        newHistory = [entry, ...(Array.isArray(current.history) ? current.history : [])];
+        writeHistory = true;
+      }
+    } catch {
+      // 読めなかったときは、履歴を書き換えない
+    }
   }
 
   // completedAt の自動セット/クリア
-  const patch: Partial<CallRequest> = { ...updatedData, history: newHistory };
+  const patch: Partial<CallRequest> = { ...updatedData };
+  delete (patch as any).history;
+  if (writeHistory) patch.history = newHistory;
   if (updatedData.status === '完了' && !currentCall.completedAt) {
     patch.completedAt = new Date().toISOString();
   } else if (updatedData.status === '追客中' && currentCall.completedAt) {
